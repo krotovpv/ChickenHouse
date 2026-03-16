@@ -522,20 +522,21 @@ void handleSaveWiFi() {
 }
 
 void handleSaveMQTT() {
-  if (webServer.hasArg("ssid") && webServer.hasArg("pass")) {
+  // Проверяем наличие аргумента хоста, который есть в форме MQTT
+  if (webServer.hasArg("mq_host")) { 
     String new_Mq_u = webServer.arg("mq_user");
     String new_Mq_pass = webServer.arg("mq_pass");
     String new_Mq_h = webServer.arg("mq_host");
     String new_Mq_p = webServer.arg("mq_port");
     String new_Mq_t = webServer.arg("mq_topic");
-
+    
     saveSettingsMQTT(new_Mq_u, new_Mq_pass, new_Mq_h, new_Mq_p, new_Mq_t);
-
-    String html = getHeader("Сохранение");//"<html><head><meta charset='UTF-8'></head><body>";
-    html += "<h2>Готово!</h2><p>Перезагружаюсь...</p></body></html>";
+    
+    String html = getHeader("Сохранение");
+    html += "<h2>Готово!</h2><p>Настройки MQTT сохранены. Перезагружаюсь...</p></body></html>";
     webServer.send(200, "text/html", html);
     
-    Serial.println("Новые настройки записаны. Рестарт...");
+    Serial.println("MQTT настройки записаны. Рестарт...");
     delay(2000);
     ESP.restart(); 
   }
