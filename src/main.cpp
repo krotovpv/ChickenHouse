@@ -120,21 +120,41 @@ void reconnectMQTT() {
 }
 
 void mqttCallback(char* topic, byte* payload, unsigned int length) {
-  JsonDocument doc;
-  deserializeJson(doc, payload, length);
+    JsonDocument doc;
+    deserializeJson(doc, payload, length);
 
-  if (doc["address"].is<int16_t>() && doc["value"].is<int16_t>()) {
-    uint16_t addr = doc["address"];
-    uint16_t val  = doc["value"];
-    
-    // Записываем в наше Modbus-хранилище
-    memo[addr] = val;
-    
-    Serial.printf("MQTT Write: Регистр %d установлен в %d\n", addr, val);
-    
-    // Опционально: сразу отправляем подтверждение обратно
-    publishModbusData(); 
-  }
+    // Проверяем наличие базовых полей: адрес регистра обязателен
+    if (doc["address"].is<uint16_t>()) {
+        uint16_t addr = doc["address"];
+        
+        // Сценарий 1: Изменение конкретного бита (флага)
+        // Ожидаем JSON: {"address": 3, "bit": 0, "state": 1}
+        if (doc["bit"].is<int16_t>() && doc["state"].is<int16_t>()) {
+            uint8_t bitNum = doc["bit"];
+            bool bitState = doc["state"];
+            
+            if (bitNum < 16) { // Проверка диапазона (регистр 16 бит)
+                uint16_t currentVal = memo[addr];
+                if (bitState) {
+                    currentVal |= (1UL << bitNum);  // Установить бит в 1
+                } else {
+                    currentVal &= ~(1UL << bitNum); // Сбросить бит в 0
+                }
+                memo[addr] = currentVal;
+                Serial.printf("MQTT Bit Write: Регистр %d, Бит %d установлен в %d\n", addr, bitNum, bitState);
+            }
+        } 
+        // Сценарий 2: Полная перезапись значения (как было раньше)
+        // Ожидаем JSON: {"address": 3, "value": 123}
+        else if (doc["value"].is<int16_t>()) {
+            uint16_t val = doc["value"];
+            memo[addr] = val;
+            Serial.printf("MQTT Write: Регистр %d установлен в %d\n", addr, val);
+        }
+
+        // Отправляем подтверждение об обновлении данных
+        publishModbusData(); 
+    }
 }
 
 // ОБРАБОТЧИК: Чтение (FC 03), Запись (FC 06), Запись массива (FC 16)
