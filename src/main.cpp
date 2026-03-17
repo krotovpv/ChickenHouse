@@ -25,10 +25,8 @@ String sta_password;
 
 WiFiClient espClient;
 PubSubClient mqttClient(espClient);
-
 String mqtt_host, mqtt_user, mqtt_pass, mqtt_topic;
 int mqtt_port;
-
 
 //<Адрес_Регистра, Значение>
 std::map<uint16_t, uint16_t> memo = {
@@ -47,7 +45,7 @@ void loadSettings() {
   sta_password = prefs.getString("pass", "");
   prefs.end();
 
-  prefs.begin("configMQTT", true); // Открываем в режиме чтения (true)
+  prefs.begin("configMQTT2", true); // Открываем в режиме чтения (true)
   mqtt_user  = prefs.getString("mqtt_user", "");
   mqtt_pass  = prefs.getString("mqtt_pass", "");
   mqtt_host  = prefs.getString("mqtt_host", "mqtt-dashboard.com");
@@ -81,23 +79,42 @@ void publishModbusData() {
     for (const auto& item : memo) {
       doc[String(item.first)] = item.second;
     }
-    char buffer[512];
-    serializeJson(doc, buffer);
-    mqttClient.publish(mqtt_topic.c_str(), buffer);
+    String output;
+    serializeJson(doc, output);
+    if (mqttClient.publish(mqtt_topic.c_str(), output.c_str())) {
+      Serial.println("Данные отправлены в MQTT");
+    } else {
+      Serial.println("Ошибка отправки в MQTT");
+    }
   }
 }
 
 void reconnectMQTT() {
-  if (!mqttClient.connected() && WiFi.status() == WL_CONNECTED) {
-    String clientId = "ESP32_Modbus_" + String(random(0xffff), HEX);
-    
-    if (mqttClient.connect(clientId.c_str(), mqtt_user.c_str(), mqtt_pass.c_str())) {
-      Serial.println("MQTT подключен");
-      
-      // Подписываемся на топик управления: ".../set"
-      // Сообщение вида {"address": 1, "value": 777}
+  // Проверяем WiFi и состояние подключения
+  if (WiFi.status() == WL_CONNECTED && !mqttClient.connected()) {
+    Serial.print("Попытка MQTT подключения к ");
+    Serial.println(mqtt_host);
+
+    // Создаем уникальный ID на основе MAC-адреса устройства
+    // --- НЕОБХОДИМО ГАРАНТИРОВАТЬ УНИКАЛЬНОСТЬ ---
+    String clientId = "ESP32_CH_" + WiFi.macAddress();
+    clientId.replace(":", ""); // Убираем двоеточия из MAC
+
+    // Пытаемся подключиться (с логином/паролем или без)
+    bool connected = false;
+    if (mqtt_user.length() > 0) {
+      connected = mqttClient.connect(clientId.c_str(), mqtt_user.c_str(), mqtt_pass.c_str());
+    } else {
+      connected = mqttClient.connect(clientId.c_str());
+    }
+
+    if (connected) {
+      Serial.println("MQTT подключен!");
       String setTopic = mqtt_topic + "/set";
       mqttClient.subscribe(setTopic.c_str());
+    } else {
+      Serial.print("Ошибка, rc=");
+      Serial.println(mqttClient.state());
     }
   }
 }
@@ -163,6 +180,8 @@ ModbusMessage handleModbus(ModbusMessage request) {
   return response;
 }
 
+// --- Обработчики страниц ---
+
 // --- Вспомогательная функция для HTML обертки ---
 String getHeader(String title) {
   return "<html><head><meta charset='UTF-8'>"
@@ -187,9 +206,6 @@ String getHeader(String title) {
          "<div class='container'>"
          "<a href='/' class='btn btn-secondary' style='margin-bottom:20px;'>🏠 Главная</a>";
 }
-
-
-// --- Обработчики страниц ---
 
 // 1. Главная страница
 void handleIndex() {
@@ -307,7 +323,6 @@ void handleIndex() {
   webServer.send(200, "text/html", html);
 }
 
-
 // Эндпоинт для отдачи данных в формате JSON
 void handleApiData() {
   JsonDocument doc;
@@ -337,6 +352,7 @@ void handleApiScan() {
   webServer.send(200, "application/json", json);
 }
 
+// API для проверки статуса Wi-Fi и MQTT
 void handleApiStatus() {
   JsonDocument doc;
   bool isWifiConnected = (WiFi.status() == WL_CONNECTED);
@@ -355,75 +371,108 @@ void handleApiStatus() {
   webServer.send(200, "application/json", json);
 }
 
-
 // 2. Страница с таблицей
 void handleTable() {
-  String html = getHeader("Мониторинг регистров");
-  html += "<h2>Данные в реальном времени</h2>";
+    String html = getHeader("Мониторинг регистров");
+    html += "<h2>Данные в реальном времени</h2>";
+    
+    // 1. Добавляем стили для индикаторов битов
+    html += R"rawliteral(
+    <style>
+        .flash-update { background-color: #8ce757 !important; transition: background-color 2s; }
+        .bit-row { 
+            display: grid; 
+            grid-template-columns: repeat(8, 1fr); 
+            gap: 4px; 
+            margin-top: 8px; 
+            padding: 5px;
+            background: #f9f9f9;
+            border-radius: 4px;
+        }
+        .bit-dot { 
+            width: 10px; height: 10px; border-radius: 50%; 
+            background: #ddd; border: 1px solid #ccc;
+            margin: 0 auto; position: relative;
+        }
+        .bit-on { background: #28a745; box-shadow: 0 0 5px #28a745; border-color: #1e7e34; }
+        .bit-label { font-size: 8px; color: #999; display: block; text-align: center; }
+    </style>
+    )rawliteral";
 
-  html += R"rawliteral(
-  <style>
-    .flash-update { 
-      background-color: #8ce757 !important;
-      transition: background-color 2s ease-in-out;
+    html += "<table border='1' cellpadding='8' id='regTable'>";
+    html += "<thead><tr><th>Регистр</th><th>Значение и флаги</th></tr></thead>";
+    html += "<tbody id='tableBody'>";
+    
+    // Первоначальный вывод строк из памяти memo
+    for (const auto& item : memo) {
+        html += "<tr id='reg-" + String(item.first) + "'>";
+        html += "<td><b>" + String(item.first) + "</b></td>";
+        html += "<td class='val-cell'>" + String(item.second) + "</td></tr>";
     }
-  </style>
-  )rawliteral";
+    html += "</tbody></table>";
 
-  html += "<table border='1' cellpadding='8' id='regTable'>";
-  html += "<thead><tr><th>Регистр</th><th>Значение</th></tr></thead>";
-  html += "<tbody id='tableBody'>";
-
-  // Первоначальное заполнение
-  for (const auto& item : memo) {
-    html += "<tr id='reg-" + String(item.first) + "'>";
-    html += "<td>" + String(item.first) + "</td>";
-    html += "<td class='val-cell'>" + String(item.second) + "</td></tr>";
-  }
-  
-  html += "</tbody></table>";
-
-  // JavaScript для обновления данных каждые 2 секунды
-  html += R"rawliteral(
+    // 2. JavaScript с логикой разбора битов для 3 и 4 регистров
+    html += R"rawliteral(
     <script>
-      function updateData() {
+    function updateData() {
         fetch('/api/data')
-          .then(response => response.json())
-          .then(data => {
+        .then(r => r.json())
+        .then(data => {
             const tbody = document.getElementById('tableBody');
             
             for (const [key, value] of Object.entries(data)) {
-              let row = document.getElementById('reg-' + key);
-              
-              if (!row) {
-                // Если строки еще нет, создаем её
-                row = document.createElement('tr');
-                row.id = 'reg-' + key;
-                row.innerHTML = `<td>${key}</td><td class="val-cell">${value}</td>`;
-                tbody.appendChild(row);
-              } else {
-                const valCell = row.querySelector('.val-cell');
-                // Если значение изменилось
-                if (valCell.innerText != value) {
-                  valCell.innerText = value;
-                  // Добавляем класс подсветки
-                  valCell.classList.add('flash-update');
-                  // Убираем его через 2 секунды
-                  setTimeout(() => {
-                    valCell.classList.remove('flash-update');
-                  }, 2000);
+                let row = document.getElementById('reg-' + key);
+                
+                // Если прилетел новый регистр, которого нет в таблице
+                if (!row) {
+                    row = document.createElement('tr');
+                    row.id = 'reg-' + key;
+                    row.innerHTML = `<td><b>${key}</b></td><td class="val-cell">${value}</td>`;
+                    tbody.appendChild(row);
                 }
-              }
+
+                const valCell = row.querySelector('.val-cell');
+                
+                // Проверяем, изменилось ли значение (текст в ячейке)
+                // Для сравнения берем только число (первый узел текста)
+                const currentNum = valCell.childNodes[0].nodeValue;
+
+                if (currentNum != value) {
+                    valCell.childNodes[0].nodeValue = value;
+                    valCell.classList.add('flash-update');
+                    setTimeout(() => valCell.classList.remove('flash-update'), 2000);
+                }
+
+                // Логика отрисовки битов для регистров 3 и 4
+                if (key == "3" || key == "4") {
+                    let bitContainer = row.querySelector('.bit-row');
+                    if (!bitContainer) {
+                        bitContainer = document.createElement('div');
+                        bitContainer.className = 'bit-row';
+                        valCell.appendChild(bitContainer);
+                    }
+
+                    // Обновляем состояние 16 бит
+                    let dotsHtml = '';
+                    for (let i = 15; i >= 0; i--) { // Выводим от 15-го к 0-му (как в документации)
+                        const isActive = (value >> i) & 1;
+                        dotsHtml += `<div>
+                            <div class="bit-dot ${isActive ? 'bit-on' : ''}" title="Бит ${i}"></div>
+                            <span class="bit-label">${i}</span>
+                        </div>`;
+                    }
+                    bitContainer.innerHTML = dotsHtml;
+                }
             }
-          });
-      }
-      setInterval(updateData, 2000);
-      updateData();
+        });
+    }
+    setInterval(updateData, 2000);
+    updateData();
     </script>
     )rawliteral";
 
-  html += "</body></html>";
-  webServer.send(200, "text/html", html);
+    html += "</body></html>";
+    webServer.send(200, "text/html", html);
 }
 
 // 3. Страница настроек
@@ -502,8 +551,7 @@ void handleSettings() {
   webServer.send(200, "text/html", html);
 }
 
-
-// 4. Обработка сохранения
+// 4.1 Обработка сохранения Wi-Fi
 void handleSaveWiFi() {
   if (webServer.hasArg("ssid") && webServer.hasArg("pass")) {
     String newS = webServer.arg("ssid");
@@ -521,6 +569,7 @@ void handleSaveWiFi() {
   }
 }
 
+// 4.2 Обработка сохранения MQTT
 void handleSaveMQTT() {
   // Проверяем наличие аргумента хоста, который есть в форме MQTT
   if (webServer.hasArg("mq_host")) { 
@@ -544,6 +593,7 @@ void handleSaveMQTT() {
 
 void setup() {
   Serial.begin(9600);
+  randomSeed(analogRead(0));
 
   // 1. Загружаем настройки из Flash
   loadSettings();
@@ -613,7 +663,28 @@ void setup() {
 void loop() {
   dnsServer.processNextRequest(); // Обработка DNS запросов
   webServer.handleClient(); // Обработка веб-запросов
-  mqttClient.loop();
+
+  // Работаем с MQTT только если есть интернет
+  if (WiFi.status() == WL_CONNECTED) {
+    // 1. Поддерживаем соединение (reconnect)
+    if (!mqttClient.connected()) {
+      static unsigned long lastReconnectAttempt = 0;
+      if (millis() - lastReconnectAttempt > 5000) { // Пробуем раз в 5 сек
+        lastReconnectAttempt = millis();
+        reconnectMQTT();
+      }
+    } else {
+      // 2. Обработка входящих сообщений (callback)
+      mqttClient.loop();
+      
+      // 3. Отправка данных по таймеру (раз в 10 сек)
+      static unsigned long lastMqttPush = 0;
+      if (millis() - lastMqttPush > 10000) {
+        publishModbusData();
+        lastMqttPush = millis();
+      }
+    }
+  }
 
   // Мониторинг статуса подключения Wi-Fi в фоне
   static unsigned long lastCheck = 0;
@@ -625,13 +696,5 @@ void loop() {
     lastCheck = millis();
   }
 
-  // Мониторинг статуса подключения MQTT в фоне
-  static unsigned long lastMqtt = 0;
-  if (millis() - lastMqtt > 10000) { // Каждые 10 секунд
-    reconnectMQTT();
-    publishModbusData();
-    lastMqtt = millis();
-  }
-
-  delay(2); // Небольшая пауза для стабильности стека
+  delay(1); // Для стабильности
 }
