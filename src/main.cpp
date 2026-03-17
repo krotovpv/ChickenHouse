@@ -30,12 +30,10 @@ int mqtt_port;
 
 //<Адрес_Регистра, Значение>
 std::map<uint16_t, uint16_t> memo = {
-  {0, 111},
-  {1, 222},
-  {3, 333},
-  {4, 444},
-  {10, 5555},
-  {100, 9999}
+  {0, 0},{1, 0},{2, 0},{3, 0},{4, 0},{5, 0},{6, 0},{7, 0},{8, 0},{9, 0},
+  {10, 0},
+  {100, 0},
+  {101, 0}
 };
 
 // --- Инициализация настроек из Flash ---
@@ -416,6 +414,15 @@ void handleTable() {
         }
         .bit-on { background: #28a745; box-shadow: 0 0 5px #28a745; border-color: #1e7e34; }
         .bit-label { font-size: 8px; color: #999; display: block; text-align: center; }
+
+        .switch { position: relative; display: inline-block; width: 40px; height: 20px; vertical-align: middle; margin-left: 10px; }
+        .switch input { opacity: 0; width: 0; height: 0; }
+        .slider { position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background-color: #ccc; transition: .4s; border-radius: 20px; }
+        .slider:before { position: absolute; content: ""; height: 14px; width: 14px; left: 3px; bottom: 3px; background-color: white; transition: .4s; border-radius: 50%; }
+        input:checked + .slider { background-color: #28a745; }
+        input:checked + .slider:before { transform: translateX(20px); }
+        .reg-label { font-weight: bold; font-size: 14px; }
+
     </style>
     )rawliteral";
 
@@ -431,60 +438,72 @@ void handleTable() {
     }
     html += "</tbody></table>";
 
-    // 2. JavaScript с логикой разбора битов для 3 и 4 регистров
     html += R"rawliteral(
     <script>
+    // Названия для битов 100 регистра
+    const bitNames = {
+      "100": ["Бит 0", "Бит 1", "Бит 2", "Бит 3", "Бит 4", "Бит 5", "Бит 6", "Бит 7"] //если для 8-15 не указаны имена то они заполняются по шаблону [Бит #]
+    };
+
+    function sendBit(addr, bit, state) {
+        // Отправляем команду и СРАЗУ вызываем обновление данных после ответа сервера
+        fetch(`/api/write_bit?addr=${addr}&bit=${bit}&state=${state ? 1 : 0}`)
+        .then(r => { if(r.ok) setTimeout(updateData, 100); }); 
+    }
+
     function updateData() {
-        fetch('/api/data')
-        .then(r => r.json())
-        .then(data => {
-            const tbody = document.getElementById('tableBody');
-            
-            for (const [key, value] of Object.entries(data)) {
-                let row = document.getElementById('reg-' + key);
-                
-                // Если прилетел новый регистр, которого нет в таблице
-                if (!row) {
-                    row = document.createElement('tr');
-                    row.id = 'reg-' + key;
-                    row.innerHTML = `<td><b>${key}</b></td><td class="val-cell">${value}</td>`;
-                    tbody.appendChild(row);
-                }
+      fetch('/api/data').then(r => r.json()).then(data => {
+        for (const [key, value] of Object.entries(data)) {
+          let row = document.getElementById('reg-' + key);
+          if (!row) continue;
+          
+          const valCell = row.querySelector('.val-cell');
 
-                const valCell = row.querySelector('.val-cell');
-                
-                // Проверяем, изменилось ли значение (текст в ячейке)
-                // Для сравнения берем только число (первый узел текста)
-                const currentNum = valCell.childNodes[0].nodeValue;
-
-                if (currentNum != value) {
-                    valCell.childNodes[0].nodeValue = value;
-                    valCell.classList.add('flash-update');
-                    setTimeout(() => valCell.classList.remove('flash-update'), 2000);
-                }
-
-                // Логика отрисовки битов для регистров 3 и 4
-                if (key == "3" || key == "4") {
-                    let bitContainer = row.querySelector('.bit-row');
-                    if (!bitContainer) {
-                        bitContainer = document.createElement('div');
-                        bitContainer.className = 'bit-row';
-                        valCell.appendChild(bitContainer);
-                    }
-
-                    // Обновляем состояние 16 бит
-                    let dotsHtml = '';
-                    for (let i = 15; i >= 0; i--) { // Выводим от 15-го к 0-му (как в документации)
-                        const isActive = (value >> i) & 1;
-                        dotsHtml += `<div>
-                            <div class="bit-dot ${isActive ? 'bit-on' : ''}" title="Бит ${i}"></div>
-                            <span class="bit-label">${i}</span>
-                        </div>`;
-                    }
-                    bitContainer.innerHTML = dotsHtml;
-                }
+          // --- ЛОГИКА ДЛЯ 100 и 101 (ПЕРЕКЛЮЧАТЕЛИ) ---
+          if (key == "100") {
+            let controls = valCell.querySelector('.bit-controls');
+            if (!controls) {
+              valCell.innerHTML = `<div class="bit-controls" style="display:grid; grid-template-columns: 1fr 1fr; gap:8px; padding:8px;"></div><div class="raw-val" style="font-size:10px; color:#999; margin-top:4px;"></div>`;
+              controls = valCell.querySelector('.bit-controls');
             }
-        });
+            
+            let togglesHtml = '';
+            for (let i = 0; i < 16; i++) {
+              const isSet = (value >> i) & 1;
+              const name = bitNames[key][i] || `Бит ${i}`;
+              togglesHtml += `
+                <div style="display:flex; align-items:center; justify-content:space-between; background:#f0f2f5; padding:4px 8px; border-radius:4px;">
+                  <span style="font-size:11px;">${name}</span>
+                  <label class="switch"><input type="checkbox" ${isSet ? 'checked' : ''} onchange="sendBit(${key}, ${i}, this.checked)"><span class="slider"></span></label>
+                </div>`;
+            }
+            controls.innerHTML = togglesHtml;
+            valCell.querySelector('.raw-val').innerText = "Значение: " + value;
+
+          // --- ЛОГИКА ДЛЯ 3 и 4 (ИНДИКАТОРЫ ТОЧКИ) ---
+          } else if (key == "0" || key == "1" || key == '2' || key == '3' || key == '4') {
+            let bitContainer = valCell.querySelector('.bit-row');
+            if (!bitContainer) {
+              valCell.innerHTML = `${value}<div class="bit-row" style="display:grid; grid-template-columns: repeat(8, 1fr); gap:4px; margin-top:8px;"></div>`;
+              bitContainer = valCell.querySelector('.bit-row');
+            } else {
+                // Обновляем числовое значение, если оно изменилось
+                if (valCell.firstChild.nodeValue != value) valCell.firstChild.nodeValue = value;
+            }
+            
+            let dotsHtml = '';
+            for (let i = 15; i >= 0; i--) { // Показываем 8 бит для компактности
+              const isActive = (value >> i) & 1;
+              dotsHtml += `<div><div class="bit-dot ${isActive ? 'bit-on' : ''}"></div><span class="bit-label">${i}</span></div>`;
+            }
+            bitContainer.innerHTML = dotsHtml;
+
+          // --- ДЛЯ ВСЕХ ОСТАЛЬНЫХ РЕГИСТРОВ ---
+          } else {
+            valCell.innerText = value;
+          }
+        }
+      });
     }
     setInterval(updateData, 2000);
     updateData();
@@ -659,6 +678,21 @@ void setup() {
   webServer.on("/settings", handleSettings);
   webServer.on("/saveWiFi", HTTP_POST, handleSaveWiFi);
   webServer.on("/saveMQTT", HTTP_POST, handleSaveMQTT);
+
+  webServer.on("/api/write_bit", HTTP_GET, []() {
+    if (webServer.hasArg("addr") && webServer.hasArg("bit") && webServer.hasArg("state")) {
+        uint16_t addr = webServer.arg("addr").toInt();
+        uint8_t bit = webServer.arg("bit").toInt();
+        bool state = webServer.arg("state").toInt();
+        
+        if (state) memo[addr] |= (1UL << bit);
+        else memo[addr] &= ~(1UL << bit);
+        
+        publishModbusData(); // Синхронизируем с MQTT
+        webServer.send(200, "text/plain", "OK");
+    }
+  });
+
   webServer.begin();
 
   // 4. Modbus (адрес 16(0x10))
