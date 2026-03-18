@@ -30,22 +30,22 @@ int mqtt_port;
 
 //<Адрес_Регистра, Значение>
 std::map<uint16_t, uint16_t> memo = {
-  {0, 65535},{1, 65535},{2, 65535},{3, 65535},{4, 65535},{5, 65535},{6, 65535},{7, 65535},{8, 65535},{9, 65535},
-  {10, 65535},{11, 65535},{12, 65535},{13, 65535},{14, 65535},{15, 65535},{16, 65535},{17, 65535},{18, 65535},{19, 65535},
-  {20, 65535},{21, 65535},{22, 65535},{23, 65535},{24, 65535},{25, 65535},{26, 65535},{27, 65535},{28, 65535},{29, 65535},
-  {30, 65535},{31, 65535},{32, 65535},{33, 65535},{34, 65535},{35, 65535},{36, 65535},{37, 65535},{38, 65535},{39, 65535},
-  {40, 65535},{41, 65535},{42, 65535},{43, 65535},{44, 65535},{45, 65535},{46, 65535},{47, 65535},{48, 65535},{49, 65535},
-  {50, 65535},{51, 65535},{52, 65535},{53, 65535},{54, 65535},{55, 65535},{56, 65535},{57, 65535},{58, 65535},{59, 65535},
-  {60, 65535},{61, 65535},{62, 65535},{63, 65535},{64, 65535},{65, 65535},{66, 65535},{67, 65535},{68, 65535},{69, 65535},
-  {70, 65535},{71, 65535},{72, 65535},{73, 65535},{74, 65535},{75, 65535},{76, 65535},{77, 65535},{78, 65535},{79, 65535},
-  {80, 65535},{81, 65535},{82, 65535},{83, 65535},{84, 65535},{85, 655350},{86, 65535},{87, 65535},{88, 65535},{89, 65535},
-  {90, 65535},{91, 65535},{92, 65535},{93, 65535},{94, 65535},{95, 65535},{96, 65535},{97, 65535},{98, 65535},{99, 65535},
-  {100, 65535},{101, 65535},
-  {110, 65535},{111, 65535},{112, 65535},{113, 65535},{114, 65535},{115, 65535},{116, 65535},{117, 65535},{118, 65535},{119, 65535},
-  {120, 65535},{121, 65535},{122, 65535},{123, 65535},{124, 65535},{125, 65535},{126, 65535},{127, 65535},{128, 65535},{129, 65535},
-  {130, 65535},{131, 65535},{132, 65535},{133, 65535},{134, 65535},{135, 65535},{136, 65535},{137, 65535},{138, 65535},{139, 65535},
-  {140, 65535},{141, 65535},{142, 65535},{143, 65535},{144, 65535},{145, 65535},{146, 65535},{147, 65535},{148, 65535},{149, 65535},
-  {150, 65535},{151, 65535}
+  {0, 0},{1, 0},{2, 0},{3, 0},{4, 0},{5, 0},{6, 0},{7, 0},{8, 0},{9, 0},
+  {10, 0},{11, 0},{12, 0},{13, 0},{14, 0},{15, 0},{16, 0},{17, 0},{18, 0},{19, 0},
+  {20, 0},{21, 0},{22, 0},{23, 0},{24, 0},{25, 0},{26, 0},{27, 0},{28, 0},{29, 0},
+  {30, 0},{31, 0},{32, 0},{33, 0},{34, 0},{35, 0},{36, 0},{37, 0},{38, 0},{39, 0},
+  {40, 0},{41, 0},{42, 0},{43, 0},{44, 0},{45, 0},{46, 0},{47, 0},{48, 0},{49, 0},
+  {50, 0},{51, 0},{52, 0},{53, 0},{54, 0},{55, 0},{56, 0},{57, 0},{58, 0},{59, 0},
+  {60, 0},{61, 0},{62, 0},{63, 0},{64, 0},{65, 0},{66, 0},{67, 0},{68, 0},{69, 0},
+  {70, 0},{71, 0},{72, 0},{73, 0},{74, 0},{75, 0},{76, 0},{77, 0},{78, 0},{79, 0},
+  {80, 0},{81, 0},{82, 0},{83, 0},{84, 0},{85, 0},{86, 0},{87, 0},{88, 0},{89, 0},
+  {90, 0},{91, 0},{92, 0},{93, 0},{94, 0},{95, 0},{96, 0},{97, 0},{98, 0},{99, 0},
+  {100, 0},{101, 32},
+  {110, 0},{111, 0},{112, 0},{113, 0},{114, 0},{115, 0},{116, 0},{117, 0},{118, 0},{119, 0},
+  {120, 0},{121, 0},{122, 0},{123, 0},{124, 0},{125, 0},{126, 0},{127, 0},{128, 0},{129, 0},
+  {130, 0},{131, 0},{132, 0},{133, 0},{134, 0},{135, 0},{136, 0},{137, 0},{138, 0},{139, 0},
+  {140, 0},{141, 0},{142, 0},{143, 0},{144, 0},{145, 0},{146, 0},{147, 0},{148, 0},{149, 0},
+  {150, 0},{151, 0}
 };
 
 // --- Инициализация настроек из Flash ---
@@ -55,18 +55,18 @@ void loadSettings() {
   sta_password = prefs.getString("pass", "");
   prefs.end();
 
-  // prefs.begin("configMQTT2", true); // Открываем в режиме чтения (true)
-  // mqtt_user  = prefs.getString("mqtt_user", "");
-  // mqtt_pass  = prefs.getString("mqtt_pass", "");
-  // mqtt_host  = prefs.getString("mqtt_host", "mqtt-dashboard.com");
-  // mqtt_port  = prefs.getInt("mqtt_port", 1883);
-  // mqtt_topic = prefs.getString("mqtt_topic", "esp32/chickenhouse");
-  // prefs.end();
-  mqtt_user = "";
-  mqtt_pass = "";
-  mqtt_host = "test.mosquitto.org";
-  mqtt_port = 1883;
-  mqtt_topic = "esp32/chickenhouse";
+  prefs.begin("configMQTT2", true); // Открываем в режиме чтения (true)
+  mqtt_user  = prefs.getString("mqtt_user", "");
+  mqtt_pass  = prefs.getString("mqtt_pass", "");
+  mqtt_host  = prefs.getString("mqtt_host", "mqtt-dashboard.com");
+  mqtt_port  = prefs.getInt("mqtt_port", 1883);
+  mqtt_topic = prefs.getString("mqtt_topic", "esp32/chickenhouse");
+  prefs.end();
+  // mqtt_user = "";
+  // mqtt_pass = "";
+  // mqtt_host = "test.mosquitto.org";
+  // mqtt_port = 1883;
+  // mqtt_topic = "esp32/chickenhouse";
 }
 
 // --- Сохранение в Flash ---
@@ -459,13 +459,33 @@ void handleTable() {
     <script>
     // Названия для битов 100 регистра
     const bitNames = {
-      "100": ["Бит 0", "Бит 1", "Бит 2", "Бит 3", "Бит 4", "Бит 5", "Бит 6", "Бит 7"] //если для 8-15 не указаны имена то они заполняются по шаблону [Бит #]
+      "0": ["Охлаждение", "Задержка управления", "Загазованно (датчик)", "Темп. ниже нуля (улица)", "Темп. ниже нуля (курятник)", "Прием команд", "Передача включена", "Связь с удаленным модулем",
+            "Вкл. движение вниз", "Вкл. движение вверх", "Основное освещение", "Дежурное освещение", "Приточный вентилятор", "Вытяжной вентилятор", "Нагрев", "-"],
+      "1": ["Сон по расписанию", "На улице светло", "Дверь открыта", "Вкл. авто. проветривание", "Вкл. ручн. проветривание", "-", "Коррекция вентиляторов", "Управление осушителем", 
+            "Датч. загаз. превышен (в час)", "Авария батарейки", "Авария датчика температуры", "Опрос датчика газа", "Опрос датчика двери", "Упр. вентиляторами днем", "Упр. вентиляторами во время сна", "Ручн. упр. вентиляцией"],
+      "2": ["Упр. лазом по календарю", "Упр. закрытием лаза по расписанию", "Находимся в меню настройки", "Настройка по Wi-Fi", "Упр. вентиляцией по ГОСТ", "Ручной режим", "Запрет открытия лаза по температуре", "Запрет открытия лаза по температуре на улице", 
+            "Лаз открыт", "Лаз закрыт", "Ручн. режим упр. лазом", "Есть движение лаза", "Лаз зафиксирован", "Занято направлением движения лаза", "Занято направлением движения", "Упр. лазом по температуре"],
+      "3": ["Упр. светом использует календарь", "При окткл. календаре свет горит постоянно", "-", "-", "-", "Ошибка при расчете вентиляции", "-", "Управление охлаждением", 
+            "Пропуски кормления", "Ошибки при кормлении", "-", "Кормление за сутки закончилось", "Количество кормлений = 0", "-", "-", "Отработка пропусков кормления"],
+      "4": ["Подключена К1", "Подключена К2", "Подключена К3", "Подключена К4", "Используется осушитель", "-", "-", "-", 
+            "Вкл. в сеть успройство К1", "Вкл. в сеть успройство К2", "Вкл. в сеть успройство К3", "Вкл. в сеть успройство К4", "Вкл. осушитель в сеть", "Вкл. новый модуль в сеть", "-", "-"],
+      "100": ["Бит 0", "Бит 1", "Бит 2", "Бит 3", "Бит 4", "Бит 5", "Бит 6", "Бит 7", "Бит 8", "Бит 9", "Бит 10", "Бит 11", "Бит 12", "Бит 13", "Бит 14", "Бит 15"]
     };
 
     function sendBit(addr, bit, state) {
-        // Отправляем команду и СРАЗУ вызываем обновление данных после ответа сервера
-        fetch(`/api/write_bit?addr=${addr}&bit=${bit}&state=${state ? 1 : 0}`)
-        .then(r => { if(r.ok) setTimeout(updateData, 100); }); 
+      // Отправляем команду и СРАЗУ вызываем обновление данных после ответа сервера
+      fetch(`/api/write_bit?addr=${addr}&bit=${bit}&state=${state ? 1 : 0}`)
+      .then(r => { if(r.ok) setTimeout(updateData, 100); }); 
+    }
+
+    function sendValue(addr, val) {
+      // Проверка диапазона перед отправкой
+      if (val < 0 || val > 255) {
+          alert("Значение должно быть от 0 до 255");
+          return;
+      }
+      fetch(`/api/write_reg?addr=${addr}&value=${val}`)
+          .then(r => { if(r.ok) setTimeout(updateData, 100); });
     }
 
     function updateData() {
@@ -476,44 +496,68 @@ void handleTable() {
           
           const valCell = row.querySelector('.val-cell');
 
-          // --- ЛОГИКА ДЛЯ 100 и 101 (ПЕРЕКЛЮЧАТЕЛИ) ---
+          // --- ЛОГИКА ДЛЯ 100 (ПЕРЕКЛЮЧАТЕЛИ) ---
           if (key == "100") {
-            let controls = valCell.querySelector('.bit-controls');
-            if (!controls) {
-              valCell.innerHTML = `<div class="bit-controls" style="display:grid; grid-template-columns: 1fr 1fr; gap:8px; padding:8px;"></div><div class="raw-val" style="font-size:10px; color:#999; margin-top:4px;"></div>`;
-              controls = valCell.querySelector('.bit-controls');
-            }
-            
-            let togglesHtml = '';
-            for (let i = 0; i < 16; i++) {
-              const isSet = (value >> i) & 1;
-              const name = bitNames[key][i] || `Бит ${i}`;
-              togglesHtml += `
-                <div style="display:flex; align-items:center; justify-content:space-between; background:#f0f2f5; padding:4px 8px; border-radius:4px;">
-                  <span style="font-size:11px;">${name}</span>
-                  <label class="switch"><input type="checkbox" ${isSet ? 'checked' : ''} onchange="sendBit(${key}, ${i}, this.checked)"><span class="slider"></span></label>
-                </div>`;
-            }
-            controls.innerHTML = togglesHtml;
-            valCell.querySelector('.raw-val').innerText = "Значение: " + value;
+              // Выводим значение ВЕРХУ, затем контейнер для кнопок
+              valCell.innerHTML = `
+                  <div class="raw-val" style="font-size:14px; font-weight:bold; color: #333; margin-bottom:8px; text-align:center;">
+                      Значение: ${value}
+                  </div>
+                  <div class="bit-controls" style="display:grid; grid-template-columns: 1fr 1fr; gap:8px; padding: 8px;"></div>
+              `;
+              
+              let controls = valCell.querySelector('.bit-controls');
+              let togglesHtml = '';
+              for (let i = 0; i < 16; i++) {
+                  const isSet = (value >> i) & 1;
+                  const name = bitNames[key] ? bitNames[key][i] : `Бит ${i}`;
+                  togglesHtml += `
+                      <div style="display: flex; align-items:center; justify-content: space-between; background: #f0f2f5; padding: 4px 8px; border-radius:4px;">
+                          <span style="font-size:11px;">${name}</span>
+                          <label class="switch">
+                              <input type="checkbox" ${isSet ? 'checked' : ''} onchange="sendBit(${key}, ${i}, this.checked)">
+                              <span class="slider"></span>
+                          </label>
+                      </div>`;
+              }
+              controls.innerHTML = togglesHtml;
 
-          // --- ЛОГИКА ДЛЯ 3 и 4 (ИНДИКАТОРЫ ТОЧКИ) ---
-          } else if (key == "0" || key == "1" || key == '2' || key == '3' || key == '4') {
-            let bitContainer = valCell.querySelector('.bit-row');
-            if (!bitContainer) {
-              valCell.innerHTML = `${value}<div class="bit-row" style="display:grid; grid-template-columns: repeat(8, 1fr); gap:4px; margin-top:8px;"></div>`;
-              bitContainer = valCell.querySelector('.bit-row');
-            } else {
-                // Обновляем числовое значение, если оно изменилось
-                if (valCell.firstChild.nodeValue != value) valCell.firstChild.nodeValue = value;
-            }
-            
-            let dotsHtml = '';
-            for (let i = 15; i >= 0; i--) { // Показываем 8 бит для компактности
-              const isActive = (value >> i) & 1;
-              dotsHtml += `<div><div class="bit-dot ${isActive ? 'bit-on' : ''}"></div><span class="bit-label">${i}</span></div>`;
-            }
-            bitContainer.innerHTML = dotsHtml;
+          // --- ЛОГИКА ДЛЯ 101 ---
+          } else if (key == "101") {
+              valCell.innerHTML = `
+                  <div style="display: flex; gap: 10px; align-items: center; justify-content: center;">
+                      <input type="number" min="0" max="255" value="${value}" 
+                            style="width: 80px; padding: 5px;" onchange="sendValue(${key}, this.value)">
+                      <span style="font-size: 10px; color: #999;">(0-255)</span>
+                  </div>`;
+
+          // --- ЛОГИКА ДЛЯ 0-4 ---
+          } else if (['0', '1', '2', '3', '4'].includes(key)) {
+              let html = `
+                  <div class="raw-val" style="font-size:13px; font-weight:bold; margin-bottom:8px; text-align:center;">
+                      Значение: ${value}
+                  </div>
+                  <div class="bit-grid" style="display:grid; grid-template-columns: 1fr 1fr; gap:6px; padding: 4px;">
+              `;
+              for (let i = 0; i < 16; i++) {
+                  const isActive = (value >> i) & 1;
+                  // Берем имя из bitNames или пишем "Бит X", если имени нет
+                  const name = (bitNames[key] && bitNames[key][i]) ? bitNames[key][i] : `Бит ${i}`;
+                  
+                  const color = isActive ? '#28a745' : '#ccc'; 
+                  const shadow = isActive ? '0 0 5px rgba(40,167,69,0.4)' : 'none';
+                  
+                  html += `
+                      <div style="display: flex; align-items:center; justify-content: space-between; 
+                                  background: #f0f2f5; padding: 6px 10px; border-radius:6px; border: 1px solid #e0e4e8;">
+                          <span style="font-size:11px; color:#555; font-weight: 500;">${name}</span>
+                          <div style="width: 12px; height: 12px; border-radius: 50%; 
+                                      background: ${color}; box-shadow: ${shadow}; transition: 0.3s;">
+                          </div>
+                      </div>`;
+              }
+              html += `</div>`;
+              valCell.innerHTML = html;
 
           // --- ДЛЯ ВСЕХ ОСТАЛЬНЫХ РЕГИСТРОВ ---
           } else {
@@ -708,6 +752,20 @@ void setup() {
         webServer.send(200, "text/plain", "OK");
     }
   });
+  webServer.on("/api/write_reg", HTTP_GET, []() {
+    if (webServer.hasArg("addr") && webServer.hasArg("value")) {
+        uint16_t addr = webServer.arg("addr").toInt();
+        uint16_t val = webServer.arg("value").toInt();
+        
+        if (memo.count(addr)) {
+            memo[addr] = val;
+            publishModbusData(); // Синхронизация с MQTT
+            webServer.send(200, "text/plain", "OK");
+        } else {
+            webServer.send(404, "text/plain", "Not Found");
+        }
+    }
+});
   webServer.begin();
 
   // 4. Modbus (адрес 16(0x10))
