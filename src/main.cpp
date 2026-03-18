@@ -439,7 +439,13 @@ void handleTable() {
         input:checked + .slider { background-color: #28a745; }
         input:checked + .slider:before { transform: translateX(20px); }
         .reg-label { font-weight: bold; font-size: 14px; }
-
+        @keyframes flash-green {
+          0% { background-color: rgba(40, 167, 69, 0.7); }
+          100% { background-color: transparent; }
+        }
+        .flash-active {
+          animation: flash-green 1s ease-out;
+        }
     </style>
     )rawliteral";
 
@@ -493,80 +499,72 @@ void handleTable() {
         for (const [key, value] of Object.entries(data)) {
           let row = document.getElementById('reg-' + key);
           if (!row) continue;
-          
           const valCell = row.querySelector('.val-cell');
 
-          // --- ЛОГИКА ДЛЯ 100 (ПЕРЕКЛЮЧАТЕЛИ) ---
+          // --- ЛОГИКА ВСПЫШКИ ДЛЯ ВСЕХ РЕГИСТРОВ ---
+          const oldValue = row.getAttribute('data-last-val');
+          if (oldValue !== null && oldValue !== String(value)) {
+            row.classList.remove('flash-active');
+            void row.offsetWidth; // Триггер для перезапуска анимации
+            row.classList.add('flash-active');
+          }
+          row.setAttribute('data-last-val', value);
+
+          // --- ОТОБРАЖЕНИЕ 100 (ПЕРЕКЛЮЧАТЕЛИ) ---
           if (key == "100") {
-              // Выводим значение ВЕРХУ, затем контейнер для кнопок
-              valCell.innerHTML = `
-                  <div class="raw-val" style="font-size:14px; font-weight:bold; color: #333; margin-bottom:8px; text-align:center;">
-                      Значение: ${value}
-                  </div>
-                  <div class="bit-controls" style="display:grid; grid-template-columns: 1fr 1fr; gap:8px; padding: 8px;"></div>
-              `;
-              
-              let controls = valCell.querySelector('.bit-controls');
-              let togglesHtml = '';
-              for (let i = 0; i < 16; i++) {
-                  const isSet = (value >> i) & 1;
-                  const name = bitNames[key] ? bitNames[key][i] : `Бит ${i}`;
-                  togglesHtml += `
-                      <div style="display: flex; align-items:center; justify-content: space-between; background: #f0f2f5; padding: 4px 8px; border-radius:4px;">
-                          <span style="font-size:11px;">${name}</span>
-                          <label class="switch">
-                              <input type="checkbox" ${isSet ? 'checked' : ''} onchange="sendBit(${key}, ${i}, this.checked)">
-                              <span class="slider"></span>
-                          </label>
-                      </div>`;
-              }
-              controls.innerHTML = togglesHtml;
+            let togglesHtml = `<div class="raw-val" style="font-size:14px; font-weight:bold; color:#333; margin-bottom:8px; text-align:center;">Значение: ${value}</div>`;
+            togglesHtml += `<div class="bit-controls" style="display:grid; grid-template-columns: 1fr 1fr; gap:8px; padding:8px;">`;
+            for (let i = 0; i < 16; i++) {
+              const isSet = (value >> i) & 1;
+              const name = bitNames[key] ? bitNames[key][i] : `Бит ${i}`;
+              togglesHtml += `
+                <div style="display:flex; align-items:center; justify-content:space-between; background:#f0f2f5; padding:4px 8px; border-radius:4px;">
+                  <span style="font-size:11px;">${name}</span>
+                  <label class="switch">
+                    <input type="checkbox" ${isSet ? 'checked' : ''} onchange="sendBit(${key}, ${i}, this.checked)">
+                    <span class="slider"></span>
+                  </label>
+                </div>`;
+            }
+            togglesHtml += `</div>`;
+            valCell.innerHTML = togglesHtml;
 
-          // --- ЛОГИКА ДЛЯ 101 ---
+          // --- ОТОБРАЖЕНИЕ 101 (ВВОД ЧИСЛА) ---
           } else if (key == "101") {
-              valCell.innerHTML = `
-                  <div style="display: flex; gap: 10px; align-items: center; justify-content: center;">
-                      <input type="number" min="0" max="255" value="${value}" 
-                            style="width: 80px; padding: 5px;" onchange="sendValue(${key}, this.value)">
-                      <span style="font-size: 10px; color: #999;">(0-255)</span>
-                  </div>`;
+            valCell.innerHTML = `
+              <div style="display:flex; gap:10px; align-items:center; justify-content:center;">
+                <input type="number" min="0" max="255" value="${value}" style="width:80px; padding:5px;" onchange="sendValue(${key}, this.value)">
+                <span style="font-size:10px; color:#999;">(0-255)</span>
+              </div>`;
 
-          // --- ЛОГИКА ДЛЯ 0-4 (Обновленный дизайн) ---
+          // --- ОТОБРАЖЕНИЕ 0-4 (ЦЕНТРИРОВАНИЕ + ЦВЕТ ФОНА) ---
           } else if (['0', '1', '2', '3', '4'].includes(key)) {
-              let html = `
-              <div class="raw-val" style="font-size: 13px; font-weight:bold; margin-bottom:8px; text-align:center;">
-                  Значение: ${value}
-              </div>
-              <div class="bit-grid" style="display:grid; grid-template-columns: 1fr 1fr; gap: 6px; padding: 4px;">`;
-              
-              for (let i = 0; i < 16; i++) {
-                  const isActive = (value >> i) & 1;
-                  const name = (bitNames[key] && bitNames[key][i]) ? bitNames[key][i] : `Бит ${i}`;
-                  
-                  // 1) Названия по центру: используем justify-content: center и text-align: center
-                  // 2) Вместо кружочков меняем цвет фона: isActive ? зелёный : серый
-                  const bgColor = isActive ? '#28a745' : '#f0f2f5';
-                  const textColor = isActive ? 'white' : '#555';
-                  const shadow = isActive ? '0 0 5px rgba(40,167,69,0.4)' : 'none';
+            let html = `<div class="raw-val" style="font-size:13px; font-weight:bold; margin-bottom:8px; text-align:center;">Значение: ${value}</div>`;
+            html += `<div class="bit-grid" style="display:grid; grid-template-columns: 1fr 1fr; gap:6px; padding:4px;">`;
+            for (let i = 0; i < 16; i++) {
+              const isActive = (value >> i) & 1;
+              const name = (bitNames[key] && bitNames[key][i]) ? bitNames[key][i] : `Бит ${i}`;
+              const bgColor = isActive ? '#28a745' : '#f0f2f5';
+              const textColor = isActive ? '#fff' : '#555';
+              html += `
+                <div style="display:flex; align-items:center; justify-content:center; background:${bgColor}; color:${textColor}; 
+                            padding:10px 6px; border-radius:8px; border:1px solid #e0e4e8; transition:0.3s; text-align:center;">
+                  <span style="font-size:11px; font-weight:600; line-height:1.1;">${name}</span>
+                </div>`;
+            }
+            html += '</div>';
+            valCell.innerHTML = html;
 
-                  html += `
-                  <div style="display: flex; align-items:center; justify-content: center; 
-                              background: ${bgColor}; color: ${textColor}; padding: 8px 10px; 
-                              border-radius: 6px; border: 1px solid #e0e4e8; 
-                              box-shadow: ${shadow}; transition: 0.3s; text-align: center;">
-                      <span style="font-size:11px; font-weight: 500;">${name}</span>
-                  </div>`;
-              }
-              html += '</div>';
-              valCell.innerHTML = html;
-
-          // --- ДЛЯ ВСЕХ ОСТАЛЬНЫХ РЕГИСТРОВ ---
+          // --- ОСТАЛЬНЫЕ РЕГИСТРЫ ---
           } else {
             valCell.innerText = value;
+            valCell.style.textAlign = "center";
+            valCell.style.fontWeight = "bold";
           }
         }
       });
     }
+
     setInterval(updateData, 2000);
     updateData();
     </script>
