@@ -304,7 +304,7 @@ void handleIndex() {
   // 3. Кнопки
   html += "<div class='nav-grid'>";
   html += "  <a href='/table' class='nav-btn' style='background:#4e73df;'>📊<br>Данные</a>";
-  html += "  <a href='/settings' class='nav-btn' style='background:#1cc88a;'>⚙️<br>Опции</a>";
+  html += "  <a href='/settings' class='nav-btn' style='background:#1cc88a;'>⚙️<br>Настройки</a>";
   html += "</div>";
 
   // 4. Скрипт обновления (Исправленный)
@@ -463,7 +463,113 @@ void handleTable() {
 
     html += R"rawliteral(
     <script>
-    // Названия для битов 100 регистра
+
+    const regTitles = {
+      "0": "Основные статусы",
+      "1": "Режимы вентиляции и дверей",
+      "2": "Управление лазом и календарем",
+      "3": "Ошибки и кормление",
+      "4": "Статус подключенных модулей (K1-K4)",
+      "5": "Измеренная температура курятника",
+      "6": "Влажность курятника",
+      "7": "Температура на улице",
+      "8": "Влажность на улице",
+      "9": "Время закрытия лаза (расчетное)",
+      "10": "Время открытия лаза (расчетное)",
+      "11": "Резерв",
+      "12": "Номер кормушки следующего кормления",
+      "13": "Длительность следующего кормления",
+      "14": "Количество прошедших кормлений за сутки",
+      "15": "Запрограммированое количество кормлений",
+      "16": "Время следующего кормления",
+      "17": "Секунда",
+      "18": "Минута",
+      "19": "Час",
+      "20": "Число",
+      "21": "Месяц",
+      "22": "Год",
+      "23": "Резерв",
+      "24": "Заданная температура",
+      "25": "Отклонение температуры",
+      "26": "Заданная влажность",
+      "27": "Отклонение влажности",
+      "28": "Количество датчиков температуры",
+      "29": "Заданная температура днем",
+      "30": "Температура охлаждения",
+      "31": "Значение \"Г\" количесво сработок в час",
+      "32": "Значение \"Г\" общее число сработок",
+      "33": "Температура открытия лаза",
+      "34": "Количество включений вентиляции в час",
+      "35": "Расчитанное время смены объема воздуха",
+      "36": "Время восхода солнца",
+      "37": "Время заката солнца",
+      "38": "Записаное время подъема",
+      "39": "Записаное время отбоя",
+      "40": "Записаное время открытия лаза",
+      "41": "Записаное время закрытия лаза",
+      "42": "Время отложенного закрытия лаза",
+      "43": "Время движения привода лаза",
+      "44": "Количество включений вентиляторов в час при загазованности",
+      "45": "Время дежурного освещения",
+      "46": "Время сумерек",
+      "47": "Среднее время нагревателя за час в сутки",
+      "48": "Количество ошибок по кормушке К1",
+      "49": "Количество ошибок по кормушке К2",
+      "50": "Количество ошибок по кормушке К3",
+      "51": "Количество ошибок по кормушке К4",
+      "52": "Ошибки от модуля Wi-Fi",
+      "53": "Количество используемых вентиляторов",
+      "54": "Производительность вентиляторов",
+      "55": "Объем помещения",
+      "56": "Масса одной птицы",
+      "57": "Количество птиц",
+      "58": "Допустимое количество проветриваний в час",
+      "59": "Резерв",
+      "60": "Резерв",
+      "61": "Лето - объем свежего воздуха ГОСТ",
+      "62": "Зима - объем свежего воздуха ГОСТ",
+      "63": "Осень - объем свежего воздуха ГОСТ",
+      "64": "Лето - объем свежего воздуха ГОСТ",
+      "65": "Зима - объем свежего воздуха",
+      "66": "Осень - объем свежего воздуха",
+      "67": "Резерв",
+      "68": "Резерв",
+      "69": "Резерв",
+      "70": "Резерв",
+      "71": "Резерв",
+      "72": "Время 1 кормления",
+      "73": "Время 2 кормления",
+      "74": "Время 3 кормления",
+      "75": "Время 4 кормления",
+      "76": "Время 5 кормления",
+      "77": "Время 6 кормления",
+      "78": "Время 7 кормления",
+      "79": "Время 8 кормления",
+      "80": "Время 9 кормления",
+      "81": "Время 10 кормления",
+      "82": "Время 11 кормления",
+      "83": "Время 12 кормления",
+      "84": "Время 13 кормления",
+      "85": "Время 14 кормления",
+      "86": "Время 15 кормления",
+      "87": "Длительность 1 кормления",
+      "88": "Длительность 2 кормления",
+      "89": "Длительность 3 кормления",
+      "90": "Длительность 4 кормления",
+      "91": "Длительность 5 кормления",
+      "92": "Длительность 6 кормления",
+      "93": "Длительность 7 кормления",
+      "94": "Длительность 8 кормления",
+      "95": "Длительность 9 кормления",
+      "96": "Длительность 10 кормления",
+      "97": "Длительность 11 кормления",
+      "98": "Длительность 12 кормления",
+      "99": "Длительность 13 кормления",
+      "100": "Панель команд",
+      "101": "Заданная температура"
+    };
+
+    // Названия для битов регистров
     const bitNames = {
       "0": ["Охлаждение", "Задержка управления", "Загазованно (датчик)", "Темп. ниже нуля (улица)", "Темп. ниже нуля (курятник)", "Прием команд", "Передача включена", "Связь с удаленным модулем",
             "Вкл. движение вниз", "Вкл. движение вверх", "Основное освещение", "Дежурное освещение", "Приточный вентилятор", "Вытяжной вентилятор", "Нагрев", "-"],
@@ -501,46 +607,45 @@ void handleTable() {
           if (!row) continue;
           const valCell = row.querySelector('.val-cell');
 
-          // --- ЛОГИКА ВСПЫШКИ ДЛЯ ВСЕХ РЕГИСТРОВ ---
+          // 1. Логика анимации вспышки для ВСЕХ регистров при изменении
           const oldValue = row.getAttribute('data-last-val');
           if (oldValue !== null && oldValue !== String(value)) {
             row.classList.remove('flash-active');
-            void row.offsetWidth; // Триггер для перезапуска анимации
+            void row.offsetWidth; // Сброс для перезапуска анимации
             row.classList.add('flash-active');
           }
           row.setAttribute('data-last-val', value);
 
-          // --- ОТОБРАЖЕНИЕ 100 (ПЕРЕКЛЮЧАТЕЛИ) ---
+          // 2. Формируем заголовок
+          const titleText = regTitles[key] ? regTitles[key] : `Регистр №${key}`;
+          const headerHtml = `<div style="background:#4e73df; color:white; padding:5px; margin-bottom:10px; border-radius:4px; font-size:11px; text-align:center; font-weight:bold; text-transform:uppercase;">${titleText}</div>`;
+
+          // --- КЕЙС 100 (ПАНЕЛЬ УПРАВЛЕНИЯ - ПЕРЕКЛЮЧАТЕЛИ) ---
           if (key == "100") {
-            let togglesHtml = `<div class="raw-val" style="font-size:14px; font-weight:bold; color:#333; margin-bottom:8px; text-align:center;">Значение: ${value}</div>`;
-            togglesHtml += `<div class="bit-controls" style="display:grid; grid-template-columns: 1fr 1fr; gap:8px; padding:8px;">`;
+            let html = headerHtml + `<div style="display:grid; grid-template-columns: 1fr 1fr; gap:8px; padding:4px;">`;
             for (let i = 0; i < 16; i++) {
               const isSet = (value >> i) & 1;
               const name = bitNames[key] ? bitNames[key][i] : `Бит ${i}`;
-              togglesHtml += `
-                <div style="display:flex; align-items:center; justify-content:space-between; background:#f0f2f5; padding:4px 8px; border-radius:4px;">
+              html += `
+                <div style="display:flex; align-items:center; justify-content:space-between; background:#f8f9fc; padding:5px 8px; border-radius:6px; border:1px solid #eaecf4;">
                   <span style="font-size:11px;">${name}</span>
-                  <label class="switch">
-                    <input type="checkbox" ${isSet ? 'checked' : ''} onchange="sendBit(${key}, ${i}, this.checked)">
-                    <span class="slider"></span>
-                  </label>
+                  <label class="switch"><input type="checkbox" ${isSet ? 'checked' : ''} onchange="sendBit(${key}, ${i}, this.checked)"><span class="slider"></span></label>
                 </div>`;
             }
-            togglesHtml += `</div>`;
-            valCell.innerHTML = togglesHtml;
+            valCell.innerHTML = html + `</div>`;
 
-          // --- ОТОБРАЖЕНИЕ 101 (ВВОД ЧИСЛА) ---
+          // --- КЕЙС 101 (НАСТРОЙКА ПАРАМЕТРА - ВВОД ЧИСЛА) ---
           } else if (key == "101") {
-            valCell.innerHTML = `
-              <div style="display:flex; gap:10px; align-items:center; justify-content:center;">
-                <input type="number" min="0" max="255" value="${value}" style="width:80px; padding:5px;" onchange="sendValue(${key}, this.value)">
-                <span style="font-size:10px; color:#999;">(0-255)</span>
+            valCell.innerHTML = headerHtml + `
+              <div style="display:flex; flex-direction:column; align-items:center; padding:10px;">
+                <input type="number" min="0" max="255" value="${value}" style="width:100px; text-align:center; font-weight:bold; padding:8px; border:2px solid #4e73df; border-radius:8px;" 
+                      onchange="sendValue(${key}, this.value)">
+                <span style="font-size:11px; color:#999; margin-top:4px;">(0-255)</span>
               </div>`;
 
-          // --- ОТОБРАЖЕНИЕ 0-4 (ЦЕНТРИРОВАНИЕ + ЦВЕТ ФОНА) ---
+          // --- КЕЙС 0-4 (ТОЛЬКО ОТОБРАЖЕНИЕ БИТОВ - ЦЕНТРИРОВАНИЕ + ФОН) ---
           } else if (['0', '1', '2', '3', '4'].includes(key)) {
-            let html = `<div class="raw-val" style="font-size:13px; font-weight:bold; margin-bottom:8px; text-align:center;">Значение: ${value}</div>`;
-            html += `<div class="bit-grid" style="display:grid; grid-template-columns: 1fr 1fr; gap:6px; padding:4px;">`;
+            let html = headerHtml + `<div style="display:grid; grid-template-columns: 1fr 1fr; gap:6px; padding:4px;">`;
             for (let i = 0; i < 16; i++) {
               const isActive = (value >> i) & 1;
               const name = (bitNames[key] && bitNames[key][i]) ? bitNames[key][i] : `Бит ${i}`;
@@ -548,22 +653,23 @@ void handleTable() {
               const textColor = isActive ? '#fff' : '#555';
               html += `
                 <div style="display:flex; align-items:center; justify-content:center; background:${bgColor}; color:${textColor}; 
-                            padding:10px 6px; border-radius:8px; border:1px solid #e0e4e8; transition:0.3s; text-align:center;">
-                  <span style="font-size:11px; font-weight:600; line-height:1.1;">${name}</span>
+                            padding:10px 4px; border-radius:8px; border:1px solid #e0e4e8; text-align:center; min-height:38px; transition: 0.3s;">
+                  <span style="font-size:12px; font-weight:600; line-height:1.1;">${name}</span>
                 </div>`;
             }
-            html += '</div>';
-            valCell.innerHTML = html;
+            valCell.innerHTML = html + '</div>';
 
-          // --- ОСТАЛЬНЫЕ РЕГИСТРЫ ---
+          // --- ВСЕ ОСТАЛЬНЫЕ РЕГИСТРЫ (ТОЛЬКО ЧТЕНИЕ) ---
           } else {
-            valCell.innerText = value;
-            valCell.style.textAlign = "center";
-            valCell.style.fontWeight = "bold";
+            valCell.innerHTML = headerHtml + `
+              <div style="text-align:center; padding:8px; font-size:18px; font-weight:bold; color:#333; background:#fff; border-radius:8px;">
+                ${value}
+              </div>`;
           }
         }
       });
     }
+
 
     setInterval(updateData, 2000);
     updateData();
