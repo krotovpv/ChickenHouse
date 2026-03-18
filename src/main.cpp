@@ -531,32 +531,33 @@ void handleTable() {
                       <span style="font-size: 10px; color: #999;">(0-255)</span>
                   </div>`;
 
-          // --- ЛОГИКА ДЛЯ 0-4 ---
+          // --- ЛОГИКА ДЛЯ 0-4 (Обновленный дизайн) ---
           } else if (['0', '1', '2', '3', '4'].includes(key)) {
               let html = `
-                  <div class="raw-val" style="font-size:13px; font-weight:bold; margin-bottom:8px; text-align:center;">
-                      Значение: ${value}
-                  </div>
-                  <div class="bit-grid" style="display:grid; grid-template-columns: 1fr 1fr; gap:6px; padding: 4px;">
-              `;
+              <div class="raw-val" style="font-size: 13px; font-weight:bold; margin-bottom:8px; text-align:center;">
+                  Значение: ${value}
+              </div>
+              <div class="bit-grid" style="display:grid; grid-template-columns: 1fr 1fr; gap: 6px; padding: 4px;">`;
+              
               for (let i = 0; i < 16; i++) {
                   const isActive = (value >> i) & 1;
-                  // Берем имя из bitNames или пишем "Бит X", если имени нет
                   const name = (bitNames[key] && bitNames[key][i]) ? bitNames[key][i] : `Бит ${i}`;
                   
-                  const color = isActive ? '#28a745' : '#ccc'; 
+                  // 1) Названия по центру: используем justify-content: center и text-align: center
+                  // 2) Вместо кружочков меняем цвет фона: isActive ? зелёный : серый
+                  const bgColor = isActive ? '#28a745' : '#f0f2f5';
+                  const textColor = isActive ? 'white' : '#555';
                   const shadow = isActive ? '0 0 5px rgba(40,167,69,0.4)' : 'none';
-                  
+
                   html += `
-                      <div style="display: flex; align-items:center; justify-content: space-between; 
-                                  background: #f0f2f5; padding: 6px 10px; border-radius:6px; border: 1px solid #e0e4e8;">
-                          <span style="font-size:11px; color:#555; font-weight: 500;">${name}</span>
-                          <div style="width: 12px; height: 12px; border-radius: 50%; 
-                                      background: ${color}; box-shadow: ${shadow}; transition: 0.3s;">
-                          </div>
-                      </div>`;
+                  <div style="display: flex; align-items:center; justify-content: center; 
+                              background: ${bgColor}; color: ${textColor}; padding: 8px 10px; 
+                              border-radius: 6px; border: 1px solid #e0e4e8; 
+                              box-shadow: ${shadow}; transition: 0.3s; text-align: center;">
+                      <span style="font-size:11px; font-weight: 500;">${name}</span>
+                  </div>`;
               }
-              html += `</div>`;
+              html += '</div>';
               valCell.innerHTML = html;
 
           // --- ДЛЯ ВСЕХ ОСТАЛЬНЫХ РЕГИСТРОВ ---
