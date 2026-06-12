@@ -40,7 +40,7 @@ std::map<uint16_t, uint16_t> memo = {
   {70, 0},{71, 0},{72, 0},{73, 0},{74, 0},{75, 0},{76, 0},{77, 0},{78, 0},{79, 0},
   {80, 0},{81, 0},{82, 0},{83, 0},{84, 0},{85, 0},{86, 0},{87, 0},{88, 0},{89, 0},
   {90, 0},{91, 0},{92, 0},{93, 0},{94, 0},{95, 0},{96, 0},{97, 0},{98, 0},{99, 0},
-  {100, 0},{101, 32},
+  {100, 0},{101, 0},
   {110, 0},{111, 0},{112, 0},{113, 0},{114, 0},{115, 0},{116, 0},{117, 0},{118, 0},{119, 0},
   {120, 0},{121, 0},{122, 0},{123, 0},{124, 0},{125, 0},{126, 0},{127, 0},{128, 0},{129, 0},
   {130, 0},{131, 0},{132, 0},{133, 0},{134, 0},{135, 0},{136, 0},{137, 0},{138, 0},{139, 0},
@@ -303,6 +303,7 @@ void handleIndex() {
 
   // 3. Кнопки
   html += "<div class='nav-grid'>";
+  html += "  <a href='/autoChickenHous' class='nav-btn' style='background:#4e73df;'>🐓<br>Автоматизация курятника</a>";  //На пробу!!!
   html += "  <a href='/table' class='nav-btn' style='background:#4e73df;'>📊<br>Данные</a>";
   html += "  <a href='/settings' class='nav-btn' style='background:#1cc88a;'>⚙️<br>Настройки</a>";
   html += "</div>";
@@ -496,8 +497,8 @@ void handleTable() {
       "28": "Количество датчиков температуры",
       "29": "Заданная температура днем",
       "30": "Температура охлаждения",
-      "31": "Значение \"Г\" количесво сработок в час",
-      "32": "Значение \"Г\" общее число сработок",
+      "31": "\"Газ\" количесво сработок в час",
+      "32": "\"Газ\" общее число сработок",
       "33": "Температура открытия лаза",
       "34": "Количество включений вентиляции в час",
       "35": "Расчитанное время смены объема воздуха",
@@ -624,7 +625,7 @@ void handleTable() {
       "3": ["Упр. светом использует календарь", "При окткл. календаре свет горит постоянно", "Настройка по Wi-Fi", "Находимся в меню НАСТРОЙКА", "Находимся в одном из ручных режимов управления", "Ошибка при расчете вентиляции", "Нажата кнопка на приборе", "Управление охлаждением", 
             "Пропуски кормления", "Ошибки при кормлении", "-", "Кормление за сутки закончилось", "Количество кормлений = 0", "-", "Включен режим ручного кормления", "Отработка пропусков кормления"],
       "4": ["Подключена К1", "Подключена К2", "Подключена К3", "Подключена К4", "Используется осушитель", "-", "-", "-", 
-            "Вкл. в сеть успройство К1", "Вкл. в сеть успройство К2", "Вкл. в сеть успройство К3", "Вкл. в сеть успройство К4", "Вкл. осушитель в сеть", "Вкл. новый модуль в сеть", "-", "-"],
+            "Вкл. в сеть успройство К1", "Вкл. в сеть успройство К2", "Вкл. в сеть успройство К3", "Вкл. в сеть успройство К4", "Вкл. осушитель в сеть", "Вкл. в сеть новый модуль", "-", "-"],
       "100": ["Бит 0", "Бит 1", "Бит 2", "Бит 3", "Бит 4", "Бит 5", "Бит 6", "Бит 7", "Бит 8", "Бит 9", "Бит 10", "Бит 11", "Бит 12", "Бит 13", "Бит 14", "Бит 15"]
     };
 
@@ -722,6 +723,196 @@ void handleTable() {
 
     html += "</body></html>";
     webServer.send(200, "text/html", html);
+}
+
+// Страница автоматизации курятника
+void autoChickenHous() {
+  String html = "<!DOCTYPE html><html lang='ru'><head>";
+  html += "<meta charset='UTF-8'>";
+  html += "<meta name='viewport' content='width=device-width, initial-scale=1.0'>";
+  html += "<title>Управление курятником</title>";
+  html += "<style>";
+  // Базовые стили для адаптивности и красоты
+  html += "body { font-family: sans-serif; background-color: #f4f6f9; color: #333; margin: 0; padding: 20px; text-align: center; }";
+  html += "h1 { color: #2c3e50; margin-bottom: 30px; font-size: 24px; }";
+  // Сетка для кнопок-карточек
+  html += ".menu-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 20px; max-width: 900px; margin: 0 auto; }";
+  // Стили самих кнопок
+  html += ".menu-btn { display: flex; flex-direction: column; align-items: center; justify-content: center; background: white; ";
+  html += "border-radius: 12px; padding: 25px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); text-decoration: none; color: #2c3e50; ";
+  html += "font-size: 18px; font-weight: bold; transition: transform 0.2s, box-shadow 0.2s; border: 1px solid #e2e8f0; }";
+  html += ".menu-btn:hover { transform: translateY(-3px); box-shadow: 0 10px 15px rgba(0,0,0,0.1); border-color: #cbd5e1; }";
+  html += ".menu-btn:active { transform: translateY(0); }";
+  // Иконки (простые emoji в качестве визуальных якорей)
+  html += ".icon { font-size: 32px; margin-bottom: 12px; }";
+  // Кастомный цвет для критической кнопки аварий
+  html += ".btn-alert { border-left: 5px solid #ef4444; }";
+  html += "</style></head><body>";
+
+  html += "<h1>🐔 Автоматизация курятника</h1>";
+  
+  // Контейнер с кнопками меню
+  html += "<div class='menu-grid'>";
+  
+  html += "  <a href='/climate' class='menu-btn'><span class='icon'>🌡️</span>1. Климат-контроль</a>";
+  html += "  <a href='/light' class='menu-btn'><span class='icon'>💡</span>2. Освещение и распорядок</a>";
+  html += "  <a href='/feeding' class='menu-btn'><span class='icon'>🌾</span>3. Кормление и поголовье</a>";
+  html += "  <a href='/door' class='menu-btn'><span class='icon'>🐓</span>4. Лаз (дверь)</a>";
+  html += "  <a href='/status' class='menu-btn'><span class='icon'>📊</span>5. Статусы</a>";
+  html += "  <a href='/alerts' class='menu-btn menu-btn-alert'><span class='icon'>⚠️</span>6. Аварии и ошибки</a>";
+  html += "  <a href='/' class='menu-btn menu-btn-alert'><span class='icon'>⬅️</span>Назад</a>";
+  
+  html += "</div>";
+
+  html += "</body></html>";
+  
+  webServer.send(200, "text/html", html);
+}
+
+// Освещение и распорядок
+void handleLight() {
+  String html = "<!DOCTYPE html><html lang='ru'><head>";
+  html += "<meta charset='UTF-8'>";
+  html += "<meta name='viewport' content='width=device-width, initial-scale=1.0'>";
+  html += "<title>Освещение и распорядок</title>";
+  html += "<style>";
+  html += "body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: #f4f7f6; color: #333; margin: 0; padding: 20px; display: flex; flex-direction: column; align-items: center; }";
+  html += ".container { width: 100%; max-width: 600px; }";
+  html += "h2 { color: #2c3e50; text-align: center; margin-bottom: 20px; }";
+  html += ".card { background: white; border-radius: 12px; padding: 20px; box-shadow: 0 4px 15px rgba(0,0,0,0.05); margin-bottom: 20px; border: 1px solid #eee; }";
+  html += "h3 { margin-top: 0; color: #4e73df; border-bottom: 2px solid #eaecf4; padding-bottom: 8px; font-size: 16px; text-transform: uppercase; }";
+  html += ".status-row { display: flex; justify-content: space-between; align-items: center; padding: 10px 0; border-bottom: 1px solid #f8f9fa; }";
+  html += ".status-row:last-child { border-bottom: none; }";
+  html += ".badge { padding: 5px 12px; border-radius: 20px; font-size: 13px; color: white; font-weight: bold; min-width: 60px; text-align: center; }";
+  html += ".bg-success { background: #28a745; }";
+  html += ".bg-danger { background: #dc3545; }";
+  html += ".val-box { font-weight: bold; color: #333; background: #f8f9fc; padding: 4px 10px; border-radius: 6px; border: 1px solid #eaecf4; font-family: monospace; font-size: 15px; }";
+  html += ".btn { display: block; text-align: center; padding: 12px; background: #6c757d; color: white; text-decoration: none; border-radius: 8px; font-weight: 600; margin-top: 10px; transition: 0.3s; border: none; }";
+  html += ".btn:hover { opacity: 0.9; }";
+  html += "table { width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 14px; }";
+  html += "th, td { padding: 8px; border: 1px solid #eaecf4; text-align: center; }";
+  html += "th { background: #f8f9fc; color: #4e73df; font-weight: bold; }";
+  html += ".month-name { text-align: left; font-weight: bold; }";
+  html += "</style></head><body>";
+
+  html += "<div class='container'>";
+  html += "<h2>💡 Освещение и распорядок</h2>";
+
+  // Блок 1: Текущие статусы (Биты)
+  html += "<div class='card'>";
+  html += "<h3>Текущее состояние</h3>";
+  html += "<div class='status-row'><span>Основное освещение (R0:B10):</span><span id='b_0_10' class='badge bg-danger'>Выкл</span></div>";
+  html += "<div class='status-row'><span>Дежурное освещение (R0:B11):</span><span id='b_0_11' class='badge bg-danger'>Выкл</span></div>";
+  html += "<div class='status-row'><span>Сон по расписанию (R1:B0):</span><span id='b_1_0' class='badge bg-danger'>Выкл</span></div>";
+  html += "<div class='status-row'><span>На улице светло (R1:B1):</span><span id='b_1_1' class='badge bg-danger'>Нет</span></div>";
+  html += "<div class='status-row'><span>Управление по календарю (R3:B0):</span><span id='b_3_0' class='badge bg-danger'>Выкл</span></div>";
+  html += "<div class='status-row'><span>Свет горит постоянно при откл. календаре (R3:B1):</span><span id='b_3_1' class='badge bg-danger'>Нет</span></div>";
+  html += "</div>";
+
+  // Блок 2: Временные уставки (Регистры)
+  html += "<div class='card'>";
+  html += "<h3>Оперативные уставки времени</h3>";
+  html += "<div class='status-row'><span>Время восхода солнца (R36):</span><span id='r_36' class='val-box'>--</span></div>";
+  html += "<div class='status-row'><span>Время заката солнца (R37):</span><span id='r_37' class='val-box'>--</span></div>";
+  html += "<div class='status-row'><span>Записанное время подъема (R38):</span><span id='r_38' class='val-box'>--</span></div>";
+  html += "<div class='status-row'><span>Записанное время отбоя (R39):</span><span id='r_39' class='val-box'>--</span></div>";
+  html += "<div class='status-row'><span>Время дежурного освещения (R45):</span><span id='r_45' class='val-box'>--</span></div>";
+  html += "<div class='status-row'><span>Время сумерек (R46):</span><span id='r_46' class='val-box'>--</span></div>";
+  html += "</div>";
+
+  // Блок 3: Календарь восходов и закатов (Таблица)
+  html += "<div class='card'>";
+  html += "<h3>Годовой календарь (Восход / Закат)</h3>";
+  html += "<table>";
+  html += "<thead><tr><th>Месяц</th><th>Восход (Рег)</th><th>Закат (Рег)</th></tr></thead>";
+  html += "<tbody>";
+  const char* months[] = {"Январь", "Февраль", "Март", "Апрель", "Май", "Июнь", "Июль", "Август", "Сентябрь", "Октябрь", "Ноябрь", "Декабрь"};
+  for (int i = 0; i < 12; i++) {
+    int r_voshod = 72 + i;
+    int r_zakat = 84 + i;
+    html += "<tr>";
+    html += "<td class='month-name'>" + String(months[i]) + "</td>";
+    html += "<td id='r_" + String(r_voshod) + "'>--</td>";
+    html += "<td id='r_" + String(r_zakat) + "'>--</td>";
+    html += "</tr>";
+  }
+  html += "</tbody></table>";
+  html += "</div>";
+
+  // Кнопка Назад
+  html += "<a href='/autoChickenHous' class='btn'>⬅️ Назад в меню</a>";
+  html += "</div>";
+
+  // JavaScript AJAX скрипт для обновления данных в реальном времени
+  html += R"rawliteral(
+  <script>
+  function updateLightData() {
+    fetch('/api/data')
+      .then(r => r.json())
+      .then(data => {
+        // Функция форматирования времени (если в регистре минуты или код времени)
+        // Оставляем простой вывод значения, при необходимости можно добавить логику ЧЧ:ММ
+        function formatTime(val) {
+          if (val === undefined) return '--';
+          return val; 
+        }
+
+        // Обновление битовых флагов (0 регистр)
+        let r0 = data["0"] || 0;
+        updateBitBadge('b_0_10', (r0 >> 10) & 1, "Вкл", "Выкл");
+        updateBitBadge('b_0_11', (r0 >> 11) & 1, "Вкл", "Выкл");
+
+        // Обновление битовых флагов (1 регистр)
+        let r1 = data["1"] || 0;
+        updateBitBadge('b_1_0', (r1 >> 0) & 1, "Вкл", "Выкл");
+        updateBitBadge('b_1_1', (r1 >> 1) & 1, "Да", "Нет");
+
+        // Обновление битовых флагов (3 регистр)
+        let r3 = data["3"] || 0;
+        updateBitBadge('b_3_0', (r3 >> 0) & 1, "Вкл", "Выкл");
+        updateBitBadge('b_3_1', (r3 >> 1) & 1, "Да", "Нет");
+
+        // Обновление оперативных регистров времени
+        const regList =;
+        regList.forEach(reg => {
+          let el = document.getElementById('r_' + reg);
+          if (el && data[reg] !== undefined) el.innerText = formatTime(data[reg]);
+        });
+
+        // Обновление календаря (регистры 72-83 и 84-95)
+        for (let i = 0; i < 12; i++) {
+          let voshodReg = 72 + i;
+          let zakatReg = 84 + i;
+          
+          let voshodEl = document.getElementById('r_' + voshodReg);
+          if (voshodEl && data[voshodReg] !== undefined) voshodEl.innerText = formatTime(data[voshodReg]);
+          
+          let zakatEl = document.getElementById('r_' + zakatReg);
+          if (zakatEl && data[zakatReg] !== undefined) zakatEl.innerText = formatTime(data[zakatReg]);
+        }
+      })
+      .catch(err => console.error("Ошибка обновления данных:", err));
+  }
+
+  function updateBitBadge(id, state, textOn, textOff) {
+    let el = document.getElementById(id);
+    if (!el) return;
+    if (state === 1) {
+      el.innerText = textOn;
+      el.className = "badge bg-success";
+    } else {
+      el.innerText = textOff;
+      el.className = "badge bg-danger";
+    }
+  }
+
+  setInterval(updateLightData, 2000);
+  updateLightData();
+  </script>
+  )rawliteral";
+
+  html += "</body></html>";
+  webServer.send(200, "text/html", html);
 }
 
 // 3. Страница настроек
@@ -881,6 +1072,8 @@ void setup() {
   dnsServer.start(DNS_PORT, "*", WiFi.softAPIP()); // Запускаем DNS сервер, который перенаправляет все домены на IP ESP32
   webServer.onNotFound(handleIndex); // Любой неизвестный путь ведет на главную
   webServer.on("/", handleIndex);
+  webServer.on("/autoChickenHous", autoChickenHous);
+  webServer.on("/light", handleLight);
   webServer.on("/table", handleTable);
   webServer.on("/api/data", handleApiData);
   webServer.on("/api/scan", handleApiScan);
