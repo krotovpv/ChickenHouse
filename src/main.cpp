@@ -726,7 +726,7 @@ void handleTable() {
 }
 
 // Страница автоматизации курятника
-void autoChickenHous() {
+void handleAutoChickenHous() {
   String html = "<!DOCTYPE html><html lang='ru'><head>";
   html += "<meta charset='UTF-8'>";
   html += "<meta name='viewport' content='width=device-width, initial-scale=1.0'>";
@@ -915,6 +915,126 @@ void handleLight() {
   webServer.send(200, "text/html", html);
 }
 
+// Аварии и ошибки
+void handleAlerts() {
+  String html = "<!DOCTYPE html><html lang='ru'><head>";
+  html += "<meta charset='UTF-8'>";
+  html += "<meta name='viewport' content='width=device-width, initial-scale=1.0'>";
+  html += "<title>Аварии и ошибки</title>";
+  html += "<style>";
+  html += "body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: #f8fafc; color: #334155; margin: 0; padding: 20px; display: flex; flex-direction: column; align-items: center; }";
+  html += ".container { width: 100%; max-width: 600px; }";
+  html += "h2 { color: #0f172a; text-align: center; margin-bottom: 24px; font-size: 22px; }";
+  html += ".card { background: white; border-radius: 12px; padding: 20px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05), 0 2px 4px -2px rgba(0,0,0,0.05); margin-bottom: 20px; border: 1px solid #e2e8f0; }";
+  html += "h3 { margin-top: 0; color: #64748b; border-bottom: 2px solid #f1f5f9; padding-bottom: 8px; font-size: 14px; text-transform: uppercase; letter-spacing: 0.5px; }";
+  html += ".alert-row { display: flex; justify-content: space-between; align-items: center; padding: 12px; border-radius: 8px; margin-bottom: 8px; border: 1px solid #e2e8f0; background: #f8fafc; transition: all 0.3s ease; }";
+  html += ".alert-row.active { background: #fef2f2; border-color: #fca5a5; color: #991b1b; font-weight: 600; }";
+  html += ".badge { padding: 4px 10px; border-radius: 6px; font-size: 12px; font-weight: bold; min-width: 70px; text-align: center; text-transform: uppercase; }";
+  html += ".bg-normal { background: #e2e8f0; color: #475569; }";
+  html += ".bg-alarm { background: #ef4444; color: white; animation: pulse 2s infinite; }";
+  html += ".counter-row { display: flex; justify-content: space-between; align-items: center; padding: 10px 0; border-bottom: 1px solid #f1f5f9; }";
+  html += ".counter-row:last-child { border-bottom: none; }";
+  html += ".val-box { font-weight: bold; color: #0f172a; background: #f1f5f9; padding: 4px 12px; border-radius: 6px; border: 1px solid #cbd5e1; font-family: monospace; font-size: 15px; min-width: 30px; text-align: center; }";
+  html += ".val-box.has-errors { background: #fee2e2; color: #b91c1c; border-color: #fca5a5; }";
+  html += ".btn { display: block; text-align: center; padding: 12px; background: #64748b; color: white; text-decoration: none; border-radius: 8px; font-weight: 600; margin-top: 15px; transition: 0.2s; border: none; }";
+  html += ".btn:hover { background: #475569; }";
+  html += "@keyframes pulse { 0% { opacity: 1; } 50% { opacity: 0.6; } 100% { opacity: 1; } }";
+  html += "</style></head><body>";
+
+  html += "<div class='container'>";
+  html += "<h2>⚠️ Аварии и ошибки шлюза</h2>";
+
+  // Блок 1: Активные аварии (Биты)
+  html += "<div class='card'>";
+  html += "<h3>Критические аварии (Биты)</h3>";
+  
+  html += "<div id='row_b_1_9' class='alert-row'><span>Авария батарейки (R1:B9)</span><span id='b_1_9' class='badge bg-normal'>Норма</span></div>";
+  html += "<div id='row_b_1_10' class='alert-row'><span>Авария датчика температуры (R1:B10)</span><span id='b_1_10' class='badge bg-normal'>Норма</span></div>";
+  html += "<div id='row_b_3_5' class='alert-row'><span>Ошибка расчета вентиляции (R3:B5)</span><span id='b_3_5' class='badge bg-normal'>Норма</span></div>";
+  html += "<div id='row_b_3_9' class='alert-row'><span>Ошибка при кормлении (R3:B9)</span><span id='b_3_9' class='badge bg-normal'>Норма</span></div>";
+  
+  html += "</div>";
+
+  // Блок 2: Счетчики ошибок (Регистры)
+  html += "<div class='card'>";
+  html += "<h3>Статистика неисправностей (Регистры)</h3>";
+  
+  html += "<div class='counter-row'><span>Ошибок по кормушке К1 (R48):</span><span id='r_48' class='val-box'>0</span></div>";
+  html += "<div class='counter-row'><span>Ошибок по кормушке К2 (R49):</span><span id='r_49' class='val-box'>0</span></div>";
+  html += "<div class='counter-row'><span>Ошибок по кормушке К3 (R50):</span><span id='r_50' class='val-box'>0</span></div>";
+  html += "<div class='counter-row'><span>Ошибок по кормушке К4 (R51):</span><span id='r_51' class='val-box'>0</span></div>";
+  html += "<div class='counter-row'><span>Ошибки от модуля Wi-Fi (R52):</span><span id='r_52' class='val-box'>0</span></div>";
+  
+  html += "</div>";
+
+  // Кнопка Назад
+  html += "<a href='/autoChickenHous' class='btn'>⬅️ Назад в меню</a>";
+  html += "</div>";
+
+  // JavaScript скрипт динамического обновления
+  html += R"rawliteral(
+  <script>
+  function updateAlertsData() {
+    fetch('/api/data')
+      .then(r => r.json())
+      .then(data => {
+        // Чтение регистров для битовых масок
+        let r1 = data["1"] || 0;
+        let r3 = data["3"] || 0;
+
+        // Проверка битов 1 регистра
+        updateAlarmState('b_1_9', 'row_b_1_9', (r1 >> 9) & 1, "АВАРИЯ");
+        updateAlarmState('b_1_10', 'row_b_1_10', (r1 >> 10) & 1, "АВАРИЯ");
+
+        // Проверка битов 3 регистра
+        updateAlarmState('b_3_5', 'row_b_3_5', (r3 >> 5) & 1, "ОШИБКА");
+        updateAlarmState('b_3_9', 'row_b_3_9', (r3 >> 9) & 1, "ОШИБКА");
+
+        // Обновление числовых регистров (48-52)
+        const counterRegs =;
+        counterRegs.forEach(reg => {
+          let el = document.getElementById('r_' + reg);
+          if (el && data[reg] !== undefined) {
+            let val = data[reg];
+            el.innerText = val;
+            
+            // Если количество ошибок больше 0, подсвечиваем поле
+            if (val > 0) {
+              el.className = "val-box has-errors";
+            } else {
+              el.className = "val-box";
+            }
+          }
+        });
+      })
+      .catch(err => console.error("Ошибка при получении данных аварий:", err));
+  }
+
+  function updateAlarmState(badgeId, rowId, isActive, alarmText) {
+    let badge = document.getElementById(badgeId);
+    let row = document.getElementById(rowId);
+    if (!badge || !row) return;
+
+    if (isActive === 1) {
+      badge.innerText = alarmText;
+      badge.className = "badge bg-alarm";
+      row.className = "alert-row active";
+    } else {
+      badge.innerText = "Норма";
+      badge.className = "badge bg-normal";
+      row.className = "alert-row";
+    }
+  }
+
+  setInterval(updateAlertsData, 2000);
+  updateAlertsData();
+  </script>
+  )rawliteral";
+
+  html += "</body></html>";
+  webServer.send(200, "text/html", html);
+}
+
 // 3. Страница настроек
 void handleSettings() {
   String html = getHeader("Настройки шлюза");
@@ -1072,8 +1192,9 @@ void setup() {
   dnsServer.start(DNS_PORT, "*", WiFi.softAPIP()); // Запускаем DNS сервер, который перенаправляет все домены на IP ESP32
   webServer.onNotFound(handleIndex); // Любой неизвестный путь ведет на главную
   webServer.on("/", handleIndex);
-  webServer.on("/autoChickenHous", autoChickenHous);
+  webServer.on("/autoChickenHous", handleAutoChickenHous);
   webServer.on("/light", handleLight);
+  webServer.on("/alerts", handleAlerts);
   webServer.on("/table", handleTable);
   webServer.on("/api/data", handleApiData);
   webServer.on("/api/scan", handleApiScan);
