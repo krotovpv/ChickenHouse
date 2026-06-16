@@ -303,7 +303,7 @@ void handleIndex() {
 
   // 3. Кнопки
   html += "<div class='nav-grid'>";
-  html += "  <a href='/autoChickenHous' class='nav-btn' style='background:#4e73df;'>🐓<br>Автоматизация курятника</a>";  //На пробу!!!
+  html += "  <a href='/autoChickenHous' class='nav-btn' style='background:#d97706;'>🐓<br>Автоматизация курятника</a>";
   html += "  <a href='/table' class='nav-btn' style='background:#4e73df;'>📊<br>Данные</a>";
   html += "  <a href='/settings' class='nav-btn' style='background:#1cc88a;'>⚙️<br>Настройки</a>";
   html += "</div>";
@@ -1315,6 +1315,151 @@ void handleFeeding() {
   webServer.send(200, "text/html", html);
 }
 
+// Лаз (дверь)
+void handleDoor() {
+  String html = "<!DOCTYPE html><html lang='ru'><head>";
+  html += "<meta charset='UTF-8'>";
+  html += "<meta name='viewport' content='width=device-width, initial-scale=1.0'>";
+  html += "<title>Управление лазом (дверью)</title>";
+  html += "<style>";
+  html += "body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: #f8fafc; color: #1e293b; margin: 0; padding: 20px; display: flex; flex-direction: column; align-items: center; }";
+  html += ".container { width: 100%; max-width: 650px; }";
+  html += "h2 { color: #0f172a; text-align: center; margin-bottom: 24px; font-size: 24px; }";
+  html += ".card { background: white; border-radius: 12px; padding: 20px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05); margin-bottom: 20px; border: 1px solid #e2e8f0; }";
+  html += "h3 { margin-top: 0; color: #d97706; border-bottom: 2px solid #fef3c7; padding-bottom: 8px; font-size: 15px; text-transform: uppercase; letter-spacing: 0.5px; }";
+  html += ".status-row { display: flex; justify-content: space-between; align-items: center; padding: 10px 6px; border-bottom: 1px solid #f1f5f9; }";
+  html += ".status-row:last-child { border-bottom: none; }";
+  html += ".badge { padding: 5px 12px; border-radius: 20px; font-size: 12px; color: white; font-weight: bold; min-width: 75px; text-align: center; text-transform: uppercase; }";
+  html += ".bg-success { background: #10b981; }";
+  html += ".bg-danger { background: #ef4444; }";
+  html += ".bg-info { background: #3b82f6; }";
+  html += ".bg-neutral { background: #64748b; }";
+  html += ".val-box { font-weight: bold; color: #0f172a; background: #f8fafc; padding: 4px 12px; border-radius: 6px; border: 1px solid #e2e8f0; font-family: monospace; font-size: 15px; }";
+  html += ".grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; }";
+  html += ".btn { display: block; text-align: center; padding: 12px; background: #d97706; color: white; text-decoration: none; border-radius: 8px; font-weight: 600; margin-top: 15px; transition: 0.2s; border: none; }";
+  html += ".btn:hover { background: #b45309; }";
+  html += "@media(max-width: 600px) { .grid-2 { grid-template-columns: 1fr; } }";
+  html += "</style></head><body>";
+
+  html += "<div class='container'>";
+  html += "<h2>🐓 Автоматика лаза (двери)</h2>";
+
+  // Блок 1: Физическое состояние и датчики
+  html += "<div class='card'>";
+  html += "<h3>Текущее состояние и датчики</h3>";
+  html += "<div class='status-row'><span>Положение лаза (R2):</span><div><span id='b_2_8' class='badge bg-neutral'>Открыт</span> <span id='b_2_9' class='badge bg-neutral'>Закрыт</span></div></div>";
+  html += "<div class='status-row'><span>Физический датчик открытой двери (R1:B2):</span><span id='b_1_2' class='badge bg-neutral'>Датчик</span></div>";
+  html += "<div class='status-row'><span>Опрос концевого датчика двери (R1:B12):</span><span id='b_1_12' class='badge bg-neutral'>Нет</span></div>";
+  html += "<div class='status-row'><span>Состояние движения (R2:B11):</span><span id='b_2_11' class='badge bg-neutral'>Стоит</span></div>";
+  html += "<div class='status-row'><span>Направление движения (R0):</span><div><span id='b_0_9' class='badge bg-neutral'>Вверх ⬆️</span> <span id='b_0_8' class='badge bg-neutral'>Вниз ⬇️</span></div></div>";
+  html += "<div class='status-row'><span>Лаз зафиксирован (R2:B12):</span><span id='b_2_12' class='badge bg-neutral'>Нет</span></div>";
+  html += "<div class='status-row'><span>Занято направлением движения лаза (R2:B13):</span><span id='b_2_13' class='badge bg-neutral'>Нет</span></div>";
+  html += "<div class='status-row'><span>Занято направлением движения (R2:B14):</span><span id='b_2_14' class='badge bg-neutral'>Нет</span></div>";
+  html += "</div>";
+
+  // Блок 2: Режимы работы и температурные блокировки
+  html += "<div class='card'>";
+  html += "<h3>Режимы и блокировки управления</h3>";
+  html += "<div class='status-row'><span>Режим управления лазом (R2:B10):</span><span id='b_2_10' class='badge bg-info'>Авто</span></div>";
+  html += "<div class='status-row'><span>Управление лазом по календарю (R2:B0):</span><span id='b_2_0' class='badge bg-neutral'>Выкл</span></div>";
+  html += "<div class='status-row'><span>Управление закрытием по расписанию (R2:B1):</span><span id='b_2_1' class='badge bg-neutral'>Выкл</span></div>";
+  html += "<div class='status-row'><span>Управление лазом по температуре (R2:B15):</span><span id='b_2_15' class='badge bg-neutral'>Выкл</span></div>";
+  html += "<div class='status-row'><span>Запрет открытия по темп. внутри (R2:B6):</span><span id='b_2_6' class='badge bg-neutral'>Нет</span></div>";
+  html += "<div class='status-row'><span>Запрет открытия по темп. на улице (R2:B7):</span><span id='b_2_7' class='badge bg-neutral'>Нет</span></div>";
+  html += "</div>";
+
+  // Блок 3: Конфигурация времени и температур
+  html += "<div class='card'>";
+  html += "<h3>Временные и температурные уставки</h3>";
+  html += "<div class='grid-2'>";
+  html += "  <div>";
+  html += "    <div class='status-row'><span>Расчетное откр. (R10):</span><span id='r_10' class='val-box'>--</span></div>";
+  html += "    <div class='status-row'><span>Расчетное закр. (R9):</span><span id='r_9' class='val-box'>--</span></div>";
+  html += "    <div class='status-row'><span>Записанное откр. (R40):</span><span id='r_40' class='val-box'>--</span></div>";
+  html += "    <div class='status-row'><span>Записанное закр. (R41):</span><span id='r_41' class='val-box'>--</span></div>";
+  html += "  </div>";
+  html += "  <div>";
+  html += "    <div class='status-row'><span>Время отлож. закр. (R42):</span><span id='r_42' class='val-box'>--</span></div>";
+  html += "    <div class='status-row'><span>Время хода привода (R43):</span><span id='r_43' class='val-box'>--</span></div>";
+  html += "    <div class='status-row'><span>Темп. открытия (R33):</span><span id='r_33' class='val-box'>--</span></div>";
+  html += "  </div>";
+  html += "</div>";
+  html += "</div>";
+
+  // Кнопка Назад
+  html += "<a href='/autoChickenHous' class='btn'>⬅️ Назад в меню</a>";
+  html += "</div>";
+
+  // JavaScript AJAX скрипт динамического обновления
+  html += R"rawliteral(
+  <script>
+  function updateDoorData() {
+    fetch('/api/data')
+      .then(r => r.json())
+      .then(data => {
+        let r0 = data["0"] || 0;
+        let r1 = data["1"] || 0;
+        let r2 = data["2"] || 0;
+
+        // Разбор флагов движения (Регистр 0)
+        updateBadge('b_0_8', (r0 >> 8) & 1, "АКТИВНО", "Выкл", "bg-danger", "bg-neutral");
+        updateBadge('b_0_9', (r0 >> 9) & 1, "АКТИВНО", "Выкл", "bg-success", "bg-neutral");
+
+        // Концевик и опрос датчика (Регистр 1)
+        updateBadge('b_1_2', (r1 >> 2) & 1, "ОТКРЫТА", "Закрыта", "bg-success", "bg-danger");
+        updateBadge('b_1_12', (r1 >> 12) & 1, "ОПРОС", "Нет", "bg-info", "bg-neutral");
+
+        // Статусы и режимы лаза (Регистр 2)
+        updateBadge('b_2_0', (r2 >> 0) & 1, "Вкл", "Выкл", "bg-success", "bg-neutral");
+        updateBadge('b_2_1', (r2 >> 1) & 1, "Вкл", "Выкл", "bg-success", "bg-neutral");
+        updateBadge('b_2_6', (r2 >> 6) & 1, "ЗАПРЕТ", "Нет", "bg-danger", "bg-success");
+        updateBadge('b_2_7', (r2 >> 7) & 1, "ЗАПРЕТ", "Нет", "bg-danger", "bg-success");
+        updateBadge('b_2_8', (r2 >> 8) & 1, "ОТКРЫТ", "Пассив", "bg-success", "bg-neutral");
+        updateBadge('b_2_9', (r2 >> 9) & 1, "ЗАКРЫТ", "Пассив", "bg-danger", "bg-neutral");
+        updateBadge('b_2_10', (r2 >> 10) & 1, "РУЧНОЙ", "Авто", "bg-danger", "bg-info");
+        updateBadge('b_2_11', (r2 >> 11) & 1, "ДВИЖЕНИЕ", "Стоит", "bg-danger", "bg-neutral");
+        updateBadge('b_2_12', (r2 >> 12) & 1, "БЛОК", "Нет", "bg-danger", "bg-neutral");
+        updateBadge('b_2_13', (r2 >> 13) & 1, "ЗАНЯТО", "Нет", "bg-danger", "bg-neutral");
+        updateBadge('b_2_14', (r2 >> 14) & 1, "ЗАНЯТО", "Нет", "bg-danger", "bg-neutral");
+        updateBadge('b_2_15', (r2 >> 15) & 1, "Вкл", "Выкл", "bg-success", "bg-neutral");
+
+        // Заполнение числовых регистров (9, 10, 33, 40, 41, 42, 43)
+        const doorRegs =;
+        doorRegs.forEach(reg => {
+          let el = document.getElementById('r_' + reg);
+          if (el && data[reg] !== undefined) {
+            if(reg === 33) {
+              el.innerText = data[reg] + "°C";
+            } else {
+              el.innerText = data[reg];
+            }
+          }
+        });
+      })
+      .catch(err => console.error("Ошибка обновления данных лаза:", err));
+  }
+
+  function updateBadge(id, state, textOn, textOff, classOn, classOff) {
+    let el = document.getElementById(id);
+    if (!el) return;
+    if (state === 1) {
+      el.innerText = textOn;
+      el.className = "badge " + classOn;
+    } else {
+      el.innerText = textOff;
+      el.className = "badge " + classOff;
+    }
+  }
+
+  setInterval(updateDoorData, 2000);
+  updateDoorData();
+  </script>
+  )rawliteral";
+
+  html += "</body></html>";
+  webServer.send(200, "text/html", html);
+}
+
 // 3. Страница настроек
 void handleSettings() {
   String html = getHeader("Настройки шлюза");
@@ -1477,6 +1622,7 @@ void setup() {
   webServer.on("/alerts", handleAlerts);
   webServer.on("/status", handleStatus);
   webServer.on("/feeding", handleFeeding);
+  webServer.on("/door", handleDoor);
   webServer.on("/table", handleTable);
   webServer.on("/api/data", handleApiData);
   webServer.on("/api/scan", handleApiScan);
