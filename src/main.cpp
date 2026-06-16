@@ -1035,6 +1035,286 @@ void handleAlerts() {
   webServer.send(200, "text/html", html);
 }
 
+// Статусы
+void handleStatus() {
+  String html = "<!DOCTYPE html><html lang='ru'><head>";
+  html += "<meta charset='UTF-8'>";
+  html += "<meta name='viewport' content='width=device-width, initial-scale=1.0'>";
+  html += "<title>Системные статусы</title>";
+  html += "<style>";
+  html += "body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: #f0f2f5; color: #1c1e21; margin: 0; padding: 20px; display: flex; flex-direction: column; align-items: center; }";
+  html += ".container { width: 100%; max-width: 600px; }";
+  html += "h2 { color: #1a73e8; text-align: center; margin-bottom: 20px; font-size: 24px; }";
+  html += ".card { background: white; border-radius: 12px; padding: 20px; box-shadow: 0 2px 10px rgba(0,0,0,0.05); margin-bottom: 20px; border: 1px solid #e4e6eb; }";
+  html += "h3 { margin-top: 0; color: #65676b; border-bottom: 2px solid #f0f2f5; padding-bottom: 8px; font-size: 14px; text-transform: uppercase; letter-spacing: 0.5px; }";
+  html += ".status-row { display: flex; justify-content: space-between; align-items: center; padding: 12px 8px; border-bottom: 1px solid #f0f2f5; }";
+  html += ".status-row:last-child { border-bottom: none; }";
+  html += ".status-name { font-size: 15px; color: #050505; }";
+  html += ".badge { padding: 6px 14px; border-radius: 20px; font-size: 12px; font-weight: 600; min-width: 80px; text-align: center; text-transform: uppercase; transition: all 0.2s ease; }";
+  html += ".bg-off { background: #bcc0c4; color: #4b4f56; }";
+  html += ".bg-on { background: #34a853; color: white; }";
+  html += ".btn { display: block; text-align: center; padding: 12px; background: #1a73e8; color: white; text-decoration: none; border-radius: 8px; font-weight: 600; margin-top: 15px; transition: background 0.2s; border: none; }";
+  html += ".btn:hover { background: #1557b0; }";
+  html += "</style></head><body>";
+
+  html += "<div class='container'>";
+  html += "<h2>📊 Системные статусы и режимы</h2>";
+
+  // Группа 1: Связь и обмен данными (Регистр 0)
+  html += "<div class='card'>";
+  html += "<h3>Связь и обмен (Регистр 0)</h3>";
+  html += "<div class='status-row'><span class='status-name'>Задержка управления (R0:B1)</span><span id='b_0_1' class='badge bg-off'>Пауза</span></div>";
+  html += "<div class='status-row'><span class='status-name'>Прием команд (R0:B5)</span><span id='b_0_5' class='badge bg-off'>Нет</span></div>";
+  html += "<div class='status-row'><span class='status-name'>Передача включена (R0:B6)</span><span id='b_0_6' class='badge bg-off'>Выкл</span></div>";
+  html += "<div class='status-row'><span class='status-name'>Связь с удаленным модулем (R0:B7)</span><span id='b_0_7' class='badge bg-off'>Отказ</span></div>";
+  html += "</div>";
+
+  // Группа 2: Отображение экранов локального дисплея (Регистр 2)
+  html += "<div class='card'>";
+  html += "<h3>Интерфейс прибора (Регистр 2)</h3>";
+  html += "<div class='status-row'><span class='status-name'>Экран отображения вентиляции (R2:B2)</span><span id='b_2_2' class='badge bg-off'>Скрыт</span></div>";
+  html += "<div class='status-row'><span class='status-name'>Экран отображения температур (R2:B3)</span><span id='b_2_3' class='badge bg-off'>Скрыт</span></div>";
+  html += "</div>";
+
+  // Группа 3: Настройки и управление (Регистр 3)
+  html += "<div class='card'>";
+  html += "<h3>Режимы и кнопки (Регистр 3)</h3>";
+  html += "<div class='status-row'><span class='status-name'>Настройка по Wi-Fi (R3:B2)</span><span id='b_3_2' class='badge bg-off'>Выкл</span></div>";
+  html += "<div class='status-row'><span class='status-name'>В меню \"Настройка\" (R3:B3)</span><span id='b_3_3' class='badge bg-off'>Нет</span></div>";
+  html += "<div class='status-row'><span class='status-name'>Ручной режим управления (R3:B4)</span><span id='b_3_4' class='badge bg-off'>Авто</span></div>";
+  html += "<div class='status-row'><span class='status-name'>Нажата кнопка на приборе (R3:B6)</span><span id='b_3_6' class='badge bg-off'>Отпущена</span></div>";
+  html += "</div>";
+
+  // Кнопка Назад
+  html += "<a href='/autoChickenHous' class='btn'>⬅️ Назад в меню</a>";
+  html += "</div>";
+
+  // JavaScript AJAX скрипт для обновления
+  html += R"rawliteral(
+  <script>
+  function updateStatusData() {
+    fetch('/api/data')
+      .then(r => r.json())
+      .then(data => {
+        // Чтение регистров
+        let r0 = data["0"] || 0;
+        let r2 = data["2"] || 0;
+        let r3 = data["3"] || 0;
+
+        // Разбор регистра 0
+        updateBadge('b_0_1', (r0 >> 1) & 1, "Активна", "Пауза");
+        updateBadge('b_0_5', (r0 >> 5) & 1, "Прием", "Нет");
+        updateBadge('b_0_6', (r0 >> 6) & 1, "Передача", "Выкл");
+        updateBadge('b_0_7', (r0 >> 7) & 1, "ОК", "Отказ");
+
+        // Разбор регистра 2
+        updateBadge('b_2_2', (r2 >> 2) & 1, "АКТИВЕН", "Скрыт");
+        updateBadge('b_2_3', (r2 >> 3) & 1, "АКТИВЕН", "Скрыт");
+
+        // Разбор регистра 3
+        updateBadge('b_3_2', (r3 >> 2) & 1, "АКТИВНА", "Выкл");
+        updateBadge('b_3_3', (r3 >> 3) & 1, "ДА", "Нет");
+        updateBadge('b_3_4', (r3 >> 4) & 1, "РУЧНОЙ", "Авто");
+        updateBadge('b_3_6', (r3 >> 6) & 1, "НАЖАТА", "Отпущена");
+      })
+      .catch(err => console.error("Ошибка обновления статусов:", err));
+  }
+
+  function updateBadge(id, state, textOn, textOff) {
+    let el = document.getElementById(id);
+    if (!el) return;
+    if (state === 1) {
+      el.innerText = textOn;
+      el.className = "badge bg-on";
+    } else {
+      el.innerText = textOff;
+      el.className = "badge bg-off";
+    }
+  }
+
+  setInterval(updateStatusData, 2000);
+  updateStatusData();
+  </script>
+  )rawliteral";
+
+  html += "</body></html>";
+  webServer.send(200, "text/html", html);
+}
+
+// Кормление и поголовье
+void handleFeeding() {
+  String html = "<!DOCTYPE html><html lang='ru'><head>";
+  html += "<meta charset='UTF-8'>";
+  html += "<meta name='viewport' content='width=device-width, initial-scale=1.0'>";
+  html += "<title>Кормление и поголовье</title>";
+  html += "<style>";
+  html += "body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: #f4f7f6; color: #333; margin: 0; padding: 20px; display: flex; flex-direction: column; align-items: center; }";
+  html += ".container { width: 100%; max-width: 700px; }";
+  html += "h2 { color: #2c3e50; text-align: center; margin-bottom: 20px; font-size: 24px; }";
+  html += ".card { background: white; border-radius: 12px; padding: 20px; box-shadow: 0 4px 15px rgba(0,0,0,0.05); margin-bottom: 20px; border: 1px solid #eee; }";
+  html += "h3 { margin-top: 0; color: #27ae60; border-bottom: 2px solid #e8f5e9; padding-bottom: 8px; font-size: 15px; text-transform: uppercase; letter-spacing: 0.5px; }";
+  html += ".status-row { display: flex; justify-content: space-between; align-items: center; padding: 10px 5px; border-bottom: 1px solid #f8f9fa; }";
+  html += ".status-row:last-child { border-bottom: none; }";
+  html += ".badge { padding: 5px 12px; border-radius: 20px; font-size: 13px; color: white; font-weight: bold; min-width: 65px; text-align: center; }";
+  html += ".bg-success { background: #28a745; }";
+  html += ".bg-danger { background: #dc3545; }";
+  html += ".bg-neutral { background: #6c757d; }";
+  html += ".val-box { font-weight: bold; color: #333; background: #f8f9fc; padding: 4px 12px; border-radius: 6px; border: 1px solid #eaecf4; font-family: monospace; font-size: 15px; }";
+  html += ".grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; }";
+  html += "table { width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 14px; }";
+  html += "th, td { padding: 8px; border: 1px solid #eaecf4; text-align: center; }";
+  html += "th { background: #f8f9fc; color: #27ae60; font-weight: bold; }";
+  html += ".btn { display: block; text-align: center; padding: 12px; background: #27ae60; color: white; text-decoration: none; border-radius: 8px; font-weight: 600; margin-top: 15px; transition: 0.2s; border: none; }";
+  html += ".btn:hover { background: #219653; }";
+  html += "@media(max-width: 600px) { .grid-2 { grid-template-columns: 1fr; } }";
+  html += "</style></head><body>";
+
+  html += "<div class='container'>";
+  html += "<h2>🌾 Кормление и поголовье птицы</h2>";
+
+  // Блок 1: Поголовье и общая статистика
+  html += "<div class='card'>";
+  html += "<h3>Статистика и поголовье</h3>";
+  html += "<div class='grid-2'>";
+  html += "  <div>";
+  html += "    <div class='status-row'><span>Количество птиц (R57):</span><span id='r_57' class='val-box'>--</span></div>";
+  html += "    <div class='status-row'><span>Масса одной птицы (R56):</span><span id='r_56' class='val-box'>--</span></div>";
+  html += "  </div>";
+  html += "  <div>";
+  html += "    <div class='status-row'><span>Пройдено кормлений (R14):</span><span id='r_14' class='val-box'>--</span></div>";
+  html += "    <div class='status-row'><span>План кормлений (R15):</span><span id='r_15' class='val-box'>--</span></div>";
+  html += "  </div>";
+  html += "</div>";
+  html += "</div>";
+
+  // Блок 2: Состояние процесса кормления (Биты регистра 3)
+  html += "<div class='card'>";
+  html += "<h3>Статус процесса кормления</h3>";
+  html += "<div class='status-row'><span>Пропуски кормления (R3:B8):</span><span id='b_3_8' class='badge bg-danger'>Есть</span></div>";
+  html += "<div class='status-row'><span>Кормление за сутки закончилось (R3:B11):</span><span id='b_3_11' class='badge bg-neutral'>Нет</span></div>";
+  html += "<div class='status-row'><span>Количество кормлений равно нулю (R3:B12):</span><span id='b_3_12' class='badge bg-danger'>Да</span></div>";
+  html += "<div class='status-row'><span>Включен режим ручного кормления (R3:B14):</span><span id='b_3_14' class='badge bg-neutral'>Выкл</span></div>";
+  html += "<div class='status-row'><span>Отработка пропусков кормления (R3:B15):</span><span id='b_3_15' class='badge bg-neutral'>Выкл</span></div>";
+  html += "</div>";
+
+  // Блок 3: Следующее кормление
+  html += "<div class='card'>";
+  html += "<h3>Следующее кормление</h3>";
+  html += "<div class='status-row'><span>Номер кормушки (R12):</span><span id='r_12' class='val-box'>--</span></div>";
+  html += "<div class='status-row'><span>Время начала (R16):</span><span id='r_16' class='val-box'>--</span></div>";
+  html += "<div class='status-row'><span>Длительность, сек (R13):</span><span id='r_13' class='val-box'>--</span></div>";
+  html += "</div>";
+
+  // Блок 4: Статус оборудования (Кормушки и модули)
+  html += "<div class='card'>";
+  html += "<h3>Статус оборудования (Кормушки 1-4)</h3>";
+  html += "<table>";
+  html += "<thead><tr><th>Устройство</th><th>Подключение к системе</th><th>Питание / Сеть</th></tr></thead>";
+  html += "<tbody>";
+  for (int i = 1; i <= 4; i++) {
+    html += "<tr>";
+    html += "<td>Кормушка " + String(i) + "</td>";
+    html += "<td><span id='b_4_" + String(i-1) + "' class='badge bg-danger'>Откл</span></td>";
+    html += "<td><span id='b_4_" + String(8 + (i-1)) + "' class='badge bg-danger'>Выкл</span></td>";
+    html += "</tr>";
+  }
+  html += "<tr>";
+  html += "<td>Новый модуль</td>";
+  html += "<td colspan='2'><span id='b_4_13' class='badge bg-danger'>Выкл</span></td>";
+  html += "</tr>";
+  html += "</tbody></table>";
+  html += "</div>";
+
+  // Блок 5: Расписание кормлений (Таблица 1-15)
+  html += "<div class='card'>";
+  html += "<h3>График и длительность кормлений (1-15)</h3>";
+  html += "<table>";
+  html += "<thead><tr><th>№</th><th>Время кормления</th><th>Длительность</th></tr></thead>";
+  html += "<tbody>";
+  for (int i = 1; i <= 15; i++) {
+    int r_time = 110 + (i - 1);
+    int r_dur = 125 + (i - 1);
+    html += "<tr>";
+    html += "<td>" + String(i) + "</td>";
+    html += "<td id='r_" + String(r_time) + "'>--</td>";
+    html += "<td id='r_" + String(r_dur) + "'>--</td>";
+    html += "</tr>";
+  }
+  html += "</tbody></table>";
+  html += "</div>";
+
+  // Кнопка Назад
+  html += "<a href='/autoChickenHous' class='btn'>⬅️ Назад в меню</a>";
+  html += "</div>";
+
+  // JavaScript AJAX скрипт динамического обновления
+  html += R"rawliteral(
+  <script>
+  function updateFeedingData() {
+    fetch('/api/data')
+      .then(r => r.json())
+      .then(data => {
+        // Загрузка сырых регистров
+        let r3 = data["3"] || 0;
+        let r4 = data["4"] || 0;
+
+        // Обновление битовых статусов регистра 3
+        updateBadge('b_3_8', (r3 >> 8) & 1, "ПРОПУСК", "Норма", true);
+        updateBadge('b_3_11', (r3 >> 11) & 1, "Да", "Нет", false);
+        updateBadge('b_3_12', (r3 >> 12) & 1, "ДА (0)", "В норме", true);
+        updateBadge('b_3_14', (r3 >> 14) & 1, "РУЧНОЙ", "Авто", false);
+        updateBadge('b_3_15', (r3 >> 15) & 1, "ОТРАБОТКА", "Нет", false);
+
+        // Обновление битовых статусов регистра 4 (Кормушки 1-4)
+        for (let i = 0; i < 4; i++) {
+          updateBadge('b_4_' + i, (r4 >> i) & 1, "Подкл", "Откл", false);
+          updateBadge('b_4_' + (8 + i), (r4 >> (8 + i)) & 1, "В СЕТИ", "ВЫКЛ", false);
+        }
+        updateBadge('b_4_13', (r4 >> 13) & 1, "В СЕТИ", "ВЫКЛ", false);
+
+        // Оперативные регистры общего состояния
+        const singleRegs =;
+        singleRegs.forEach(reg => {
+          let el = document.getElementById('r_' + reg);
+          if (el && data[reg] !== undefined) el.innerText = data[reg];
+        });
+
+        // Заполнение таблицы расписания (110-124 и 125-139)
+        for (int i = 0; i < 15; i++) {
+          let tReg = 110 + i;
+          let dReg = 125 + i;
+
+          let tEl = document.getElementById('r_' + tReg);
+          if (tEl && data[tReg] !== undefined) tEl.innerText = data[tReg];
+
+          let dEl = document.getElementById('r_' + dReg);
+          if (dEl && data[dReg] !== undefined) dEl.innerText = data[dReg];
+        }
+      })
+      .catch(err => console.error("Ошибка обновления данных кормления:", err));
+  }
+
+  function updateBadge(id, state, textOn, textOff, isAlarmType) {
+    let el = document.getElementById(id);
+    if (!el) return;
+    if (state === 1) {
+      el.innerText = textOn;
+      el.className = isAlarmType ? "badge bg-danger" : "badge bg-success";
+    } else {
+      el.innerText = textOff;
+      el.className = isAlarmType ? "badge bg-success" : "badge bg-danger";
+    }
+  }
+
+  setInterval(updateFeedingData, 2000);
+  updateFeedingData();
+  </script>
+  )rawliteral";
+
+  html += "</body></html>";
+  webServer.send(200, "text/html", html);
+}
+
 // 3. Страница настроек
 void handleSettings() {
   String html = getHeader("Настройки шлюза");
@@ -1195,6 +1475,8 @@ void setup() {
   webServer.on("/autoChickenHous", handleAutoChickenHous);
   webServer.on("/light", handleLight);
   webServer.on("/alerts", handleAlerts);
+  webServer.on("/status", handleStatus);
+  webServer.on("/feeding", handleFeeding);
   webServer.on("/table", handleTable);
   webServer.on("/api/data", handleApiData);
   webServer.on("/api/scan", handleApiScan);
