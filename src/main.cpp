@@ -1460,6 +1460,203 @@ void handleDoor() {
   webServer.send(200, "text/html", html);
 }
 
+// Климат-контроль
+void handleClimate() {
+  String html = "<!DOCTYPE html><html lang='ru'><head>";
+  html += "<meta charset='UTF-8'>";
+  html += "<meta name='viewport' content='width=device-width, initial-scale=1.0'>";
+  html += "<title>Климат-контроль</title>";
+  html += "<style>";
+  html += "body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: #f0f4f8; color: #1e293b; margin: 0; padding: 20px; display: flex; flex-direction: column; align-items: center; }";
+  html += ".container { width: 100%; max-width: 800px; }";
+  html += "h2 { color: #0f172a; text-align: center; margin-bottom: 24px; font-size: 24px; }";
+  html += ".card { background: white; border-radius: 12px; padding: 20px; box-shadow: 0 4px 10px rgba(0,0,0,0.03); margin-bottom: 20px; border: 1px solid #e2e8f0; }";
+  html += "h3 { margin-top: 0; color: #0284c7; border-bottom: 2px solid #e0f2fe; padding-bottom: 8px; font-size: 15px; text-transform: uppercase; letter-spacing: 0.5px; }";
+  html += ".status-row { display: flex; justify-content: space-between; align-items: center; padding: 10px 6px; border-bottom: 1px solid #f1f5f9; }";
+  html += ".status-row:last-child { border-bottom: none; }";
+  html += ".badge { padding: 5px 12px; border-radius: 20px; font-size: 12px; color: white; font-weight: bold; min-width: 75px; text-align: center; text-transform: uppercase; }";
+  html += ".bg-success { background: #10b981; }";
+  html += ".bg-danger { background: #ef4444; }";
+  html += ".bg-info { background: #3b82f6; }";
+  html += ".bg-neutral { background: #64748b; }";
+  html += ".val-box { font-weight: bold; color: #0f172a; background: #f8fafc; padding: 4px 12px; border-radius: 6px; border: 1px solid #e2e8f0; font-family: monospace; font-size: 15px; }";
+  html += ".grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; }";
+  html += ".grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 15px; }";
+  html += "table { width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 14px; }";
+  html += "th, td { padding: 8px; border: 1px solid #e2e8f0; text-align: center; }";
+  html += "th { background: #f8fafc; color: #0284c7; font-weight: bold; }";
+  html += ".btn { display: block; text-align: center; padding: 12px; background: #0284c7; color: white; text-decoration: none; border-radius: 8px; font-weight: 600; margin-top: 15px; transition: 0.2s; border: none; }";
+  html += ".btn:hover { background: #0369a1; }";
+  html += "@media(max-width: 768px) { .grid-2, .grid-3 { grid-template-columns: 1fr; } }";
+  html += "</style></head><body>";
+
+  html += "<div class='container'>";
+  html += "<h2>🌡️ Управление микроклиматом</h2>";
+
+  // Блок 1: Текущие метеоданные и датчики
+  html += "<div class='card'>";
+  html += "<h3>Текущие измерения и датчики</h3>";
+  html += "<div class='grid-2'>";
+  html += "  <div>";
+  html += "    <div class='status-row'><span>Темп. в курятнике (R5):</span><span id='r_5' class='val-box'>--</span></div>";
+  html += "    <div class='status-row'><span>Влажность в курятнике (R6):</span><span id='r_6' class='val-box'>--</span></div>";
+  html += "    <div class='status-row'><span>Кол-во датчиков темп. (R28):</span><span id='r_28' class='val-box'>--</span></div>";
+  html += "    <div class='status-row'><span>Загазованность (Датчик R0:B2):</span><span id='b_0_2' class='badge bg-neutral'>Норма</span></div>";
+  html += "    <div class='status-row'><span>Опрос датчика газа (R1:B11):</span><span id='b_1_11' class='badge bg-neutral'>Нет</span></div>";
+  html += "  </div>";
+  html += "  <div>";
+  html += "    <div class='status-row'><span>Темп. на улице (R7):</span><span id='r_7' class='val-box'>--</span></div>";
+  html += "    <div class='status-row'><span>Влажность на улице (R8):</span><span id='r_8' class='val-box'>--</span></div>";
+  html += "    <div class='status-row'><span>Объем помещения (R55):</span><span id='r_55' class='val-box'>--</span></div>";
+  html += "    <div class='status-row'><span>Темп. < 0°C на улице (R0:B3):</span><span id='b_0_3' class='badge bg-neutral'>Нет</span></div>";
+  html += "    <div class='status-row'><span>Темп. < 0°C в доме (R0:B4):</span><span id='b_0_4' class='badge bg-neutral'>Нет</span></div>";
+  html += "  </div>";
+  html += "</div>";
+  html += "</div>";
+
+  // Блок 2: Состояние исполнительных устройств
+  html += "<div class='card'>";
+  html += "<h3>Исполнительные устройства</h3>";
+  html += "<div class='grid-2'>";
+  html += "  <div>";
+  html += "    <div class='status-row'><span>Нагрев (R0:B14):</span><span id='b_0_14' class='badge bg-neutral'>Выкл</span></div>";
+  html += "    <div class='status-row'><span>Охлаждение (R0:B0):</span><span id='b_0_0' class='badge bg-neutral'>Выкл</span></div>";
+  html += "    <div class='status-row'><span>Приточный вент. (R0:B12):</span><span id='b_0_12' class='badge bg-neutral'>Выкл</span></div>";
+  html += "    <div class='status-row'><span>Вытяжной вент. (R0:B13):</span><span id='b_0_13' class='badge bg-neutral'>Выкл</span></div>";
+  html += "  </div>";
+  html += "  <div>";
+  html += "    <div class='status-row'><span>Управление осушителем (R1:B7):</span><span id='b_1_7' class='badge bg-neutral'>Выкл</span></div>";
+  html += "    <div class='status-row'><span>Используется осушитель (R4:B4):</span><span id='b_4_4' class='badge bg-neutral'>Нет</span></div>";
+  html += "    <div class='status-row'><span>Осушитель в сети (R4:B12):</span><span id='b_4_12' class='badge bg-neutral'>Выкл</span></div>";
+  html += "    <div class='status-row'><span>Раб. нагревателя за час (R47):</span><span id='r_47' class='val-box'>--</span></div>";
+  html += "  </div>";
+  html += "</div>";
+  html += "</div>";
+
+  // Блок 3: Режимы и логика вентиляции
+  html += "<div class='card'>";
+  html += "<h3>Режимы управления и логика работы</h3>";
+  html += "<div class='status-row'><span>Речное (ручное) упр. вентиляцией (R1:B15):</span><span id='b_1_15' class='badge bg-neutral'>Выкл</span></div>";
+  html += "<div class='status-row'><span>Авто проветривание (R1:B3):</span><span id='b_1_3' class='badge bg-neutral'>Выкл</span></div>";
+  html += "<div class='status-row'><span>Ручное проветривание (R1:B4):</span><span id='b_1_4' class='badge bg-neutral'>Выкл</span></div>";
+  html += "<div class='status-row'><span>Управление охлаждением (R3:B7):</span><span id='b_3_7' class='badge bg-neutral'>Выкл</span></div>";
+  html += "<div class='status-row'><span>Управление вентиляторами ДНЕМ (R1:B13):</span><span id='b_1_13' class='badge bg-neutral'>Выкл</span></div>";
+  html += "<div class='status-row'><span>Управление вентиляторами во время СНА (R1:B14):</span><span id='b_1_14' class='badge bg-neutral'>Выкл</span></div>";
+  html += "<div class='status-row'><span>Коррекция вентиляторов (R1:B6):</span><span id='b_1_6' class='badge bg-neutral'>Выкл</span></div>";
+  html += "<div class='status-row'><span>Управление вентиляцией по ГОСТ (R2:B4):</span><span id='b_2_4' class='badge bg-neutral'>Выкл</span></div>";
+  html += "</div>";
+
+  // Блок 4: Контроль загазованности и статистика вентиляции
+  html += "<div class='card'>";
+  html += "<h3>Аналитика вентиляции и загазованности</h3>";
+  html += "<div class='status-row'><span>Превышение лимита газа в час (R1:B8):</span><span id='b_1_8' class='badge bg-neutral'>Норма</span></div>";
+  html += "<div class='grid-2'>";
+  html += "  <div>";
+  html += "    <div class='status-row'><span>Кол-во сработок газа в час (R31):</span><span id='r_31' class='val-box'>--</span></div>";
+  html += "    <div class='status-row'><span>Общее число сработок газа (R32):</span><span id='r_32' class='val-box'>--</span></div>";
+  html += "    <div class='status-row'><span>Включений вент./час при газе (R44):</span><span id='r_44' class='val-box'>--</span></div>";
+  html += "  </div>";
+  html += "  <div>";
+  html += "    <div class='status-row'><span>Включений вентиляции в час (R34):</span><span id='r_34' class='val-box'>--</span></div>";
+  html += "    <div class='status-row'><span>Допуст. проветриваний в час (R58):</span><span id='r_58' class='val-box'>--</span></div>";
+  html += "    <div class='status-row'><span>Время смены воздуха, сек (R35):</span><span id='r_35' class='val-box'>--</span></div>";
+  html += "  </div>";
+  html += "</div>";
+  html += "</div>";
+
+  // Блок 5: Оперативные уставки параметров
+  html += "<div class='card'>";
+  html += "<h3>Временные и целевые уставки</h3>";
+  html += "<div class='grid-2'>";
+  html += "  <div>";
+  html += "    <div class='status-row'><span>Заданная температура (R24):</span><span id='r_24' class='val-box'>--</span></div>";
+  html += "    <div class='status-row'><span>Отклонение темп. (R25):</span><span id='r_25' class='val-box'>--</span></div>";
+  html += "    <div class='status-row'><span>Заданная темп. днем (R29):</span><span id='r_29' class='val-box'>--</span></div>";
+  html += "    <div class='status-row'><span>Температура охлаждения (R30):</span><span id='r_30' class='val-box'>--</span></div>";
+  html += "  </div>";
+  html += "  <div>";
+  html += "    <div class='status-row'><span>Заданная влажность (R26):</span><span id='r_26' class='val-box'>--</span></div>";
+  html += "    <div class='status-row'><span>Отклонение влажности (R27):</span><span id='r_27' class='val-box'>--</span></div>";
+  html += "    <div class='status-row'><span>Используется вентиляторов (R53):</span><span id='r_53' class='val-box'>--</span></div>";
+  html += "    <div class='status-row'><span>Производит. вент-ов (R54):</span><span id='r_54' class='val-box'>--</span></div>";
+  html += "  </div>";
+  html += "</div>";
+  html += "</div>";
+
+  // Блок 6: Справочные объемы воздуха
+  html += "<div class='card'>";
+  html += "<h3>Объемы свежего воздуха (куб.м)</h3>";
+  html += "<table>";
+  html += "<thead><tr><th>Режим расчета</th><th>Лето</th><th>Зима</th><th>Осень</th></tr></thead>";
+  html += "<tbody>";
+  html += "  <tr><td><b>По ГОСТ</b></td><td id='r_60'>--</td><td id='r_61'>--</td><td id='r_62'>--</td></tr>";
+  html += "  <tr><td><b>Текущий расчет</b></td><td id='r_63'>--</td><td id='r_64'>--</td><td id='r_65'>--</td></tr>";
+  html += "</tbody></table>";
+  html += "</div>";
+
+  // Кнопка Назад
+  html += "<a href='/autoChickenHous' class='btn'>⬅️ Назад в меню</a>";
+  html += "</div>";
+
+  // Внедрение JavaScript для автоматического фонового AJAX-опроса по API шлюза
+  html += "<script>";
+  html += "function updateClimateData() {";
+  html += "  fetch('/api/data')";
+  html += "    .then(r => r.json())";
+  html += "    .then(data => {";
+  html += "      let r0 = data['0'] || 0;";
+  html += "      let r1 = data['1'] || 0;";
+  html += "      let r2 = data['2'] || 0;";
+  html += "      let r3 = data['3'] || 0;";
+  html += "      let r4 = data['4'] || 0;";
+  html += "      updateBadge('b_0_0', (r0 >> 0) & 1, 'АКТИВНО', 'Выкл', 'bg-danger', 'bg-neutral');";
+  html += "      updateBadge('b_0_2', (r0 >> 2) & 1, 'ГАЗ!!', 'Норма', 'bg-danger', 'bg-success');";
+  html += "      updateBadge('b_0_3', (r0 >> 3) & 1, '< 0°C', 'Нет', 'bg-info', 'bg-neutral');";
+  html += "      updateBadge('b_0_4', (r0 >> 4) & 1, '< 0°C', 'Нет', 'bg-info', 'bg-neutral');";
+  html += "      updateBadge('b_0_12', (r0 >> 12) & 1, 'РАБОТА', 'Выкл', 'bg-success', 'bg-neutral');";
+  html += "      updateBadge('b_0_13', (r0 >> 13) & 1, 'РАБОТА', 'Выкл', 'bg-success', 'bg-neutral');";
+  html += "      updateBadge('b_0_14', (r0 >> 14) & 1, 'НАГРЕВ', 'Выкл', 'bg-danger', 'bg-neutral');";
+  html += "      updateBadge('b_1_3', (r1 >> 3) & 1, 'Вкл', 'Выкл', 'bg-success', 'bg-neutral');";
+  html += "      updateBadge('b_1_4', (r1 >> 4) & 1, 'Вкл', 'Выкл', 'bg-success', 'bg-neutral');";
+  html += "      updateBadge('b_1_6', (r1 >> 6) & 1, 'АКТИВНА', 'Выкл', 'bg-info', 'bg-neutral');";
+  html += "      updateBadge('b_1_7', (r1 >> 7) & 1, 'Вкл', 'Выкл', 'bg-success', 'bg-neutral');";
+  html += "      updateBadge('b_1_8', (r1 >> 8) & 1, 'ПРЕВЫШЕНИЕ', 'Норма', 'bg-danger', 'bg-success');";
+  html += "      updateBadge('b_1_11', (r1 >> 11) & 1, 'ОПРОС', 'Нет', 'bg-info', 'bg-neutral');";
+  html += "      updateBadge('b_1_13', (r1 >> 13) & 1, 'ДЕНЬ', 'Выкл', 'bg-info', 'bg-neutral');";
+  html += "      updateBadge('b_1_14', (r1 >> 14) & 1, 'СОН', 'Выкл', 'bg-neutral', 'bg-neutral');";
+  html += "      updateBadge('b_1_15', (r1 >> 15) & 1, 'РУЧНОЙ', 'Авто', 'bg-danger', 'bg-success');";
+  html += "      updateBadge('b_2_4', (r2 >> 4) & 1, 'ГОСТ', 'Выкл', 'bg-success', 'bg-neutral');";
+  html += "      updateBadge('b_3_7', (r3 >> 7) & 1, 'Вкл', 'Выкл', 'bg-success', 'bg-neutral');";
+  html += "      updateBadge('b_4_4', (r4 >> 4) & 1, 'Да', 'Нет', 'bg-success', 'bg-neutral');";
+  html += "      updateBadge('b_4_12', (r4 >> 12) & 1, 'В СЕТИ', 'Выкл', 'bg-success', 'bg-neutral');";
+  html += "      const climateRegs = [5, 6, 7, 8, 24, 25, 26, 27, 28, 29, 30, 31, 32, 34, 35, 44, 47, 53, 54, 55, 58, 60, 61, 62, 63, 64, 65];";
+  html += "      climateRegs.forEach(reg => {";
+  html += "        let el = document.getElementById('r_' + reg);";
+  html += "        if (el && data[reg] !== undefined) {";
+  html += "          let val = data[reg];";
+  html += "          if (reg===5||reg===7||reg===24||reg===25||reg===29||reg===30) { el.innerText = val + ' °C'; }";
+  html += "          else if (reg===6||reg===8||reg===26||reg===27) { el.innerText = val + ' %'; }";
+  html += "          else if (reg===55) { el.innerText = val + ' м³'; }";
+  html += "          else { el.innerText = val; }";
+  html += "        }";
+  html += "      });";
+  html += "    })";
+  html += "    .catch(err => console.error('Ошибка обновления:', err));";
+  html += "}";
+  html += "function updateBadge(id, state, textOn, textOff, classOn, classOff) {";
+  html += "  let el = document.getElementById(id);";
+  html += "  if (!el) return;";
+  html += "  if (state === 1) { el.innerText = textOn; el.className = 'badge ' + classOn; }";
+  html += "  else { el.innerText = textOff; el.className = 'badge ' + classOff; }";
+  html += "}";
+  html += "setInterval(updateClimateData, 2000);";
+  html += "updateClimateData();";
+  html += "</script>";
+
+  html += "</body></html>";
+  webServer.send(200, "text/html", html);
+}
+
 // 3. Страница настроек
 void handleSettings() {
   String html = getHeader("Настройки шлюза");
@@ -1623,6 +1820,7 @@ void setup() {
   webServer.on("/status", handleStatus);
   webServer.on("/feeding", handleFeeding);
   webServer.on("/door", handleDoor);
+  webServer.on("/climate", handleClimate);
   webServer.on("/table", handleTable);
   webServer.on("/api/data", handleApiData);
   webServer.on("/api/scan", handleApiScan);
