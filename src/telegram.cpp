@@ -18,9 +18,12 @@ void sendTelegramMessage(String text) {
     // Заменяем пробелы на безопасный для URL символ %20
     url.replace(" ", "%20");
 
-    secureClient.print(String("GET ") + url + " HTTP/1.1\r\n" +
-                       "Host: api.telegram.org\r\n" +
-                       "Connection: close\r\n\r\n");
+    // Собираем запрос в одну String-переменную для стабильности
+    String httpRequest = "GET " + url + " HTTP/1.1\r\n" +
+                         "Host: api.telegram.org\r\n" +
+                         "Connection: close\r\n\r\n";
+
+    secureClient.print(httpRequest);
     
     Serial.println("Запрос в Telegram отправлен: " + text);
     

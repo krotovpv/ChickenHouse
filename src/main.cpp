@@ -31,13 +31,15 @@ String mqtt_host, mqtt_user, mqtt_pass, mqtt_topic;
 int mqtt_port;
 
 // --- Инициализация настроек из Flash ---
-void loadSettings() {
+void loadSettingsWiFi() {
   prefs.begin("configWiFi", true); // Открываем в режиме чтения (true)
   sta_ssid = prefs.getString("ssid", ""); // Дефолт, если пусто
   sta_password = prefs.getString("pass", "");
   prefs.end();
-
-  prefs.begin("configMQTT2", true); // Открываем в режиме чтения (true)
+}
+// --- Инициализация настроек из Flash ---
+void loadSettingsMQTT() {
+  prefs.begin("configMQTT", true); // Открываем в режиме чтения (true)
   mqtt_user  = prefs.getString("mqtt_user", "");
   mqtt_pass  = prefs.getString("mqtt_pass", "");
   mqtt_host  = prefs.getString("mqtt_host", "mqtt-dashboard.com");
@@ -50,7 +52,6 @@ void loadSettings() {
   // mqtt_port = 1883;
   // mqtt_topic = "esp32/chickenhouse";
 }
-
 // --- Сохранение в Flash ---
 void saveSettingsWiFi(String s, String p) {
   //prefs.begin("config", ...) Параметр false означает доступ на чтение и запись, true — только чтение.
@@ -59,13 +60,14 @@ void saveSettingsWiFi(String s, String p) {
   prefs.putString("pass", p);
   prefs.end();
 }
-void saveSettingsMQTT(String mq_u, String mq_pass, String mq_h, String mq_p, String mq_t) {
+// --- Сохранение в Flash ---
+void saveSettingsMQTT(String mq_u, String mq_pass, String mq_h, unsigned int mq_p, String mq_t) {
   //prefs.begin("config", ...) Параметр false означает доступ на чтение и запись, true — только чтение.
   prefs.begin("configMQTT", false); // Открываем для записи (false)
   prefs.putString("mqtt_user", mq_u);
   prefs.putString("mqtt_pass", mq_pass);
   prefs.putString("mqtt_host", mq_h);
-  prefs.putString("mqtt_port", mq_p);
+  prefs.putInt("mqtt_port", mq_p);
   prefs.putString("mqtt_topic", mq_t);
   prefs.end();
 }
@@ -279,7 +281,8 @@ void setup() {
   randomSeed(analogRead(0));
 
   // 1. Загружаем настройки из Flash
-  loadSettings();
+  loadSettingsWiFi();
+  loadSettingsMQTT();
 
   // 2. Настройка Wi-Fi
   WiFi.mode(WIFI_AP_STA); // Устанавливаем комбинированный режим
