@@ -243,121 +243,309 @@ String getHeader(String title) {
 }
 
 // 1. Главная страница
+// void handleIndex() {
+//   String html = getHeader("Панель управления");
+  
+//   // 1. Стили (проверьте, чтобы этот блок был внутри функции)
+//   html += R"rawliteral(
+//   <style>
+//     .status-card { margin-bottom: 20px; }
+//     .status-row { display: flex; justify-content: space-between; align-items: flex-start; padding: 12px 0; border-bottom: 1px solid #f4f4f4; }
+//     .status-row:last-child { border-bottom: none; }
+    
+//     .ip-info { font-size: 0.85em; color: #666; margin-top: 5px; line-height: 1.5; }
+//     .ip-info b { color: #333; font-family: monospace; }
+
+//     /* Шкала WiFi */
+//     .sig-box { display: flex; align-items: flex-end; height: 20px; gap: 3px; margin-top: 5px; }
+//     .bar { width: 5px; background: #e0e0e0; border-radius: 1px; transition: 0.3s; }
+//     .b1 { height: 6px; } .b2 { height: 10px; } .b3 { height: 15px; } .b4 { height: 20px; }
+//     /* Цвета полосок */
+//     .green { background: #28a745 !important; }
+//     .yellow { background: #ffc107 !important; }
+//     .red { background: #dc3545 !important; }
+
+//     /* Индикатор MQTT */
+//     .dot { height: 10px; width: 10px; border-radius: 50%; display: inline-block; margin-right: 8px; background: #bbb; vertical-align: middle; }
+//     .online { background: #28a745; box-shadow: 0 0 8px rgba(40,167,69,0.4); }
+//     .offline { background: #dc3545; }
+    
+//     .nav-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; }
+//     .nav-btn { padding: 20px; text-align: center; border-radius: 12px; color: white; text-decoration: none; font-weight: 600; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
+//   </style>
+//   )rawliteral";
+
+//   html += "<div class='container'>";
+  
+//   // 2. Карточка статуса
+//   html += "<div class='card status-card'>";
+  
+//   // Блок WiFi
+//   html += "  <div class='status-row'>";
+//   html += "    <div>";
+//   html += "      <span>Сеть: <b id='ssid-name'>" + (sta_ssid != "" ? sta_ssid : "Ожидание...") + "</b></span>";
+//   html += "      <div class='ip-info'>";
+//   html += "        Локальный IP: <b id='sta-ip'>...</b><br>";
+//   html += "        Точка (AP) IP: <b>" + WiFi.softAPIP().toString() + "</b>";
+//   html += "      </div>";
+//   html += "    </div>";
+//   html += "    <div class='sig-box' id='wifi-bars'>";
+//   html += "      <div class='bar b1'></div><div class='bar b2'></div><div class='bar b3'></div><div class='bar b4'></div>";
+//   html += "    </div>";
+//   html += "  </div>";
+  
+//   // Блок MQTT
+//   html += "  <div class='status-row'>";
+//   html += "    <span>Статус MQTT:</span>";
+//   html += "    <span><span id='mqtt-dot' class='dot'></span><b id='mqtt-stat'>Подключение...</b></span>";
+//   html += "  </div>";
+//   html += "</div>";
+
+//   // 3. Кнопки
+//   html += "<div class='nav-grid'>";
+//   html += "  <a href='/autoChickenHous' class='nav-btn' style='background:#d97706;'>🐓<br>Автоматизация курятника</a>";
+//   html += "  <a href='/table' class='nav-btn' style='background:#4e73df;'>📊<br>Данные</a>";
+//   html += "  <a href='/settings' class='nav-btn' style='background:#1cc88a;'>⚙️<br>Настройки</a>";
+//   html += "</div>";
+
+//   // 4. Скрипт обновления (Исправленный)
+//   html += R"rawliteral(
+//   <script>
+//     function update() {
+//       fetch('/api/status').then(r => r.json()).then(d => {
+//         // Обновление WiFi
+//         const bars = document.querySelectorAll('.bar');
+//         const ssidEl = document.getElementById('ssid-name');
+//         const ipEl = document.getElementById('sta-ip');
+
+//         if (d.wifi_conn) {
+//           ssidEl.innerText = d.ssid;
+//           ipEl.innerText = d.ip;
+          
+//           let count = 0, colorClass = '';
+//           if (d.rssi >= -60) { count = 4; colorClass = 'green'; }
+//           else if (d.rssi >= -75) { count = 3; colorClass = 'green'; }
+//           else if (d.rssi >= -85) { count = 2; colorClass = 'yellow'; }
+//           else { count = 1; colorClass = 'red'; }
+          
+//           bars.forEach((b, i) => {
+//             b.classList.remove('green', 'yellow', 'red');
+//             if (i < count) b.classList.add(colorClass);
+//           });
+//         } else {
+//           ssidEl.innerHTML = '<span style="color:#dc3545">Отключено</span>';
+//           ipEl.innerText = "не присвоен";
+//           bars.forEach(b => b.classList.remove('green', 'yellow', 'red'));
+//         }
+
+//         // Обновление MQTT
+//         const dot = document.getElementById('mqtt-dot');
+//         const stat = document.getElementById('mqtt-stat');
+//         if (d.mqtt_conn) {
+//           dot.className = 'dot online';
+//           stat.innerText = 'В сети';
+//         } else {
+//           dot.className = 'dot offline';
+//           stat.innerText = 'Оффлайн';
+//         }
+//       }).catch(err => console.error("Ошибка API:", err));
+//     }
+//     setInterval(update, 3000);
+//     update();
+//   </script>
+//   )rawliteral";
+  
+//   html += "</div></body></html>";
+//   webServer.send(200, "text/html", html);
+// }
 void handleIndex() {
   String html = getHeader("Панель управления");
   
-  // 1. Стили (проверьте, чтобы этот блок был внутри функции)
+  // 1. Стили интерфейса
   html += R"rawliteral(
   <style>
     .status-card { margin-bottom: 20px; }
-    .status-row { display: flex; justify-content: space-between; align-items: flex-start; padding: 12px 0; border-bottom: 1px solid #f4f4f4; }
+    .status-row { display: flex; justify-content: space-between; align-items: center; padding: 12px 0; border-bottom: 1px solid #f4f4f4; }
     .status-row:last-child { border-bottom: none; }
-    
     .ip-info { font-size: 0.85em; color: #666; margin-top: 5px; line-height: 1.5; }
     .ip-info b { color: #333; font-family: monospace; }
-
-    /* Шкала WiFi */
     .sig-box { display: flex; align-items: flex-end; height: 20px; gap: 3px; margin-top: 5px; }
     .bar { width: 5px; background: #e0e0e0; border-radius: 1px; transition: 0.3s; }
     .b1 { height: 6px; } .b2 { height: 10px; } .b3 { height: 15px; } .b4 { height: 20px; }
-    /* Цвета полосок */
     .green { background: #28a745 !important; }
     .yellow { background: #ffc107 !important; }
     .red { background: #dc3545 !important; }
-
-    /* Индикатор MQTT */
     .dot { height: 10px; width: 10px; border-radius: 50%; display: inline-block; margin-right: 8px; background: #bbb; vertical-align: middle; }
     .online { background: #28a745; box-shadow: 0 0 8px rgba(40,167,69,0.4); }
     .offline { background: #dc3545; }
+    .nav-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-top: 20px; }
+    .nav-btn { padding: 15px 10px; text-align: center; border-radius: 12px; color: white; text-decoration: none; font-weight: 600; box-shadow: 0 4px 6px rgba(0,0,0,0.1); font-size: 14px; }
     
-    .nav-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; }
-    .nav-btn { padding: 20px; text-align: center; border-radius: 12px; color: white; text-decoration: none; font-weight: 600; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
+    /* Новые стили для сводных блоков */
+    .sub-title { font-size: 11px; color: #888; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 8px; font-weight: bold; border-bottom: 1px solid #eee; padding-bottom: 4px; }
+    .inline-stats { display: flex; gap: 15px; font-weight: bold; color: #333; }
+    .alert-banner { display: none; background: #fee2e2; border: 1px solid #fca5a5; color: #991b1b; padding: 10px; border-radius: 8px; text-align: center; font-weight: bold; margin-bottom: 15px; font-size: 14px; animation: pulse 2s infinite; }
+    @keyframes pulse { 0% { opacity: 1; } 50% { opacity: 0.8; } 100% { opacity: 1; } }
   </style>
   )rawliteral";
 
   html += "<div class='container'>";
   
-  // 2. Карточка статуса
+  // Блок критических аварий (скрыт по умолчанию, появляется при ошибках)
+  html += "<div id='alert-banner' class='alert-banner'>⚠️ ВНИМАНИЕ: Обнаружены активные ошибки или неисправности!</div>";
+
+  // Основная карточка статусов
   html += "<div class='card status-card'>";
   
-  // Блок WiFi
-  html += "  <div class='status-row'>";
-  html += "    <div>";
-  html += "      <span>Сеть: <b id='ssid-name'>" + (sta_ssid != "" ? sta_ssid : "Ожидание...") + "</b></span>";
-  html += "      <div class='ip-info'>";
-  html += "        Локальный IP: <b id='sta-ip'>...</b><br>";
-  html += "        Точка (AP) IP: <b>" + WiFi.softAPIP().toString() + "</b>";
-  html += "      </div>";
-  html += "    </div>";
-  html += "    <div class='sig-box' id='wifi-bars'>";
-  html += "      <div class='bar b1'></div><div class='bar b2'></div><div class='bar b3'></div><div class='bar b4'></div>";
-  html += "    </div>";
-  html += "  </div>";
+  // 1. WiFi блок
+  html += "<div class='status-row'><div><span>Сеть: <b id='ssid-name'>" + (sta_ssid != "" ? sta_ssid : "Ожидание...") + "</b></span>";
+  html += "<div class='ip-info'>Локальный IP: <b id='sta-ip'>...</b><br>Точка (AP) IP: <b>" + WiFi.softAPIP().toString() + "</b></div></div>";
+  html += "<div class='sig-box' id='wifi-bars'><div class='bar b1'></div><div class='bar b2'></div><div class='bar b3'></div><div class='bar b4'></div></div></div>";
   
-  // Блок MQTT
-  html += "  <div class='status-row'>";
-  html += "    <span>Статус MQTT:</span>";
-  html += "    <span><span id='mqtt-dot' class='dot'></span><b id='mqtt-stat'>Подключение...</b></span>";
-  html += "  </div>";
-  html += "</div>";
+  // 2. MQTT блок
+  html += "<div class='status-row'><span>Статус MQTT:</span><span><span id='mqtt-dot' class='dot'></span><b id='mqtt-stat'>Подключение...</b></span></div>";
+  
+  html += "</div>"; // Конец системной карточки
 
-  // 3. Кнопки
+  // --- НОВЫЙ БЛОК: СВОДНЫЕ ДАННЫЕ С ВКЛАДОК ---
+  html += "<div class='card'>";
+  
+  // Сводка по лазу (двери)
+  html += "<div class='sub-title'>🚪 Автоматика лаза</div>";
+  html += "<div class='status-row'><span>Состояние: <b id='dash-door-state'>--</b> <span id='dash-door-dir' style='color:#888;'></span></span>";
+  html += "<span>Закрытие в: <b id='dash-door-close'>--</b> (Откр: <b id='dash-door-open'>--</b>)</span></div>";
+  
+  // Сводка по климату
+  html += "<div class='sub-title' style='margin-top: 15px;'>🌡 Климат-контроль</div>";
+  html += "<div class='status-row'><div>Внутри: <span id='dash-clim-in' style='font-weight:bold;'>--</span></div><div>На улице: <span id='dash-clim-out' style='font-weight:bold;'>--</span></div></div>";
+  html += "<div class='status-row' style='padding-top:0;'><span>Оборудование:</span><span id='dash-clim-equip' style='font-weight:bold; color:#666;'>--</span></div>";
+  
+  // Сводка по кормлению
+  html += "<div class='sub-title' style='margin-top: 15px;'>🌾 Процесс кормления</div>";
+  html += "<div class='status-row'><span>Выполнено за сутки:</span><span><b id='dash-feed-count'>--</b> из <b id='dash-feed-plan'>--</b></span></div>";
+  html += "<div class='status-row' style='padding-top:0;'><span>Следующее:</span><span>Кормушка №<b id='dash-feed-next-num'>--</b> в <b id='dash-feed-next-time'>--</b></span></div>";
+
+  html += "</div>"; // Конец сводной карточки
+
+  // Навигационная сетка кнопок
   html += "<div class='nav-grid'>";
-  html += "  <a href='/autoChickenHous' class='nav-btn' style='background:#d97706;'>🐓<br>Автоматизация курятника</a>";
-  html += "  <a href='/table' class='nav-btn' style='background:#4e73df;'>📊<br>Данные</a>";
-  html += "  <a href='/settings' class='nav-btn' style='background:#1cc88a;'>⚙️<br>Настройки</a>";
+  html += "  <a href='/autoChickenHous' class='nav-btn' style='background: #d97706; grid-column: span 2;'>🎛 Автоматизация курятника</a>";
+  html += "  <a href='/table' class='nav-btn' style='background: #4e73df;'>📊 Все регистры</a>";
+  html += "  <a href='/settings' class='nav-btn' style='background: #1cc88a;'>⚙️ Настройки</a>";
   html += "</div>";
 
-  // 4. Скрипт обновления (Исправленный)
+  // Скрипт динамического обновления
   html += R"rawliteral(
   <script>
-    function update() {
-      fetch('/api/status').then(r => r.json()).then(d => {
-        // Обновление WiFi
-        const bars = document.querySelectorAll('.bar');
-        const ssidEl = document.getElementById('ssid-name');
-        const ipEl = document.getElementById('sta-ip');
+  function update() {
+    // 1. Запрос системного статуса (WiFi и MQTT)
+    fetch('/api/status').then(r => r.json()).then(d => {
+      const bars = document.querySelectorAll('.bar');
+      const ssidEl = document.getElementById('ssid-name');
+      const ipEl = document.getElementById('sta-ip');
+      
+      if (d.wifi_conn) {
+        ssidEl.innerText = d.ssid;
+        ipEl.innerText = d.ip;
+        let count = 0, colorClass = '';
+        if (d.rssi >= -60) { count = 4; colorClass = 'green'; }
+        else if (d.rssi >= -75) { count = 3; colorClass = 'green'; }
+        else if (d.rssi >= -85) { count = 2; colorClass = 'yellow'; }
+        else { count = 1; colorClass = 'red'; }
+        
+        bars.forEach((b, i) => {
+          b.classList.remove('green', 'yellow', 'red');
+          if (i < count) b.classList.add(colorClass);
+        });
+      } else {
+        ssidEl.innerHTML = '<span style="color:#dc3545">Отключено</span>';
+        ipEl.innerText = "не присвоен";
+        bars.forEach(b => b.classList.remove('green', 'yellow', 'red'));
+      }
 
-        if (d.wifi_conn) {
-          ssidEl.innerText = d.ssid;
-          ipEl.innerText = d.ip;
-          
-          let count = 0, colorClass = '';
-          if (d.rssi >= -60) { count = 4; colorClass = 'green'; }
-          else if (d.rssi >= -75) { count = 3; colorClass = 'green'; }
-          else if (d.rssi >= -85) { count = 2; colorClass = 'yellow'; }
-          else { count = 1; colorClass = 'red'; }
-          
-          bars.forEach((b, i) => {
-            b.classList.remove('green', 'yellow', 'red');
-            if (i < count) b.classList.add(colorClass);
-          });
-        } else {
-          ssidEl.innerHTML = '<span style="color:#dc3545">Отключено</span>';
-          ipEl.innerText = "не присвоен";
-          bars.forEach(b => b.classList.remove('green', 'yellow', 'red'));
-        }
+      const dot = document.getElementById('mqtt-dot');
+      const stat = document.getElementById('mqtt-stat');
+      if (d.mqtt_conn) {
+        dot.className = 'dot online';
+        stat.innerText = 'В сети';
+      } else {
+        dot.className = 'dot offline';
+        stat.innerText = 'Оффлайн';
+      }
+    }).catch(err => console.error("Ошибка API статуса:", err));
 
-        // Обновление MQTT
-        const dot = document.getElementById('mqtt-dot');
-        const stat = document.getElementById('mqtt-stat');
-        if (d.mqtt_conn) {
-          dot.className = 'dot online';
-          stat.innerText = 'В сети';
-        } else {
-          dot.className = 'dot offline';
-          stat.innerText = 'Оффлайн';
-        }
-      }).catch(err => console.error("Ошибка API:", err));
-    }
-    setInterval(update, 3000);
-    update();
+    // 2. Запрос Modbus данных для сводной панели
+    fetch('/api/data').then(r => r.json()).then(data => {
+      // Парсинг битовых регистров масок
+      const r0 = data["0"] || 0;
+      const r1 = data["1"] || 0;
+      const r2 = data["2"] || 0;
+      const r3 = data["3"] || 0;
+
+      // Сводка ЛАЗА
+      const isLaseOpen = (r2 >> 8) & 1;
+      const isLaseClose = (r2 >> 9) & 1;
+      const isLaseMoving = (r2 >> 11) & 1;
+      const isMovingUp = (r0 >> 9) & 1;
+      const isMovingDown = (r0 >> 8) & 1;
+
+      let posText = "Неизвестно";
+      if(isLaseOpen) posText = "<span style='color:#10b981'>Открыт</span>";
+      else if(isLaseClose) posText = "<span style='color:#ef4444'>Закрыт</span>";
+      
+      let dirText = "";
+      if(isLaseMoving) {
+        dirText = isMovingUp ? "⏳ (Движение ВВЕРХ ↑)" : "⏳ (Движение ВНИЗ ↓)";
+      } else {
+        dirText = "(Стоит)";
+      }
+      document.getElementById('dash-door-state').innerHTML = posText;
+      document.getElementById('dash-door-dir').innerText = dirText;
+      document.getElementById('dash-door-open').innerText = data["10"] !== undefined ? data["10"] : "--";
+      document.getElementById('dash-door-close').innerText = data["9"] !== undefined ? data["9"] : "--";
+
+      // Сводка КЛИМАТА
+      const tempIn = data["5"] !== undefined ? data["5"] + "°C" : "--";
+      const humIn = data["6"] !== undefined ? data["6"] + "%" : "--";
+      const tempOut = data["7"] !== undefined ? data["7"] + "°C" : "--";
+      const humOut = data["8"] !== undefined ? data["8"] + "%" : "--";
+      document.getElementById('dash-clim-in').innerText = `${tempIn} / ${humIn}`;
+      document.getElementById('dash-clim-out').innerText = `${tempOut} / ${humOut}`;
+
+      let activeEquipment = [];
+      if((r0 >> 14) & 1) activeEquipment.push("<span style='color:#ef4444'>Обогрев</span>");
+      if((r0 >> 0) & 1) activeEquipment.push("<span style='color:#3b82f6'>Охлаждение</span>");
+      if((r0 >> 12) & 1 || (r0 >> 13) & 1) activeEquipment.push("<span style='color:#10b981'>Вентиляция</span>");
+      document.getElementById('dash-clim-equip').innerHTML = activeEquipment.length > 0 ? activeEquipment.join(" + ") : "Все выключено";
+
+      // Сводка КОРМЛЕНИЯ
+      document.getElementById('dash-feed-count').innerText = data["14"] !== undefined ? data["14"] : "--";
+      document.getElementById('dash-feed-plan').innerText = data["15"] !== undefined ? data["15"] : "--";
+      document.getElementById('dash-feed-next-num').innerText = data["12"] !== undefined ? data["12"] : "--";
+      document.getElementById('dash-feed-next-time').innerText = data["16"] !== undefined ? data["16"] : "--";
+
+      // АНАЛИЗ АВАРИЙ И ОШИБОК
+      const batteryAlarm = (r1 >> 9) & 1;
+      const sensorAlarm = (r1 >> 10) & 1;
+      const calcAlarm = (r3 >> 5) & 1;
+      const feedAlarm = (r3 >> 9) & 1;
+      const feederErrors = (data["48"] || 0) + (data["49"] || 0) + (data["50"] || 0) + (data["51"] || 0) + (data["52"] || 0);
+
+      const hasAnyError = batteryAlarm || sensorAlarm || calcAlarm || feedAlarm || feederErrors > 0;
+      document.getElementById('alert-banner').style.display = hasAnyError ? "block" : "none";
+
+    }).catch(err => console.error("Ошибка API данных:", err));
+  }
+  
+  setInterval(update, 3000);
+  update();
   </script>
   )rawliteral";
-  
+
   html += "</div></body></html>";
   webServer.send(200, "text/html", html);
 }
+
 
 // Эндпоинт для отдачи данных в формате JSON
 void handleApiData() {
@@ -873,7 +1061,7 @@ void handleLight() {
         updateBitBadge('b_3_1', (r3 >> 1) & 1, "Да", "Нет");
 
         // Обновление оперативных регистров времени
-        const regList =;
+        const regList = [36, 37, 38, 39, 45, 46];
         regList.forEach(reg => {
           let el = document.getElementById('r_' + reg);
           if (el && data[reg] !== undefined) el.innerText = formatTime(data[reg]);
@@ -991,7 +1179,7 @@ void handleAlerts() {
         updateAlarmState('b_3_9', 'row_b_3_9', (r3 >> 9) & 1, "ОШИБКА");
 
         // Обновление числовых регистров (48-52)
-        const counterRegs =;
+        const counterRegs = [48, 49, 50, 51, 52];
         counterRegs.forEach(reg => {
           let el = document.getElementById('r_' + reg);
           if (el && data[reg] !== undefined) {
@@ -1273,14 +1461,14 @@ void handleFeeding() {
         updateBadge('b_4_13', (r4 >> 13) & 1, "В СЕТИ", "ВЫКЛ", false);
 
         // Оперативные регистры общего состояния
-        const singleRegs =;
+        const singleRegs = [12, 13, 14, 15, 16, 56, 57];
         singleRegs.forEach(reg => {
           let el = document.getElementById('r_' + reg);
           if (el && data[reg] !== undefined) el.innerText = data[reg];
         });
 
         // Заполнение таблицы расписания (110-124 и 125-139)
-        for (int i = 0; i < 15; i++) {
+        for (let i = 0; i < 15; i++) {
           let tReg = 110 + i;
           let dReg = 125 + i;
 
@@ -1424,7 +1612,7 @@ void handleDoor() {
         updateBadge('b_2_15', (r2 >> 15) & 1, "Вкл", "Выкл", "bg-success", "bg-neutral");
 
         // Заполнение числовых регистров (9, 10, 33, 40, 41, 42, 43)
-        const doorRegs =;
+        const doorRegs = [9, 10, 33, 40, 41, 42, 43];
         doorRegs.forEach(reg => {
           let el = document.getElementById('r_' + reg);
           if (el && data[reg] !== undefined) {
