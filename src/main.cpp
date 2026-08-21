@@ -27,7 +27,7 @@ String sta_password;
 
 WiFiClient espClient;
 PubSubClient mqttClient(espClient);
-String mqtt_host, mqtt_user, mqtt_pass, mqtt_topic;
+String mqtt_host, portStr, mqtt_user, mqtt_pass, mqtt_topic;
 int mqtt_port;
 
 // --- Инициализация настроек из Flash ---
@@ -43,7 +43,8 @@ void loadSettingsMQTT() {
   mqtt_user  = prefs.getString("mqtt_user", "");
   mqtt_pass  = prefs.getString("mqtt_pass", "");
   mqtt_host  = prefs.getString("mqtt_host", "mqtt-dashboard.com");
-  mqtt_port  = prefs.getInt("mqtt_port", 1883);
+  portStr  = prefs.getString("mqtt_port", "1883");
+  mqtt_port  = portStr.toInt();
   mqtt_topic = prefs.getString("mqtt_topic", "esp32/chickenhouse");
   prefs.end();
   // mqtt_user = "";
@@ -61,13 +62,13 @@ void saveSettingsWiFi(String s, String p) {
   prefs.end();
 }
 // --- Сохранение в Flash ---
-void saveSettingsMQTT(String mq_u, String mq_pass, String mq_h, unsigned int mq_p, String mq_t) {
+void saveSettingsMQTT(String mq_u, String mq_pass, String mq_h, String mq_p, String mq_t) {
   //prefs.begin("config", ...) Параметр false означает доступ на чтение и запись, true — только чтение.
   prefs.begin("configMQTT", false); // Открываем для записи (false)
   prefs.putString("mqtt_user", mq_u);
   prefs.putString("mqtt_pass", mq_pass);
   prefs.putString("mqtt_host", mq_h);
-  prefs.putInt("mqtt_port", mq_p);
+  prefs.putString("mqtt_port", mq_p);
   prefs.putString("mqtt_topic", mq_t);
   prefs.end();
 }
