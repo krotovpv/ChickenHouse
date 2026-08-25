@@ -45,8 +45,28 @@ String getHeader(String title) {
 
 // 1. Главная страница
 void handleIndex() {
-  String html = getHeader("Панель управления");
-  
+  //String html = getHeader("Панель управления");
+  String html = "<html><head><meta charset='UTF-8'>"
+         "<meta name='viewport' content='width=device-width, initial-scale=1.0'>"
+         "<style>"
+         "  :root { --primary: #007bff; --bg: #f4f7f6; --text: #333; --card: #ffffff; }"
+         "  body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: var(--bg); color: var(--text); margin: 0; padding: 20px; display: flex; flex-direction: column; align-items: center; }"
+         "  .container { width: 100%; max-width: 500px; }"
+         "  h2, h3 { color: #444; margin-bottom: 15px; text-align: center; }"
+         "  .card { background: var(--card); border-radius: 12px; padding: 20px; box-shadow: 0 4px 15px rgba(0,0,0,0.05); margin-bottom: 20px; border: 1px solid #eee; }"
+         "  .btn { display: block; text-align: center; padding: 12px; background: var(--primary); color: white; text-decoration: none; border-radius: 8px; font-weight: 600; margin: 10px 0; transition: 0.3s; border: none; cursor: pointer; }"
+         "  .btn:hover { opacity: 0.9; transform: translateY(-1px); }"
+         "  .btn-secondary { background: #6c757d; }"
+         "  input, select { width: 100%; padding: 12px; margin: 8px 0; border: 1px solid #ddd; border-radius: 8px; box-sizing: border-box; font-size: 16px; }"
+         "  table { width: 100%; border-collapse: collapse; background: var(--card); border-radius: 8px; overflow: hidden; }"
+         "  th { background: #f8f9fa; padding: 12px; font-size: 13px; color: #888; text-transform: uppercase; border-bottom: 2px solid #eee; }"
+         "  td { padding: 14px; border-bottom: 1px solid #eee; text-align: center; font-weight: 500; }"
+         "  .status-row { display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid #fafafa; }"
+         "  .badge { padding: 4px 10px; border-radius: 20px; font-size: 12px; color: white; }"
+         "  .bg-success { background: #28a745; } .bg-danger { background: #dc3545; }"
+         "</style><title>Панель управления</title></head><body>"
+         "<div class='container'>";
+
   // 1. Стили интерфейса
   html += R"rawliteral(
   <style>
@@ -104,7 +124,7 @@ void handleIndex() {
   // Сводка по климату
   html += "<div class='sub-title' style='margin-top: 15px;'>🌡 Климат-контроль</div>";
   html += "<div class='status-row'><div>Внутри: <span id='dash-clim-in' style='font-weight:bold;'>--</span></div><div>На улице: <span id='dash-clim-out' style='font-weight:bold;'>--</span></div></div>";
-  html += "<div class='status-row' style='padding-top:0;'><span>Оборудование:</span><span id='dash-clim-equip' style='font-weight:bold; color:#666;'>--</span></div>";
+  //html += "<div class='status-row' style='padding-top:0;'><span>Оборудование:</span><span id='dash-clim-equip' style='font-weight:bold; color:#666;'>--</span></div>";
   
   // Сводка по кормлению
   html += "<div class='sub-title' style='margin-top: 15px;'>🌾 Процесс кормления</div>";
@@ -118,6 +138,9 @@ void handleIndex() {
   html += "  <a href='/autoChickenHous' class='nav-btn' style='background: #d97706; grid-column: span 2;'>🎛 Автоматизация курятника</a>";
   html += "  <a href='/table' class='nav-btn' style='background: #4e73df;'>📊 Все регистры</a>";
   html += "  <a href='/settings' class='nav-btn' style='background: #1cc88a;'>⚙️ Настройки</a>";
+  html += "  <a href='/update' class='nav-btn' style='background: #64748b; grid-column: span 2;' "
+          "onclick=\"return confirm('Перейти на страницу обновления прошивки? Мониторинг автоматики будет временно приостановлен.');\">"
+          "🔄 Обновление ПО (OTA)</a>";
   html += "</div>";
 
   // Скрипт динамического обновления
@@ -198,11 +221,11 @@ void handleIndex() {
       document.getElementById('dash-clim-in').innerText = `${tempIn} / ${humIn}`;
       document.getElementById('dash-clim-out').innerText = `${tempOut} / ${humOut}`;
 
-      let activeEquipment = [];
-      if((r0 >> 14) & 1) activeEquipment.push("<span style='color:#ef4444'>Обогрев</span>");
-      if((r0 >> 0) & 1) activeEquipment.push("<span style='color:#3b82f6'>Охлаждение</span>");
-      if((r0 >> 12) & 1 || (r0 >> 13) & 1) activeEquipment.push("<span style='color:#10b981'>Вентиляция</span>");
-      document.getElementById('dash-clim-equip').innerHTML = activeEquipment.length > 0 ? activeEquipment.join(" + ") : "Все выключено";
+      // let activeEquipment = [];
+      // if((r0 >> 14) & 1) activeEquipment.push("<span style='color:#ef4444'>Обогрев</span>");
+      // if((r0 >> 0) & 1) activeEquipment.push("<span style='color:#3b82f6'>Охлаждение</span>");
+      // if((r0 >> 12) & 1 || (r0 >> 13) & 1) activeEquipment.push("<span style='color:#10b981'>Вентиляция</span>");
+      // document.getElementById('dash-clim-equip').innerHTML = activeEquipment.length > 0 ? activeEquipment.join(" + ") : "Все выключено";
 
       // Сводка КОРМЛЕНИЯ
       document.getElementById('dash-feed-count').innerText = data["14"] !== undefined ? data["14"] : "--";
@@ -1565,6 +1588,35 @@ void handleSettings() {
 
     window.onload = () => scan(document.querySelector('button[onclick^="scan"]'));
   </script>)rawliteral";
+  
+  webServer.send(200, "text/html", html);
+}
+
+// 6. Страница OTA
+void handleOtaPage() {
+  // String html = "<html><head><meta charset='UTF-8'><title>OTA Обновление</title>";
+  // html += "<style>body{font-family:sans-serif;text-align:center;padding-top:50px;}";
+  // html += ".btn{padding:10px 20px;background:#2ecc71;color:#fff;border:0;border-radius:5px;cursor:pointer;}</style></head>";
+  // html += "<body><h2>🔄 Обновление прошивки курятника</h2>";
+  // html += "<form method='POST' action='/update_action' enctype='multipart/form-data'>";
+  // html += "<input type='file' name='update' accept='.bin'><br><br>";
+  // html += "<input type='submit' class='btn' value='Обновить'>";
+  // html += "</form></body></html>";
+  // webServer.send(200, "text/html", html);
+
+  String html = getHeader("OTA Обновление прошивки");
+  
+  html += "<div class='card' style='margin-top: 10px;'>";
+  html += "  <h3>🔄 Обновление программного обеспечения</h3>";
+  html += "  <p style='font-size: 14px; color: #555; text-align: center; margin-bottom: 20px;'>";
+  html += "    Выберите скомпилированный файл <b>firmware.bin</b>.";
+  html += "  </p>";
+  html += "  <form method='POST' action='/update_action' enctype='multipart/form-data'>";
+  html += "    <input type='file' name='update' accept='.bin' style='border: 1px dashed #bbb; padding: 15px; background: #fafafa;' required><br><br>";
+  html += "    <input type='submit' class='btn' value='🚀 Начать обновление ПО' style='background: #28a745; width: 100%; margin: 0;'>";
+  html += "  </form>";
+  html += "</div>";
+  html += "</div></body></html>";
   
   webServer.send(200, "text/html", html);
 }

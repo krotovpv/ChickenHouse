@@ -9,6 +9,7 @@
 #include "registers.h"
 #include "telegram.h"
 #include "web_pages.h"
+#include <Update.h> // Системная библиотека для работы с OTA (шить Flash/FS)
 
 Preferences prefs;
 WebServer webServer(80);
@@ -272,6 +273,38 @@ void handleSaveMQTT() {
   }
 }
 
+// Логика обработки и записи файла во Flash-память
+void handleOtaAction() {
+  HTTPUpload& upload = webServer.upload();
+  
+  if (upload.status == UPLOAD_FILE_START) {
+    Serial.printf("Начало OTA обновления: %s\n", upload.filename.c_str());
+    // Если имя файла содержит "spiffs" или "littlefs", можно переключить U_SPIFFS, но для прошивки используем U_FLASH
+    if (!Update.begin(UPDATE_SIZE_UNKNOWN, U_FLASH)) { 
+      Update.printError(Serial);
+    }
+  } else if (upload.status == UPLOAD_FILE_WRITE) {
+    if (Update.write(upload.buf, upload.currentSize) != upload.currentSize) {
+      Update.printError(Serial);
+    }
+  } else if (upload.status == UPLOAD_FILE_END) {
+    if (Update.end(true)) { // true - очищает и завершает прошивку
+      Serial.printf("OTA Успешно завершено! Размер: %u байт. Перезагрузка...\n", upload.totalSize);
+      
+      String html = "<html><head><meta charset='UTF-8'><meta http-equiv='refresh' content='10;URL=/'></head>";
+      html += "<body style='font-family:sans-serif;text-align:center;padding-top:50px;'>";
+      html += "<h2>Успешно! 🎉</h2><p>Устройство обновлено и перезагружается. Вы вернетесь на главную через 10 секунд...</p></body></html>";
+      webServer.send(200, "text/html", html);
+      
+      delay(1000);
+      ESP.restart(); // Перезапуск в новую прошивку
+    } else {
+      Update.printError(Serial);
+      webServer.send(500, "text/plain", "OTA Error");
+    }
+  }
+}
+
 void setup() {
   Serial.begin(9600);
   randomSeed(analogRead(0));
@@ -328,6 +361,10 @@ void setup() {
   webServer.on("/settings", handleSettings);
   webServer.on("/saveWiFi", HTTP_POST, handleSaveWiFi);
   webServer.on("/saveMQTT", HTTP_POST, handleSaveMQTT);
+  webServer.on("/update", HTTP_GET, handleOtaPage);
+  webServer.on("/update_action", HTTP_POST, []() {
+    // Этот блок выполнится ПОСЛЕ завершения загрузки файла
+  }, handleOtaAction); // А эта функция обрабатывает поток байт "на лету"
   webServer.on("/api/write_bit", HTTP_GET, []() {
     if (webServer.hasArg("addr") && webServer.hasArg("bit") && webServer.hasArg("state")) {
         uint16_t addr = webServer.arg("addr").toInt();
