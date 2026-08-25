@@ -27,7 +27,7 @@ String sta_password;
 
 WiFiClient espClient;
 PubSubClient mqttClient(espClient);
-String mqtt_host, portStr, mqtt_user, mqtt_pass, mqtt_topic;
+String mqtt_host, mqtt_portStr, mqtt_user, mqtt_pass, mqtt_topic;
 int mqtt_port;
 
 // --- Инициализация настроек из Flash ---
@@ -39,19 +39,14 @@ void loadSettingsWiFi() {
 }
 // --- Инициализация настроек из Flash ---
 void loadSettingsMQTT() {
-  prefs.begin("configMQTT", true); // Открываем в режиме чтения (true)
+  prefs.begin("configMQTT2", true); // Открываем в режиме чтения (true)
   mqtt_user  = prefs.getString("mqtt_user", "");
   mqtt_pass  = prefs.getString("mqtt_pass", "");
   mqtt_host  = prefs.getString("mqtt_host", "mqtt-dashboard.com");
-  portStr  = prefs.getString("mqtt_port", "1883");
-  mqtt_port  = portStr.toInt();
+  mqtt_portStr  = prefs.getString("mqtt_portStr", "1883");
+  mqtt_port  = mqtt_portStr.toInt();
   mqtt_topic = prefs.getString("mqtt_topic", "esp32/chickenhouse");
   prefs.end();
-  // mqtt_user = "";
-  // mqtt_pass = "";
-  // mqtt_host = "test.mosquitto.org";
-  // mqtt_port = 1883;
-  // mqtt_topic = "esp32/chickenhouse";
 }
 // --- Сохранение в Flash ---
 void saveSettingsWiFi(String s, String p) {
@@ -64,11 +59,11 @@ void saveSettingsWiFi(String s, String p) {
 // --- Сохранение в Flash ---
 void saveSettingsMQTT(String mq_u, String mq_pass, String mq_h, String mq_p, String mq_t) {
   //prefs.begin("config", ...) Параметр false означает доступ на чтение и запись, true — только чтение.
-  prefs.begin("configMQTT", false); // Открываем для записи (false)
+  prefs.begin("configMQTT2", false); // Открываем для записи (false)
   prefs.putString("mqtt_user", mq_u);
   prefs.putString("mqtt_pass", mq_pass);
   prefs.putString("mqtt_host", mq_h);
-  prefs.putString("mqtt_port", mq_p);
+  prefs.putString("mqtt_portStr", mq_p);
   prefs.putString("mqtt_topic", mq_t);
   prefs.end();
 }
@@ -359,7 +354,7 @@ void setup() {
             webServer.send(404, "text/plain", "Not Found");
         }
     }
-});
+  });
   webServer.begin();
 
   // 4. Modbus (адрес 16(0x10))
@@ -379,7 +374,11 @@ void setup() {
   // 5. MQTT
   mqttClient.setServer(mqtt_host.c_str(), mqtt_port);
   mqttClient.setCallback(mqttCallback); // Регистрация обработчика
-  mqttClient.setBufferSize(2048);
+  mqttClient.setBufferSize(4096);
+  mqttClient.setKeepAlive(30);
+
+  // 6. Telegram
+  sendTelegramMessage("ESP32 Chickenhouse включился и доступен.");
 }
 
 void loop() {
@@ -422,5 +421,5 @@ void loop() {
     lastCheck = millis();
   }
 
-  delay(1); // Для стабильности
+  delay(2); // Для стабильности
 }

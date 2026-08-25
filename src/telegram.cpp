@@ -10,6 +10,9 @@ void sendTelegramMessage(String text) {
   // Отключаем строгую проверку SSL-сертификатов ради экономии памяти ESP32
   secureClient.setInsecure(); 
 
+  // Устанавливаем короткий таймаут на операцию, чтобы не вешать основной loop()
+  secureClient.setTimeout(2000); // 2 секунды вместо стандартных 15+
+
   if (secureClient.connect("api.telegram.org", 443)) {
     // Формируем URL для GET-запроса (текст обязательно должен быть закодирован, 
     // но для простых сообщений без спецсимволов сойдет прямая передача)
@@ -27,14 +30,23 @@ void sendTelegramMessage(String text) {
     
     Serial.println("Запрос в Telegram отправлен: " + text);
     
-    // Ждем ответа сервера (опционально, предотвращает зависание)
-    unsigned long timeout = millis();
-    while (secureClient.available() == 0) {
-      if (millis() - timeout > 3000) {
-        Serial.println("Превышено время ожидания ответа Telegram");
-        return;
+    // Мягкое чтение ответа без блокирующих циклов while(available == 0)
+    // Ждем первого байта не более 500мс
+    unsigned long startWait = millis();
+    while (secureClient.connected() && !secureClient.available()) {
+      if (millis() - startWait > 500) {
+        Serial.println("Превышен таймаут ожидания ответа от Telegram API");
+        break;
       }
+      delay(10);
     }
+
+    // Очищаем буфер ответа, если сервер что-то прислал, и закрываем
+    while (secureClient.available()) {
+      secureClient.read(); 
+    }
+
+    secureClient.stop(); 
   } else {
     Serial.println("Ошибка подключения к api.telegram.org");
   }
@@ -62,15 +74,18 @@ void checkTelegram()
     
     // Сценарий А: Авария только что ПОЯВИЛАСЬ (раньше не было, а теперь есть)
     if (isAlarmActive && !wasAlarmActive) {
-      String msg = "🚨 ВНИМАНИЕ! В курятнике обнаружена неисправность:\n";
-      if (batteryAlarm) msg += "- Авария батарейки (R1:B9)\n";
-      if (sensorAlarm)  msg += "- Отказ датчика температуры (R1:B10)\n";
-      if (calcAlarm)    msg += "- Ошибка расчета вентиляции (R3:B5)\n";
-      if (feedAlarm)    msg += "- Ошибка процесса кормления (R3:B9)\n";
-      if (totalFeederErrors > 0) msg += "- Обнаружены системные ошибки оборудования (" + String(totalFeederErrors) + " шт.)\n";
       
+       String msg = "🚨 ВНИМАНИЕ! В курятнике обнаружена неисправность:";
+      if (batteryAlarm) msg += "\n- Авария батарейки (R1:B9)";
+      if (sensorAlarm)  msg += "\n- Отказ датчика температуры (R1:B10)";
+      if (calcAlarm)    msg += "\n- Ошибка расчета вентиляции (R3:B5)";
+      if (feedAlarm)    msg += "\n- Ошибка процесса кормления (R3:B9)";
+      if (totalFeederErrors > 0) msg += "\n- Обнаружены системные ошибки оборудования (" + String(totalFeederErrors) + " шт.)";
+      msg.replace(" ", "%20");
+      msg.replace("\n", "%0A");
+
       sendTelegramMessage(msg);
-      wasAlarmActive = true; // Запоминаем, что мы в состоянии аварии
+      wasAlarmActive = true;
     }
     
     // Сценарий Б: Авария только что ИСЧЕЗЛА (раньше была, а теперь всё в норме)
