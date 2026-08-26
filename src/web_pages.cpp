@@ -1065,7 +1065,7 @@ void handleFeeding() {
   html += "<h3>Следующее кормление</h3>";
   html += "<div class='status-row'><span>Номер кормушки (R12):</span><span id='r_12' class='val-box'>--</span></div>";
   html += "<div class='status-row'><span>Время начала (R16):</span><span id='r_16' class='val-box'>--</span></div>";
-  html += "<div class='status-row'><span>Длительность, сек (R13):</span><span id='r_13' class='val-box'>--</span></div>";
+  html += "<div class='status-row'><span>Длительность, мин (R13):</span><span id='r_13' class='val-box'>--</span></div>";
   html += "</div>";
 
   // Блок 4: Статус оборудования (Кормушки и модули)
@@ -1113,6 +1113,14 @@ void handleFeeding() {
   // JavaScript AJAX скрипт динамического обновления
   html += R"rawliteral(
   <script>
+  function minToHm(val) {
+    if (val === undefined || val === null || val === "") return '--';
+    const totalMinutes = parseInt(val);
+    const hours = Math.floor(totalMinutes / 60);
+    const minutes = totalMinutes % 60;
+    return `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}`;
+  }
+
   function updateFeedingData() {
     fetch('/api/data')
       .then(r => r.json())
@@ -1136,11 +1144,15 @@ void handleFeeding() {
         updateBadge('b_4_13', (r4 >> 13) & 1, "В СЕТИ", "ВЫКЛ", false);
 
         // Оперативные регистры общего состояния
-        const singleRegs = [12, 13, 14, 15, 16, 56, 57];
-        singleRegs.forEach(reg => {
-          let el = document.getElementById('r_' + reg);
-          if (el && data[reg] !== undefined) el.innerText = data[reg];
-        });
+        if (data[12] !== undefined) document.getElementById('r_12').innerText = data[12]; // Номер кормушки
+        if (data[14] !== undefined) document.getElementById('r_14').innerText = data[14]; // Пройдено за сутки
+        if (data[15] !== undefined) document.getElementById('r_15').innerText = data[15]; // План
+        if (data[56] !== undefined) document.getElementById('r_56').innerText = data[56]; // Масса
+        if (data[57] !== undefined) document.getElementById('r_57').innerText = data[57]; // Кол-во птиц
+
+        // Форматирование времени для текущих уставок кормления
+        if (data[13] !== undefined) document.getElementById('r_13').innerText = data[13] + " мин"; // Длительность (Рег 13)
+        if (data[16] !== undefined) document.getElementById('r_16').innerText = minToHm(data[16]); // Время следующего (Рег 16)
 
         // Заполнение таблицы расписания (110-124 и 125-139)
         for (let i = 0; i < 15; i++) {
@@ -1148,10 +1160,10 @@ void handleFeeding() {
           let dReg = 125 + i;
 
           let tEl = document.getElementById('r_' + tReg);
-          if (tEl && data[tReg] !== undefined) tEl.innerText = data[tReg];
+          if (tEl && data[tReg] !== undefined) tEl.innerText = minToHm(data[tReg]);
 
           let dEl = document.getElementById('r_' + dReg);
-          if (dEl && data[dReg] !== undefined) dEl.innerText = data[dReg];
+          if (dEl && data[dReg] !== undefined) dEl.innerText = data[dReg] + " мин";
         }
       })
       .catch(err => console.error("Ошибка обновления данных кормления:", err));
