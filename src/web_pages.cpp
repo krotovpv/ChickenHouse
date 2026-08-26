@@ -1268,6 +1268,14 @@ void handleDoor() {
   // JavaScript AJAX скрипт динамического обновления
   html += R"rawliteral(
   <script>
+  function minToHm(val) {
+    if (val === undefined || val === null || val === "") return '--';
+    const totalMinutes = parseInt(val);
+    const hours = Math.floor(totalMinutes / 60);
+    const minutes = totalMinutes % 60;
+    return `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}`;
+  }
+
   function updateDoorData() {
     fetch('/api/data')
       .then(r => r.json())
@@ -1298,18 +1306,19 @@ void handleDoor() {
         updateBadge('b_2_14', (r2 >> 14) & 1, "ЗАНЯТО", "Нет", "bg-danger", "bg-neutral");
         updateBadge('b_2_15', (r2 >> 15) & 1, "Вкл", "Выкл", "bg-success", "bg-neutral");
 
-        // Заполнение числовых регистров (9, 10, 33, 40, 41, 42, 43)
-        const doorRegs = [9, 10, 33, 40, 41, 42, 43];
-        doorRegs.forEach(reg => {
+        const timeRegs = [9, 10, 40, 41, 42]; // Регистры абсолютного времени суток
+        timeRegs.forEach(reg => {
           let el = document.getElementById('r_' + reg);
-          if (el && data[reg] !== undefined) {
-            if(reg === 33) {
-              el.innerText = data[reg] + "°C";
-            } else {
-              el.innerText = data[reg];
-            }
-          }
+          if (el && data[reg] !== undefined) el.innerText = minToHm(data[reg]);
         });
+
+        // Регистр 33 — Температура открытия лаза
+        let el33 = document.getElementById('r_33');
+        if (el33 && data[33] !== undefined) el33.innerText = data[33] + "°C";
+
+        // Регистр 43 — Время хода привода в секундах
+        let el43 = document.getElementById('r_43');
+        if (el43 && data[43] !== undefined) el43.innerText = data[43] + " сек";
       })
       .catch(err => console.error("Ошибка обновления данных лаза:", err));
   }
