@@ -111,7 +111,7 @@ void handleIndex() {
   // Сводка по кормлению
   html += "<div class='sub-title' style='margin-top: 15px;'>🌾 Процесс кормления</div>";
   html += "<div class='status-row'><span>Выполнено за сутки:</span><span><b id='dash-feed-count'>--</b> из <b id='dash-feed-plan'>--</b></span></div>";
-  html += "<div class='status-row' style='padding-top:0;'><span>Следующее:</span><span>Кормушка №<b id='dash-feed-next-num'>--</b> в <b id='dash-feed-next-time'>--</b></span></div>";
+  html += "<div class='status-row' style='padding-top:0;'><span>Следующее:</span><span>Кормушка № <b id='dash-feed-next-num'>--</b> в <b id='dash-feed-next-time'>--</b></span></div>";
 
   html += "</div>"; // Конец сводной карточки
 
@@ -213,7 +213,25 @@ void handleIndex() {
       document.getElementById('dash-feed-count').innerText = data["14"] !== undefined ? data["14"] : "--";
       document.getElementById('dash-feed-plan').innerText = data["15"] !== undefined ? data["15"] : "--";
       document.getElementById('dash-feed-next-num').innerText = data["12"] !== undefined ? data["12"] : "--";
-      document.getElementById('dash-feed-next-time').innerText = data["16"] !== undefined ? data["16"] : "--";
+      // Парсинг времени до следующего кормления (Регистр 16)
+      const nextTimeRaw = data["16"];
+      let nextTimeText = "--:--";
+
+      if (nextTimeRaw !== undefined) {
+      if (parseInt(nextTimeRaw) === 0) {
+        nextTimeText = "--:--";
+      } else {
+        const totalMinutes = parseInt(nextTimeRaw);
+        const hours = Math.floor(totalMinutes / 60);
+        const minutes = totalMinutes % 60;
+        
+        // Форматирование с ведущими нулями (ЧЧ:ММ)
+        const hStr = String(hours).padStart(2, '0');
+        const mStr = String(minutes).padStart(2, '0');
+        nextTimeText = `${hStr}:${mStr}`;
+      }
+    }
+    document.getElementById('dash-feed-next-time').innerText = nextTimeText;
 
       // АНАЛИЗ АВАРИЙ И ОШИБОК
       const batteryAlarm = (r1 >> 9) & 1;
