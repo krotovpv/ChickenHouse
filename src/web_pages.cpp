@@ -705,16 +705,20 @@ void handleLight() {
   // JavaScript AJAX скрипт для обновления данных в реальном времени
   html += R"rawliteral(
   <script>
+
+  // Функция перевода минут в формат ЧЧ:ММ
+  function minToHm(val) {
+    if (val === undefined || val === null || val === "") return '--';
+    const totalMinutes = parseInt(val);
+    const hours = Math.floor(totalMinutes / 60);
+    const minutes = totalMinutes % 60;
+    return `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}`;
+  }
+
   function updateLightData() {
     fetch('/api/data')
       .then(r => r.json())
       .then(data => {
-        // Функция форматирования времени (если в регистре минуты или код времени)
-        // Оставляем простой вывод значения, при необходимости можно добавить логику ЧЧ:ММ
-        function formatTime(val) {
-          if (val === undefined) return '--';
-          return val; 
-        }
 
         // Обновление битовых флагов (0 регистр)
         let r0 = data["0"] || 0;
@@ -735,7 +739,7 @@ void handleLight() {
         const regList = [36, 37, 38, 39, 45, 46];
         regList.forEach(reg => {
           let el = document.getElementById('r_' + reg);
-          if (el && data[reg] !== undefined) el.innerText = formatTime(data[reg]);
+          if (el && data[reg] !== undefined) el.innerText = minToHm(data[reg]);
         });
 
         // Обновление календаря (регистры 72-83 и 84-95)
@@ -744,10 +748,10 @@ void handleLight() {
           let zakatReg = 84 + i;
           
           let voshodEl = document.getElementById('r_' + voshodReg);
-          if (voshodEl && data[voshodReg] !== undefined) voshodEl.innerText = formatTime(data[voshodReg]);
+          if (voshodEl && data[voshodReg] !== undefined) voshodEl.innerText = minToHm(data[voshodReg]);
           
           let zakatEl = document.getElementById('r_' + zakatReg);
-          if (zakatEl && data[zakatReg] !== undefined) zakatEl.innerText = formatTime(data[zakatReg]);
+          if (zakatEl && data[zakatReg] !== undefined) zakatEl.innerText = minToHm(data[zakatReg]);
         }
       })
       .catch(err => console.error("Ошибка обновления данных:", err));
