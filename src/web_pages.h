@@ -13,6 +13,8 @@ extern String mqtt_user;
 extern String mqtt_pass;
 extern String mqtt_host;
 extern int mqtt_port;
+extern String BOT_TOKEN;
+extern String CHAT_ID;
 
 // Прототипы функций сохранения настроек, которые остаются в главном файле
 //void saveSettingsWiFi(String s, String p);

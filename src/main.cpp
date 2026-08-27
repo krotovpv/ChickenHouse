@@ -31,6 +31,26 @@ PubSubClient mqttClient(espClient);
 String mqtt_host, mqtt_portStr, mqtt_user, mqtt_pass, mqtt_topic;
 int mqtt_port;
 
+// Настройки для Telegram (значения по умолчанию)
+String BOT_TOKEN = "";
+String CHAT_ID = "";
+
+// --- Инициализация настроек Telegram из Flash ---
+void loadSettingsTelegram() {
+  prefs.begin("configTG", true); // Открываем пространство "configTG" в режиме чтения
+  BOT_TOKEN = prefs.getString("bot_token", BOT_TOKEN); // Если в памяти пусто, останется дефолт
+  CHAT_ID = prefs.getString("chat_id", CHAT_ID);
+  prefs.end();
+}
+
+// --- Сохранение настроек Telegram в Flash ---
+void saveSettingsTelegram(String token, String chatid) {
+  prefs.begin("configTG", false); // Открываем для записи
+  prefs.putString("bot_token", token);
+  prefs.putString("chat_id", chatid);
+  prefs.end();
+}
+
 // --- Инициализация настроек из Flash ---
 void loadSettingsWiFi() {
   prefs.begin("configWiFi", true); // Открываем в режиме чтения (true)
@@ -273,6 +293,30 @@ void handleSaveMQTT() {
   }
 }
 
+// Обработка сохранения Telegram
+void handleSaveTelegram() {
+  if (webServer.hasArg("tg_token") && webServer.hasArg("tg_chat")) { 
+    String new_token = webServer.arg("tg_token");
+    String new_chat  = webServer.arg("tg_chat");
+    
+    // Удаляем случайные пробелы, которые пользователь мог скопировать
+    new_token.trim();
+    new_chat.trim();
+    
+    saveSettingsTelegram(new_token, new_chat);
+    
+    String html = getHeader("Сохранение");
+    html += "<h2>Готово!</h2><p>Настройки Telegram сохранены. Перезагружаюсь...</p></body></html>";
+    webServer.send(200, "text/html", html);
+    
+    Serial.println("Настройки Telegram успешно записаны. Рестарт...");
+    delay(2000);
+    ESP.restart(); 
+  } else {
+    webServer.send(400, "text/plain", "Bad Request: Missing arguments");
+  }
+}
+
 // Логика обработки и записи файла во Flash-память
 void handleOtaAction() {
   HTTPUpload& upload = webServer.upload();
@@ -312,6 +356,7 @@ void setup() {
   // 1. Загружаем настройки из Flash
   loadSettingsWiFi();
   loadSettingsMQTT();
+  loadSettingsTelegram();
 
   // 2. Настройка Wi-Fi
   WiFi.mode(WIFI_AP_STA); // Устанавливаем комбинированный режим
@@ -361,6 +406,7 @@ void setup() {
   webServer.on("/settings", handleSettings);
   webServer.on("/saveWiFi", HTTP_POST, handleSaveWiFi);
   webServer.on("/saveMQTT", HTTP_POST, handleSaveMQTT);
+  webServer.on("/saveTG", HTTP_POST, handleSaveTelegram);
   webServer.on("/update", HTTP_GET, handleOtaPage);
   webServer.on("/update_action", HTTP_POST, []() {
     // Этот блок выполнится ПОСЛЕ завершения загрузки файла

@@ -1589,6 +1589,9 @@ void handleClimate() {
 void handleSettings() {
   String html = getHeader("Настройки шлюза");
   
+  // Дополнительно форсируем ограничение ширины для всех внутренних элементов карточек
+  html += "<style>.card { max-width: 100%; box-sizing: border-box; }</style>";
+
   // Блок Wi-Fi
   html += "<div class='card'><h3>📶 Сеть Wi-Fi</h3>";
   html += "<button onclick='scan(this)' class='btn' style='width:100%'>🔄 Сканировать сети</button>";
@@ -1608,8 +1611,20 @@ void handleSettings() {
   html += "<input type='text' name='mq_host' value='" + mqtt_host + "' placeholder='Брокер (host)'>";
   html += "<input type='number' name='mq_port' value='" + String(mqtt_port) + "' placeholder='Порт'>";
   html += "<input type='submit' value='💾 Сохранить и перезагрузить' class='btn' style='background:#28a745; width:100%'>";
+  html += "</form>";
   html += "</div>";
-  html += "</form></div></body></html>";
+
+  // Блок Телеграм
+  html += "<div class='card'><h3>🤖 Оповещения Telegram</h3>";
+  html += "<form action='/saveTG' method='POST'>";
+  html += "<label style='font-size:12px; color:#666;'>Токен бота (Найдите в Telegram бота @BotFather и создайте своего бота с помощью команды /newbot. Скопируйте выданный им Token):</label>";
+  html += "<input type='text' name='tg_token' value='" + BOT_TOKEN + "' placeholder='Пример: 123456:ABCdef...' required>";
+  html += "<label style='font-size:12px; color:#666;'>ID чата или пользователя (Найдите бота @myidbot (или @userinfobot) и отправьте ему команду /start. Он вернет ваш числовой Chat ID):</label>";
+  html += "<input type='text' name='tg_chat' value='" + CHAT_ID + "' placeholder='Пример: 987654321' required>";
+  html += "<input type='submit' value='💾 Сохранить и перезагрузить' class='btn' style='background:#28a745; width:100%'>";
+  html += "</form></div>";
+  
+  html += "</body></html>";
 
   // JavaScript для обработки уровней сигнала
   html += R"rawliteral(<script>
@@ -1648,7 +1663,7 @@ void handleSettings() {
       const e = document.getElementById('eyeIcon');
       if (p.type === 'password') {
         p.type = 'text';
-        e.innerText = '🔒'; // Иконка закрытого глаза или замка
+        e.innerText = '🔒';
       } else {
         p.type = 'password';
         e.innerText = '👁️';
