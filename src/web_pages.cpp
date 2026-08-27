@@ -1483,59 +1483,59 @@ void handleClimate() {
   html += "</div>";
 
   // Внедрение JavaScript для автоматического фонового AJAX-опроса по API шлюза
-  html += "<script>";
-  html += "function updateClimateData() {";
-  html += "  fetch('/api/data')";
-  html += "    .then(r => r.json())";
-  html += "    .then(data => {";
-  html += "      let r0 = data['0'] || 0;";
-  html += "      let r1 = data['1'] || 0;";
-  html += "      let r2 = data['2'] || 0;";
-  html += "      let r3 = data['3'] || 0;";
-  html += "      let r4 = data['4'] || 0;";
-  html += "      updateBadge('b_0_0', (r0 >> 0) & 1, 'АКТИВНО', 'Выкл', 'bg-danger', 'bg-neutral');";
-  html += "      updateBadge('b_0_2', (r0 >> 2) & 1, 'ГАЗ!!', 'Норма', 'bg-danger', 'bg-success');";
-  html += "      updateBadge('b_0_3', (r0 >> 3) & 1, '< 0°C', 'Нет', 'bg-info', 'bg-neutral');";
-  html += "      updateBadge('b_0_4', (r0 >> 4) & 1, '< 0°C', 'Нет', 'bg-info', 'bg-neutral');";
-  html += "      updateBadge('b_0_12', (r0 >> 12) & 1, 'РАБОТА', 'Выкл', 'bg-success', 'bg-neutral');";
-  html += "      updateBadge('b_0_13', (r0 >> 13) & 1, 'РАБОТА', 'Выкл', 'bg-success', 'bg-neutral');";
-  html += "      updateBadge('b_0_14', (r0 >> 14) & 1, 'НАГРЕВ', 'Выкл', 'bg-danger', 'bg-neutral');";
-  html += "      updateBadge('b_1_3', (r1 >> 3) & 1, 'Вкл', 'Выкл', 'bg-success', 'bg-neutral');";
-  html += "      updateBadge('b_1_4', (r1 >> 4) & 1, 'Вкл', 'Выкл', 'bg-success', 'bg-neutral');";
-  html += "      updateBadge('b_1_6', (r1 >> 6) & 1, 'АКТИВНА', 'Выкл', 'bg-info', 'bg-neutral');";
-  html += "      updateBadge('b_1_7', (r1 >> 7) & 1, 'Вкл', 'Выкл', 'bg-success', 'bg-neutral');";
-  html += "      updateBadge('b_1_8', (r1 >> 8) & 1, 'ПРЕВЫШЕНИЕ', 'Норма', 'bg-danger', 'bg-success');";
-  html += "      updateBadge('b_1_11', (r1 >> 11) & 1, 'ОПРОС', 'Нет', 'bg-info', 'bg-neutral');";
-  html += "      updateBadge('b_1_13', (r1 >> 13) & 1, 'ДЕНЬ', 'Выкл', 'bg-info', 'bg-neutral');";
-  html += "      updateBadge('b_1_14', (r1 >> 14) & 1, 'СОН', 'Выкл', 'bg-neutral', 'bg-neutral');";
-  html += "      updateBadge('b_1_15', (r1 >> 15) & 1, 'РУЧНОЙ', 'Авто', 'bg-danger', 'bg-success');";
-  html += "      updateBadge('b_2_4', (r2 >> 4) & 1, 'ГОСТ', 'Выкл', 'bg-success', 'bg-neutral');";
-  html += "      updateBadge('b_3_7', (r3 >> 7) & 1, 'Вкл', 'Выкл', 'bg-success', 'bg-neutral');";
-  html += "      updateBadge('b_4_4', (r4 >> 4) & 1, 'Да', 'Нет', 'bg-success', 'bg-neutral');";
-  html += "      updateBadge('b_4_12', (r4 >> 12) & 1, 'В СЕТИ', 'Выкл', 'bg-success', 'bg-neutral');";
-  html += "      const climateRegs = [5, 6, 7, 8, 24, 25, 26, 27, 28, 29, 30, 31, 32, 34, 35, 44, 47, 53, 54, 55, 58, 60, 61, 62, 63, 64, 65];";
-  html += "      climateRegs.forEach(reg => {";
-  html += "        let el = document.getElementById('r_' + reg);";
-  html += "        if (el && data[reg] !== undefined) {";
-  html += "          let val = data[reg];";
-  html += "          if (reg===5||reg===7||reg===24||reg===25||reg===29||reg===30) { el.innerText = val + ' °C'; }";
-  html += "          else if (reg===6||reg===8||reg===26||reg===27) { el.innerText = val + ' %'; }";
-  html += "          else if (reg===55) { el.innerText = val + ' м³'; }";
-  html += "          else { el.innerText = val; }";
-  html += "        }";
-  html += "      });";
-  html += "    })";
-  html += "    .catch(err => console.error('Ошибка обновления:', err));";
-  html += "}";
-  html += "function updateBadge(id, state, textOn, textOff, classOn, classOff) {";
-  html += "  let el = document.getElementById(id);";
-  html += "  if (!el) return;";
-  html += "  if (state === 1) { el.innerText = textOn; el.className = 'badge ' + classOn; }";
-  html += "  else { el.innerText = textOff; el.className = 'badge ' + classOff; }";
-  html += "}";
-  html += "setInterval(updateClimateData, 2000);";
-  html += "updateClimateData();";
-  html += "</script>";
+  html += R"rawliteral(<script>
+    function updateClimateData() {
+        fetch('/api/data')
+        .then(r => r.json())
+        .then(data => {
+            let r0 = data['0'] || 0;
+            let r1 = data['1'] || 0;
+            let r2 = data['2'] || 0;
+            let r3 = data['3'] || 0;
+            let r4 = data['4'] || 0;
+            updateBadge('b_0_0', (r0 >> 0) & 1, 'АКТИВНО', 'Выкл', 'bg-danger', 'bg-neutral');
+            updateBadge('b_0_2', (r0 >> 2) & 1, 'ГАЗ!!', 'Норма', 'bg-danger', 'bg-success');
+            updateBadge('b_0_3', (r0 >> 3) & 1, '< 0°C', 'Нет', 'bg-info', 'bg-neutral');
+            updateBadge('b_0_4', (r0 >> 4) & 1, '< 0°C', 'Нет', 'bg-info', 'bg-neutral');
+            updateBadge('b_0_12', (r0 >> 12) & 1, 'РАБОТА', 'Выкл', 'bg-success', 'bg-neutral');
+            updateBadge('b_0_13', (r0 >> 13) & 1, 'РАБОТА', 'Выкл', 'bg-success', 'bg-neutral');
+            updateBadge('b_0_14', (r0 >> 14) & 1, 'НАГРЕВ', 'Выкл', 'bg-danger', 'bg-neutral');
+            updateBadge('b_1_3', (r1 >> 3) & 1, 'Вкл', 'Выкл', 'bg-success', 'bg-neutral');
+            updateBadge('b_1_4', (r1 >> 4) & 1, 'Вкл', 'Выкл', 'bg-success', 'bg-neutral');
+            updateBadge('b_1_6', (r1 >> 6) & 1, 'АКТИВНА', 'Выкл', 'bg-info', 'bg-neutral');
+            updateBadge('b_1_7', (r1 >> 7) & 1, 'Вкл', 'Выкл', 'bg-success', 'bg-neutral');
+            updateBadge('b_1_8', (r1 >> 8) & 1, 'ПРЕВЫШЕНИЕ', 'Норма', 'bg-danger', 'bg-success');
+            updateBadge('b_1_11', (r1 >> 11) & 1, 'ОПРОС', 'Нет', 'bg-info', 'bg-neutral');
+            updateBadge('b_1_13', (r1 >> 13) & 1, 'ДЕНЬ', 'Выкл', 'bg-info', 'bg-neutral');
+            updateBadge('b_1_14', (r1 >> 14) & 1, 'СОН', 'Выкл', 'bg-neutral', 'bg-neutral');
+            updateBadge('b_1_15', (r1 >> 15) & 1, 'РУЧНОЙ', 'Авто', 'bg-danger', 'bg-success');
+            updateBadge('b_2_4', (r2 >> 4) & 1, 'ГОСТ', 'Выкл', 'bg-success', 'bg-neutral');
+            updateBadge('b_3_7', (r3 >> 7) & 1, 'Вкл', 'Выкл', 'bg-success', 'bg-neutral');
+            updateBadge('b_4_4', (r4 >> 4) & 1, 'Да', 'Нет', 'bg-success', 'bg-neutral');
+            updateBadge('b_4_12', (r4 >> 12) & 1, 'В СЕТИ', 'Выкл', 'bg-success', 'bg-neutral');
+            const climateRegs = [5, 6, 7, 8, 24, 25, 26, 27, 28, 29, 30, 31, 32, 34, 35, 44, 47, 53, 54, 55, 58, 60, 61, 62, 63, 64, 65];
+            climateRegs.forEach(reg => {
+                let el = document.getElementById('r_' + reg);
+                if (el && data[reg] !== undefined) {
+                    let val = data[reg];
+                    if (reg===5||reg===7||reg===24||reg===25||reg===29||reg===30) { el.innerText = val + ' °C'; }
+                    else if (reg===6||reg===8||reg===26||reg===27) { el.innerText = val + ' %'; }
+                    else if (reg===55) { el.innerText = val + ' м³'; }
+                    else { el.innerText = val; }
+                }
+            });
+        })
+        .catch(err => console.error('Ошибка обновления:', err));
+    }
+    function updateBadge(id, state, textOn, textOff, classOn, classOff) {
+        let el = document.getElementById(id);
+        if (!el) return;
+        if (state === 1) { el.innerText = textOn; el.className = 'badge ' + classOn; }
+        else { el.innerText = textOff; el.className = 'badge ' + classOff; }
+    }
+    setInterval(updateClimateData, 2000);
+    updateClimateData();
+    </script>)rawliteral";
 
   html += "</body></html>";
   webServer.send(200, "text/html", html);
