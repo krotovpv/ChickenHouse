@@ -47,7 +47,20 @@ void handleIndex() {
          "  .badge { padding: 4px 10px; border-radius: 20px; font-size: 12px; color: white; }"
          "  .bg-success { background: #28a745; } .bg-danger { background: #dc3545; }"
          "</style><title>Панель управления</title></head><body>"
-         "<div class='container'>";
+         "<div class='container'>"
+
+         "<div class='card p-3 mb-3'>"
+          "<div class='row text-center'>"
+            "<div class='col-6'>"
+              "<small class='text-muted d-block'>Системное время: </small>"
+              "<span id='rtc-current-time' class='fw-bold fs-5'>--:--:-- --.--.--</span>"
+            "</div>"
+            "<div class='col-6'>"
+              "<small class='text-muted d-block'>Последнее обновление: </small>"
+              "<span id='rtc-last-update' class='fw-bold fs-5 text-primary'>--:-- --.--.--</span>"
+            "</div>"
+          "</div>"
+         "</div>";
 
   // 1. Стили интерфейса
   html += R"rawliteral(
@@ -167,6 +180,37 @@ void handleIndex() {
 
     // 2. Запрос Modbus данных для сводной панели
     fetch('/api/data').then(r => r.json()).then(data => {
+
+      //Сборка текущего системного времени из регистров 17-22
+      if (data["19"] !== undefined && data["18"] !== undefined && data["17"] !== undefined) {
+        const hh = String(data["19"]).padStart(2, '0'); // Часы
+        const mm = String(data["18"]).padStart(2, '0'); // Минуты
+        const ss = String(data["17"]).padStart(2, '0'); // Секунды
+        
+        const day = String(data["20"] || 0).padStart(2, '0'); // День
+        const month = String(data["21"] || 0).padStart(2, '0'); // Месяц
+        const year = String(data["22"] || 0).slice(-2).padStart(2, '0'); // Две последние цифры года
+        
+        document.getElementById('rtc-current-time').innerText = `${hh}:${mm}:${ss} ${day}.${month}.${year}`;
+      } else {
+        document.getElementById('rtc-current-time').innerText = "--:--:-- --.--.--";
+      }
+
+      //Сборка времени последнего обновления из регистров 141-145
+      if (data["143"] !== undefined && data["142"] !== undefined && data["141"] !== undefined) {
+        const upH = String(data["142"]).padStart(2, '0'); // Часы
+        const upM = String(data["141"]).padStart(2, '0'); // Минуты
+        
+        const upDay = String(data["143"] || 0).padStart(2, '0'); // День
+        const upMonth = String(data["144"] || 0).padStart(2, '0'); // Месяц
+        const upYear = String(data["145"] || 0).padStart(2, '0'); // Год
+        
+        // Выводим без года, так как регистр под год обычно отсутствует в стандартных 5-регистровых пачках апдейта
+        document.getElementById('rtc-last-update').innerText = `${upH}:${upM} ${upDay}.${upMonth}.${upYear}`;
+      } else {
+        document.getElementById('rtc-last-update').innerText = "--:-- --.--.--";
+      }
+
       // Парсинг битовых регистров масок
       const r0 = data["0"] || 0;
       const r1 = data["1"] || 0;
