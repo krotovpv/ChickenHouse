@@ -26,41 +26,49 @@ String getHeader(String title) {
 }
 
 // 1. Главная страница
-void handleIndex() {
+  void handleIndex() {
   //String html = getHeader("Панель управления");
   String html = "<html><head><meta charset='UTF-8'>"
-         "<meta name='viewport' content='width=device-width, initial-scale=1.0'>"
-         "<style>"
-         "  :root { --primary: #007bff; --bg: #f4f7f6; --text: #333; --card: #ffffff; }"
-         "  body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: var(--bg); color: var(--text); margin: 0; padding: 20px; display: flex; flex-direction: column; align-items: center; }"
-         "  .container { width: 100%; max-width: 500px; }"
-         "  h2, h3 { color: #444; margin-bottom: 15px; text-align: center; }"
-         "  .card { background: var(--card); border-radius: 12px; padding: 20px; box-shadow: 0 4px 15px rgba(0,0,0,0.05); margin-bottom: 20px; border: 1px solid #eee; }"
-         "  .btn { display: block; text-align: center; padding: 12px; background: var(--primary); color: white; text-decoration: none; border-radius: 8px; font-weight: 600; margin: 10px 0; transition: 0.3s; border: none; cursor: pointer; }"
-         "  .btn:hover { opacity: 0.9; transform: translateY(-1px); }"
-         "  .btn-secondary { background: #6c757d; }"
-         "  input, select { width: 100%; padding: 12px; margin: 8px 0; border: 1px solid #ddd; border-radius: 8px; box-sizing: border-box; font-size: 16px; }"
-         "  table { width: 100%; border-collapse: collapse; background: var(--card); border-radius: 8px; overflow: hidden; }"
-         "  th { background: #f8f9fa; padding: 12px; font-size: 13px; color: #888; text-transform: uppercase; border-bottom: 2px solid #eee; }"
-         "  td { padding: 14px; border-bottom: 1px solid #eee; text-align: center; font-weight: 500; }"
-         "  .status-row { display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid #fafafa; }"
-         "  .badge { padding: 4px 10px; border-radius: 20px; font-size: 12px; color: white; }"
-         "  .bg-success { background: #28a745; } .bg-danger { background: #dc3545; }"
-         "</style><title>Панель управления</title></head><body>"
-         "<div class='container'>"
+        "<meta name='viewport' content='width=device-width, initial-scale=1.0'>"
+        "<style>"
+        "  :root { --primary: #007bff; --bg: #f4f7f6; --text: #333; --card: #ffffff; }"
+        "  body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: var(--bg); color: var(--text); margin: 0; padding: 20px; display: flex; flex-direction: column; align-items: center; }"
+        "  .container { width: 100%; max-width: 500px; }"
+        "  h2, h3 { color: #444; margin-bottom: 15px; text-align: center; }"
+        "  .card { background: var(--card); border-radius: 12px; padding: 15px 20px; box-shadow: 0 4px 15px rgba(0,0,0,0.05); margin-bottom: 20px; border: 1px solid #eee; width: 100%; max-width: 500px; box-sizing: border-box; }"
+        "  .btn { display: block; text-align: center; padding: 12px; background: var(--primary); color: white; text-decoration: none; border-radius: 8px; font-weight: 600; margin: 10px 0; transition: 0.3s; border: none; cursor: pointer; }"
+        "  .btn:hover { opacity: 0.9; transform: translateY(-1px); }"
+        "  .btn-secondary { background: #6c757d; }"
+        "  input, select { width: 100%; padding: 12px; margin: 8px 0; border: 1px solid #ddd; border-radius: 8px; box-sizing: border-box; font-size: 16px; }"
+        "  table { width: 100%; border-collapse: collapse; background: var(--card); border-radius: 8px; overflow: hidden; }"
+        "  th { background: #f8f9fa; padding: 12px; font-size: 13px; color: #888; text-transform: uppercase; border-bottom: 2px solid #eee; }"
+        "  td { padding: 14px; border-bottom: 1px solid #eee; text-align: center; font-weight: 500; }"
+        "  .status-row { display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid #fafafa; }"
+        "  .badge { padding: 4px 10px; border-radius: 20px; font-size: 12px; color: white; }"
+        "  .bg-success { background: #28a745; } .bg-danger { background: #dc3545; }"
+        "  .top-bar { display: flex; justify-content: space-between; align-items: center; }"
+        "  .signals-wrapper { display: flex; align-items: center; gap: 15px; }"
 
-         "<div class='card p-3 mb-3'>"
-          "<div class='row text-center'>"
-            "<div class='col-6'>"
-              "<small class='text-muted d-block'>Системное время: </small>"
-              "<span id='rtc-current-time' class='fw-bold fs-5'>--:--:-- --.--.--</span>"
-            "</div>"
-            "<div class='col-6'>"
-              "<small class='text-muted d-block'>Последнее обновление: </small>"
-              "<span id='rtc-last-update' class='fw-bold fs-5 text-primary'>--:-- --.--.--</span>"
-            "</div>"
+        "</style>"
+        "<title>Панель управления</title></head>"
+        "<body>"
+
+        "<div class='top-bar card'>"
+          "<!-- Левая часть (Время) -->"
+          "<div id='rtc-current-time' class='fw-bold fs-5'>🕒--:--:-- --.--.--</div>"
+    
+          //Правая часть (Сигналы вместе)
+          "<div class='signals-wrapper'>"
+            "<span class='sig-box' id='wifi-bars' title='Wi-Fi'>"
+              "<div class='bar b1'></div>"
+              "<div class='bar b2'></div>"
+              "<div class='bar b3'></div>"
+              "<div class='bar b4'></div>"
+            "</span>"
+            "<span id='mqtt-dot' class='dot' title='MQTT'></span>"
           "</div>"
-         "</div>";
+        "</div>";
+         
 
   // 1. Стили интерфейса
   html += R"rawliteral(
@@ -70,13 +78,13 @@ void handleIndex() {
     .status-row:last-child { border-bottom: none; }
     .ip-info { font-size: 0.85em; color: #666; margin-top: 5px; line-height: 1.5; }
     .ip-info b { color: #333; font-family: monospace; }
-    .sig-box { display: flex; align-items: flex-end; height: 20px; gap: 3px; margin-top: 5px; }
-    .bar { width: 5px; background: #e0e0e0; border-radius: 1px; transition: 0.3s; }
-    .b1 { height: 6px; } .b2 { height: 10px; } .b3 { height: 15px; } .b4 { height: 20px; }
+    .sig-box { display: flex; align-items: flex-end; height: 17px; gap: 3px; margin-top: 5px; cursor: pointer; }
+    .bar { width: 4px; background: #e0e0e0; border-radius: 1px; transition: 0.3s; }
+    .b1 { height: 5px; } .b2 { height: 9px; } .b3 { height: 13px; } .b4 { height: 17px; }
     .green { background: #28a745 !important; }
     .yellow { background: #ffc107 !important; }
     .red { background: #dc3545 !important; }
-    .dot { height: 10px; width: 10px; border-radius: 50%; display: inline-block; margin-right: 8px; background: #bbb; vertical-align: middle; }
+    .dot { height: 14px; width: 14px; border-radius: 50%; display: inline-block; margin-right: 8px; background: #bbb; vertical-align: middle; cursor: pointer; }
     .online { background: #28a745; box-shadow: 0 0 8px rgba(40,167,69,0.4); }
     .offline { background: #dc3545; }
     .nav-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-top: 20px; }
@@ -191,24 +199,9 @@ void handleIndex() {
         const month = String(data["21"] || 0).padStart(2, '0'); // Месяц
         const year = String(data["22"] || 0).slice(-2).padStart(2, '0'); // Две последние цифры года
         
-        document.getElementById('rtc-current-time').innerText = `${hh}:${mm}:${ss} ${day}.${month}.${year}`;
+        document.getElementById('rtc-current-time').innerText = `🕒${hh}:${mm}:${ss} ${day}.${month}.${year}`;
       } else {
-        document.getElementById('rtc-current-time').innerText = "--:--:-- --.--.--";
-      }
-
-      //Сборка времени последнего обновления из регистров 141-145
-      if (data["143"] !== undefined && data["142"] !== undefined && data["141"] !== undefined) {
-        const upH = String(data["142"]).padStart(2, '0'); // Часы
-        const upM = String(data["141"]).padStart(2, '0'); // Минуты
-        
-        const upDay = String(data["143"] || 0).padStart(2, '0'); // День
-        const upMonth = String(data["144"] || 0).padStart(2, '0'); // Месяц
-        const upYear = String(data["145"] || 0).padStart(2, '0'); // Год
-        
-        // Выводим без года, так как регистр под год обычно отсутствует в стандартных 5-регистровых пачках апдейта
-        document.getElementById('rtc-last-update').innerText = `${upH}:${upM} ${upDay}.${upMonth}.${upYear}`;
-      } else {
-        document.getElementById('rtc-last-update').innerText = "--:-- --.--.--";
+        document.getElementById('rtc-current-time').innerText = "🕒--:--:-- --.--.--";
       }
 
       // Парсинг битовых регистров масок
