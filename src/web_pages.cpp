@@ -1555,6 +1555,10 @@ void handleClimate() {
             let r2 = data['2'] || 0;
             let r3 = data['3'] || 0;
             let r4 = data['4'] || 0;
+
+            const signIn = (r0 >> 4) & 1;  // Бит 4 — минус внутри
+            const signOut = (r0 >> 3) & 1; // Бит 3 — минус на улице
+
             updateBadge('b_0_0', (r0 >> 0) & 1, 'АКТИВНО', 'Выкл', 'bg-danger', 'bg-neutral');
             updateBadge('b_0_2', (r0 >> 2) & 1, 'ГАЗ!!', 'Норма', 'bg-danger', 'bg-success');
             updateBadge('b_0_3', (r0 >> 3) & 1, '< 0°C', 'Нет', 'bg-info', 'bg-neutral');
@@ -1580,6 +1584,11 @@ void handleClimate() {
                 let el = document.getElementById('r_' + reg);
                 if (el && data[reg] !== undefined) {
                     let val = data[reg];
+
+                    // Если это датчик курятника (5) или улицы (7) — инвертируем знак при активном бите
+                    if (reg === 5 && signIn === 1) val = -val;
+                    if (reg === 7 && signOut === 1) val = -val;
+
                     if (reg===5||reg===7||reg===24||reg===25||reg===29||reg===30) { el.innerText = val + ' °C'; }
                     else if (reg===6||reg===8||reg===26||reg===27) { el.innerText = val + ' %'; }
                     else if (reg===55) { el.innerText = val + ' м³'; }
