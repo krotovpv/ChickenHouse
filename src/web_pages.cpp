@@ -48,7 +48,6 @@ String getHeader(String title) {
         "  .bg-success { background: #28a745; } .bg-danger { background: #dc3545; }"
         "  .top-bar { display: flex; justify-content: space-between; align-items: center; }"
         "  .signals-wrapper { display: flex; align-items: center; gap: 15px; }"
-
         "</style>"
         "<title>Панель управления</title></head>"
         "<body>"
@@ -96,13 +95,17 @@ String getHeader(String title) {
     .alert-banner { display: none; background: #fee2e2; border: 1px solid #fca5a5; color: #991b1b; padding: 10px; border-radius: 8px; text-align: center; font-weight: bold; margin-bottom: 15px; font-size: 14px; animation: pulse 2s infinite; }
     @keyframes pulse { 0% { opacity: 1; } 50% { opacity: 0.8; } 100% { opacity: 1; } }
   
-    /* Дополнительные стили для карточки температуры */
+    /* Карточка температуры */
     .temp-card-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 5px; }
     .temp-block { background: #f8fafc; border: 1px solid #eaecf4; border-radius: 8px; padding: 10px; text-align: center; }
     .temp-block .loc-title { font-size: 12px; color: #64748b; font-weight: 600; margin-bottom: 5px; text-transform: uppercase; }
     .temp-block .temp-val { font-size: 20px; font-weight: bold; color: #1e293b; }
     .temp-block .hum-val { font-size: 13px; color: #64748b; margin-top: 2px; }
-  
+    
+    /* Карточка вентиляции */
+    .txt-bold { font-weight: bold; color: #1e293b; }
+    .status-highlight { font-weight: bold; padding: 2px 8px; border-radius: 6px; font-size: 14px; }
+    .feed-missed-alert { display: none; background: #fee2e2; border: 1px solid #fca5a5; color: #991b1b; padding: 6px 12px; border-radius: 6px; font-weight: bold; font-size: 13px; text-align: center; margin-top: 10px; }
     </style>
   )rawliteral";
 
@@ -128,6 +131,32 @@ String getHeader(String title) {
   html += "  </div>";
   html += "</div>";
 
+  // --- НОВАЯ КАРТОЧКА: ВЕНТИЛЯЦИЯ ---
+  html += "<div class='card'>";
+  html += "  <div class='sub-title'>💨 Вентиляция</div>";
+  html += "  <div class='status-row'><span>Вентиляторы:</span><span id='vent-fans-count' class='txt-bold'>--</span></div>";
+  html += "  <div class='status-row'><span>Режим управления:</span><span id='vent-mode-name' class='txt-bold'>--</span></div>";
+  html += "  <div class='status-row'><span>Параметры работы:</span><span id='vent-auto-params' style='color:#555;'>Вкл/час: <b id='vent-r34'>--</b> | Длит: <b id='vent-r35'>--</b> мин</span></div>";
+  html += "  <div class='status-row' style='border-bottom:none; padding-bottom:0;'><span>Состояние:</span><span id='vent-priority-status' class='status-highlight'>--</span></div>";
+  html += "</div>";
+
+  // --- НОВАЯ КАРТОЧКА: ЛАЗ ---
+  html += "<div class='card'>";
+  html += "  <div class='sub-title'>🐓 Лаз</div>";
+  html += "  <div class='status-row'><span>Режим управления:</span><span id='door-priority-mode' class='txt-bold'>--</span></div>";
+  html += "  <div class='status-row' style='border-bottom:none; padding-bottom:0;'><span>Состояние:</span><span id='door-complex-status' style='text-align:right; font-weight:600; max-width:65%; font-size:14px;'>--</span></div>";
+  html += "</div>";
+
+  // --- НОВАЯ КАРТОЧКА: КОРМЛЕНИЕ ---
+  html += "<div class='card'>";
+  html += "  <div class='sub-title'>🌾 Кормление</div>";
+  html += "  <div class='status-row'><span>Состояние системы:</span><span id='feed-enabled-status' class='txt-bold'>--</span></div>";
+  html += "  <div class='status-row'><span>Режим управления:</span><span id='feed-control-mode' class='txt-bold'>--</span></div>";
+  html += "  <div class='status-row'><span>Режим работы:</span><span id='feed-operation-mode' style='text-align:right; font-weight:500; font-size:14px; max-width:65%;'>--</span></div>";
+  html += "  <div class='status-row' style='border-bottom:none; padding-bottom:0;'><span>Состояние за сутки:</span><span>Выполнено <b id='feed-done-count' class='txt-bold'>--</b> из <b id='feed-plan-count' class='txt-bold'>--</b></span></div>";
+  html += "  <div id='feed-missed-warning' class='feed-missed-alert'>⚠️ Зафиксирован пропуск кормления!</div>";
+  html += "</div>";
+
   // --- СВОДНЫЕ ДАННЫЕ С ВКЛАДОК ---
   html += "<div class='card'>";
   
@@ -139,7 +168,6 @@ String getHeader(String title) {
   // Сводка по климату
   html += "<div class='sub-title' style='margin-top: 15px;'>🌡 Климат-контроль</div>";
   html += "<div class='status-row'><div>Внутри: <span id='dash-clim-in' style='font-weight:bold;'>--</span></div><div>На улице: <span id='dash-clim-out' style='font-weight:bold;'>--</span></div></div>";
-  //html += "<div class='status-row' style='padding-top:0;'><span>Оборудование:</span><span id='dash-clim-equip' style='font-weight:bold; color:#666;'>--</span></div>";
   
   // Сводка по кормлению
   html += "<div class='sub-title' style='margin-top: 15px;'>🌾 Процесс кормления</div>";
@@ -161,6 +189,15 @@ String getHeader(String title) {
   // Скрипт динамического обновления
   html += R"rawliteral(
   <script>
+  // Утилита для перевода минут из регистров в ЧЧ:ММ
+  function parseMinutesToTime(totalMinutes) {
+    if (totalMinutes === undefined || totalMinutes === null || isNaN(totalMinutes)) return "--:--";
+    const mins = parseInt(totalMinutes);
+    if (mins === 0) return "--:--";
+    const hours = Math.floor(mins / 60);
+    const minutes = mins % 60;
+    return `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}`;
+  }
   function update() {
     // 1. Запрос системного статуса (WiFi и MQTT)
     fetch('/api/status').then(r => r.json()).then(d => {
@@ -211,7 +248,7 @@ String getHeader(String title) {
       const r2 = data["2"] || 0;
       const r3 = data["3"] || 0;
 
-      // ЛОГИКА ДЛЯ НОВОЙ КАРТОЧКИ ТЕМПЕРАТУРЫ (С учётом знаковых битов)
+      // ЛОГИКА ДЛЯ КАРТОЧКИ ТЕМПЕРАТУРЫ (С учётом знаковых битов)
       // Курятник: температура в R5, влажность в R6, знак в R0 бите 4
       if (data["5"] !== undefined) {
         let tIn = parseInt(data["5"]);
@@ -233,6 +270,180 @@ String getHeader(String title) {
       if (data["8"] !== undefined) {
         document.getElementById('main-hum-out').innerText = data["8"];
       }
+
+      // ЛОГИКА ДЛЯ КАРТОЧКИ ВЕНТИЛЯЦИИ
+      // 1. Количество вентиляторов (Регистр 53)
+      const fansCount = data["53"] !== undefined ? parseInt(data["53"]) : 0;
+      if (fansCount === 0) {
+        document.getElementById('vent-fans-count').innerHTML = "<span style='color:#dc3545;'>Вентиляция отключена ⚪</span>";
+      } else {
+        document.getElementById('vent-fans-count').innerHTML = `<span style='color:#28a745;'>${fansCount} шт. 🟢</span>`;
+      }
+
+      // 2. Режим работы (Регистр 1 Бит 15) и уставки (Регистры 34, 35)
+      const isManualMode = (r1 >> 15) & 1;
+      if (isManualMode === 1) {
+        document.getElementById('vent-mode-name').innerHTML = "<span style='color:#d97706;'>Ручной 🛠️</span>";
+        document.getElementById('vent-r34').innerText = "--";
+        document.getElementById('vent-r35').innerText = "--";
+      } else {
+        document.getElementById('vent-mode-name').innerHTML = "<span style='color:#2563eb;'>Автоматический 🤖</span>";
+        document.getElementById('vent-r34').innerText = data["34"] !== undefined ? data["34"] : "--";
+        document.getElementById('vent-r35').innerText = data["35"] !== undefined ? data["35"] : "--";
+      }
+
+      // 3. Расчет статуса по строгому приоритету
+      const isGasAlarm = (r0 >> 2) & 1;      // Рег 0 Бит 2
+      const isCoolingActive = (r0 >> 0) & 1;  // Рег 0 Бит 0
+      const isAutoVent = (r1 >> 3) & 1;       // Рег 1 Бит 3
+      const isManualVent = (r1 >> 4) & 1;     // Рег 1 Бит 4
+
+      let priorityStatusText = "Ожидание 💤";
+      let statusColor = "#64748b"; 
+      let statusBg = "#f1f5f9";
+
+      if (isGasAlarm === 1) {
+        priorityStatusText = "Загазованно ⚠️";
+        statusColor = "#b91c1c"; 
+        statusBg = "#fee2e2";
+      } else if (isCoolingActive === 1) {
+        priorityStatusText = "Охлаждение ❄️";
+        statusColor = "#1d4ed8"; 
+        statusBg = "#dbeafe";
+      } else if (isManualVent === 1) {
+        priorityStatusText = "Проветривание (Ручное) 💨";
+        statusColor = "#b45309"; 
+        statusBg = "#fef3c7";
+      } else if (isAutoVent === 1) {
+        priorityStatusText = "Проветривание (Авто) 🔄";
+        statusColor = "#047857"; 
+        statusBg = "#d1fae5";
+      }
+
+      const statusEl = document.getElementById('vent-priority-status');
+      statusEl.innerText = priorityStatusText;
+      statusEl.style.color = statusColor;
+      statusEl.style.backgroundColor = statusBg;
+
+      // --- ЛОГИКА ДЛЯ НОВОЙ КАРТОЧКИ ЛАЗА ---
+      // 1. Вывод режима по старшинству приоритетов
+      let doorModeText = "- 🤖";
+      let doorModeColor = "#2563eb";
+
+      if (((r2 >> 10) & 1) === 1) {
+        doorModeText = "Ручной режим 🛠️";
+        doorModeColor = "#d97706";
+      } else if (((r2 >> 15) & 1) === 1) {
+        doorModeText = "Авто по температуре 🌡️";
+        doorModeColor = "#0284c7";
+      } else if (((r2 >> 1) & 1) === 1) {
+        doorModeText = "Закр. по расп. / Откр. по календ. 📅⏰";
+        doorModeColor = "#7c3aed";
+      } else if (((r2 >> 0) & 1) === 1) {
+        doorModeText = "Авто по календарю 📅";
+        doorModeColor = "#059669";
+      }
+      
+      const dmEl = document.getElementById('door-priority-mode');
+      dmEl.innerText = doorModeText;
+      dmEl.style.color = doorModeColor;
+
+      // 2. Вывод состояния по алгоритму ветвления
+      let doorStateText = "Неизвестно";
+      let doorStateColor = "#475569";
+
+      const isMoving = (r2 >> 11) & 1;
+      const isGoingDown = (r0 >> 8) & 1;
+      const isGoingUp = (r0 >> 9) & 1;
+      const isBlocked = (r2 >> 12) & 1;
+      const intermediateCheck = (r2 >> 9) & 1;
+      const openCloseCheck = (r2 >> 8) & 1;
+      const insideTempLock = (r2 >> 6) & 1;
+      const outsideTempLock = (r2 >> 7) & 1;
+
+      if (isMoving === 1) {
+        // Лаз движется
+        if (isGoingDown === 1) {
+          doorStateText = "⏳ Закрывается... ⬇️";
+          doorStateColor = "#ea580c";
+        } else if (isGoingUp === 1) {
+          doorStateText = "⏳ Открывается... ⬆️";
+          doorStateColor = "#059669";
+        } else {
+          doorStateText = "⏳ В движении";
+          doorStateColor = "#d97706";
+        }
+      } else {
+        // Лаз стоит
+        if (isBlocked === 1) {
+          doorStateText = "🛑 ЛАЗ ЗАБЛОКИРОВАН!";
+          doorStateColor = "#dc2626";
+        } else if (intermediateCheck === 0) {
+          doorStateText = "🔄 Промежуточное положение";
+          doorStateColor = "#475569";
+        } else {
+          // Проверяем открыт/закрыт по R2:B8
+          if (openCloseCheck === 1) {
+            // Лаз открыт
+            const closeTimeStr = parseMinutesToTime(data["9"]);
+            doorStateText = `🟢 Открыт (Закрытие в ${closeTimeStr})`;
+            doorStateColor = "#16a34a";
+          } else if (openCloseCheck === 0) {
+            // Лаз закрыт
+            if (insideTempLock === 1) {
+              doorStateText = "❄️ Закрыт (Запрет открытия: темп. внутри < нормы)";
+              doorStateColor = "#dc2626";
+            } else if (outsideTempLock === 1) {
+              doorStateText = "🥶 Закрыт (Запрет открытия: темп. на улице < нормы)";
+              doorStateColor = "#dc2626";
+            } else {
+              const openTimeStr = parseMinutesToTime(data["10"]);
+              doorStateText = `🔒 Закрыт (Открытие в ${openTimeStr})`;
+              doorStateColor = "#2563eb";
+            }
+          }
+        }
+      }
+
+      const dsEl = document.getElementById('door-complex-status');
+      dsEl.innerText = doorStateText;
+      dsEl.style.color = doorStateColor;
+
+      // --- ЛОГИКА ДЛЯ КАРТОЧКИ КОРМЛЕНИЯ ---
+      // 1. Состояние системы кормления (Регистр 0 Бит 7)
+      const isFeedEnabled = (r0 >> 7) & 1;
+      if (isFeedEnabled === 1) {
+        document.getElementById('feed-enabled-status').innerHTML = "<span style='color:#16a34a;'>Включено 🟢</span>";
+      } else {
+        document.getElementById('feed-enabled-status').innerHTML = "<span style='color:#64748b;'>Выключено ⚪</span>";
+      }
+
+      // 2. Режим управления кормлением (Регистр 3 Бит 14)
+      const isFeedManual = (r3 >> 14) & 1;
+      if (isFeedManual === 1) {
+        document.getElementById('feed-control-mode').innerHTML = "<span style='color:#d97706;'>Ручной 🛠️</span>";
+      } else {
+        document.getElementById('feed-control-mode').innerHTML = "<span style='color:#2563eb;'>Автоматический 🤖</span>";
+      }
+
+      // 3. Режим работы (Регистр 3 Бит 15) и уставки следующего шага
+      const isMissedProcessing = (r3 >> 15) & 1;
+      if (isMissedProcessing === 1) {
+        document.getElementById('feed-operation-mode').innerHTML = "<span style='color:#7c3aed; font-weight:600;'>Отработка пропусков кормления 🔄</span>";
+      } else {
+        const nextFeederNum = data["12"] !== undefined ? data["12"] : "--";
+        const nextFeedTimeStr = parseMinutesToTime(data["16"]);
+        const nextFeedDuration = data["13"] !== undefined ? data["13"] : "--";
+        document.getElementById('feed-operation-mode').innerHTML = `Кормушка №<b>${nextFeederNum}</b> в <b>${nextFeedTimeStr}</b><br><span style='color:#64748b; font-size:12px;'>(Длительность: ${nextFeedDuration} мин)</span>`;
+      }
+
+      // 4. Текущее состояние счетчиков за сутки (Регистры 14 и 15)
+      document.getElementById('feed-done-count').innerText = data["14"] !== undefined ? data["14"] : "--";
+      document.getElementById('feed-plan-count').innerText = data["15"] !== undefined ? data["15"] : "--";
+
+      // 5. Проверка наличия пропуска кормления (Регистр 3 Бит 8)
+      const hasFeedMiss = (r3 >> 8) & 1;
+      document.getElementById('feed-missed-warning').style.display = (hasFeedMiss === 1) ? "block" : "none";
 
       // Сводка ЛАЗА
       const isLaseOpen = (r2 >> 8) & 1;
@@ -267,21 +478,21 @@ String getHeader(String title) {
       const humIn = data["6"] !== undefined ? data["6"] + "%" : "--";
       const tempOut = data["7"] !== undefined ? tOutOld + "°C" : "--";
       const humOut = data["8"] !== undefined ? data["8"] + "%" : "--";
-      docu
-      ment.getElementById('dash-clim-in').innerText = `${tempIn} / ${humIn}`;
+      document.getElementById('dash-clim-in').innerText = `${tempIn} / ${humIn}`;
       document.getElementById('dash-clim-out').innerText = `${tempOut} / ${humOut}`;
 
       // Сводка КОРМЛЕНИЯ
       document.getElementById('dash-feed-count').innerText = data["14"] !== undefined ? data["14"] : "--";
       document.getElementById('dash-feed-plan').innerText = data["15"] !== undefined ? data["15"] : "--";
       document.getElementById('dash-feed-next-num').innerText = data["12"] !== undefined ? data["12"] : "--";
+      
       // Парсинг времени до следующего кормления (Регистр 16)
       const nextTimeRaw = data["16"];
       let nextTimeText = "--:--";
 
       if (nextTimeRaw !== undefined) {
-      if (parseInt(nextTimeRaw) === 0) {
-        nextTimeText = "--:--";
+        if (parseInt(nextTimeRaw) === 0) {
+          nextTimeText = "--:--";
       } else {
         const totalMinutes = parseInt(nextTimeRaw);
         const hours = Math.floor(totalMinutes / 60);
@@ -599,15 +810,6 @@ void handleTable() {
                 </div>`;
             }
             valCell.innerHTML = html + `</div>`;
-
-          // --- КЕЙС 101 (НАСТРОЙКА ПАРАМЕТРА - ВВОД ЧИСЛА) ---
-          //} else if (key == "101") {
-          //  valCell.innerHTML = headerHtml + `
-          //    <div style="display:flex; flex-direction:column; align-items:center; padding:10px;">
-          //      <input type="number" min="0" max="255" value="${value}" style="width:100px; text-align:center; font-weight:bold; padding:8px; border:2px solid #4e73df; border-radius:8px;" 
-          //            onchange="sendValue(${key}, this.value)">
-          //      <span style="font-size:11px; color:#999; margin-top:4px;">(0-255)</span>
-          //    </div>`;
 
           // --- КЕЙС 0-4 (ТОЛЬКО ОТОБРАЖЕНИЕ БИТОВ - ЦЕНТРИРОВАНИЕ + ФОН) ---
           } else if (['0', '1', '2', '3', '4'].includes(key)) {
@@ -1781,16 +1983,6 @@ void handleSettings() {
 
 // 6. Страница OTA
 void handleOtaPage() {
-  // String html = "<html><head><meta charset='UTF-8'><title>OTA Обновление</title>";
-  // html += "<style>body{font-family:sans-serif;text-align:center;padding-top:50px;}";
-  // html += ".btn{padding:10px 20px;background:#2ecc71;color:#fff;border:0;border-radius:5px;cursor:pointer;}</style></head>";
-  // html += "<body><h2>🔄 Обновление прошивки курятника</h2>";
-  // html += "<form method='POST' action='/update_action' enctype='multipart/form-data'>";
-  // html += "<input type='file' name='update' accept='.bin'><br><br>";
-  // html += "<input type='submit' class='btn' value='Обновить'>";
-  // html += "</form></body></html>";
-  // webServer.send(200, "text/html", html);
-
   String html = getHeader("OTA Обновление прошивки");
   
   html += "<div class='card' style='margin-top: 10px;'>";
