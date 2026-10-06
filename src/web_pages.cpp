@@ -88,8 +88,6 @@ String getHeader(String title) {
     .offline { background: #dc3545; }
     .nav-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-top: 20px; }
     .nav-btn { padding: 15px 10px; text-align: center; border-radius: 12px; color: white; text-decoration: none; font-weight: 600; box-shadow: 0 4px 6px rgba(0,0,0,0.1); font-size: 14px; }
-    
-    /* Сводные блоки */
     .sub-title { font-size: 11px; color: #888; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 8px; font-weight: bold; border-bottom: 1px solid #eee; padding-bottom: 4px; }
     .alert-banner { display: none; background: #fee2e2; border: 1px solid #fca5a5; color: #991b1b; padding: 10px; border-radius: 8px; text-align: center; font-weight: bold; margin-bottom: 15px; font-size: 14px; animation: pulse 2s infinite; }
     @keyframes pulse { 0% { opacity: 1; } 50% { opacity: 0.8; } 100% { opacity: 1; } }
@@ -130,35 +128,46 @@ String getHeader(String title) {
   html += "  </div>";
   html += "</div>";
 
-  // --- НОВАЯ КАРТОЧКА: ВЕНТИЛЯЦИЯ ---
+  // --- ВЕНТИЛЯЦИЯ ---
   html += "<div class='card'>";
-  html += "  <div class='sub-title'>💨 Вентиляция</div>";
-  html += "  <div class='status-row'><span>Вентиляторы:</span><span id='vent-fans-count' class='txt-bold'>--</span></div>";
-  
-  // Новые скрываемые строки для приточного и вытяжного вентиляторов
-  html += "  <div class='status-row' id='row-vent-in' style='display:none;'><span>Приточный вентилятор:</span><span id='vent-in-status' class='txt-bold'>--</span></div>";
-  html += "  <div class='status-row' id='row-vent-out' style='display:none;'><span>Вытяжной вентилятор:</span><span id='vent-out-status' class='txt-bold'>--</span></div>";
-  
-  html += "  <div class='status-row'><span>Режим управления:</span><span id='vent-mode-name' class='txt-bold'>--</span></div>";
-  html += "  <div class='status-row'><span>Параметры работы:</span><span id='vent-auto-params' style='color:#555;'>Вкл/час: <b id='vent-r34'>--</b> | Длит: <b id='vent-r35'>--</b> мин</span></div>";
-  html += "  <div class='status-row' style='border-bottom:none; padding-bottom:0;'><span>Состояние системы:</span><span id='vent-priority-status' class='status-highlight'>--</span></div>";
+  html += "  <div class='sub-title' style='display: flex; justify-content: space-between; align-items: center;'>";
+  html += "    <span>💨 Вентиляция</span>";
+  html += "    <span id='vent-disabled-label' style='color: #dc3545; font-weight: bold; font-size: 12px; display: none;'>ОТКЛЮЧЕНО</span>";
+  html += "  </div>";
+  html += "  <div id='vent-card-content'>";
+  html += "    <div class='status-row'><span>Вентиляторы:</span><span id='vent-fans-count' class='txt-bold'>--</span></div>";
+  html += "    <div class='status-row' id='row-vent-in' style='display:none;'><span>Приточный вентилятор:</span><span id='vent-in-status' class='txt-bold'>--</span></div>";
+  html += "    <div class='status-row' id='row-vent-out' style='display:none;'><span>Вытяжной вентилятор:</span><span id='vent-out-status' class='txt-bold'>--</span></div>";
+  html += "    <div class='status-row'><span>Режим управления:</span><span id='vent-mode-name' class='txt-bold'>--</span></div>";
+  html += "    <div class='status-row'><span>Параметры работы:</span><span id='vent-auto-params' style='color:#555;'>Вкл/час: <b id='vent-r34'>--</b> | Длит: <b id='vent-r35'>--</b> мин</span></div>";
+  html += "    <div class='status-row' style='border-bottom:none; padding-bottom:0;'><span>Состояние системы:</span><span id='vent-priority-status' class='status-highlight'>--</span></div>";
+  html += "  </div>";
   html += "</div>";
 
-  // --- НОВАЯ КАРТОЧКА: ЛАЗ ---
+  // --- ЛАЗ ---
   html += "<div class='card'>";
-  html += "  <div class='sub-title'>🐓 Лаз</div>";
-  html += "  <div class='status-row'><span>Режим управления:</span><span id='door-priority-mode' class='txt-bold'>--</span></div>";
-  html += "  <div class='status-row' style='border-bottom:none; padding-bottom:0;'><span>Состояние системы:</span><span id='door-complex-status' style='text-align:right; font-weight:600; max-width:65%; font-size:14px;'>--</span></div>";
+  html += "  <div class='sub-title' style='display: flex; justify-content: space-between; align-items: center;'>";
+  html += "    <span>🐓 Лаз</span>";
+  html += "    <span id='door-disabled-label' style='color: #dc3545; font-weight: bold; font-size: 12px; display: none;'>ОТКЛЮЧЕНО</span>";
+  html += "  </div>";
+  html += "  <div id='door-card-content'>";
+  html += "    <div class='status-row'><span>Режим управления:</span><span id='door-priority-mode' class='txt-bold'>--</span></div>";
+  html += "    <div class='status-row' style='border-bottom:none; padding-bottom:0;'><span>Состояние системы:</span><span id='door-complex-status' style='text-align:right; font-weight:600; max-width:65%; font-size:14px;'>--</span></div>";
+  html += "  </div>";
   html += "</div>";
 
-  // --- НОВАЯ КАРТОЧКА: КОРМЛЕНИЕ ---
+  // --- КОРМЛЕНИЕ ---
   html += "<div class='card'>";
-  html += "  <div class='sub-title'>🌾 Кормление</div>";
-  html += "  <div class='status-row'><span>Состояние системы:</span><span id='feed-enabled-status' class='txt-bold'>--</span></div>";
-  html += "  <div class='status-row'><span>Режим управления:</span><span id='feed-control-mode' class='txt-bold'>--</span></div>";
-  html += "  <div class='status-row'><span>Режим работы:</span><span id='feed-operation-mode' style='text-align:right; font-weight:500; font-size:14px; max-width:65%;'>--</span></div>";
-  html += "  <div class='status-row' style='border-bottom:none; padding-bottom:0;'><span>Состояние системы за сутки:</span><span>Выполнено <b id='feed-done-count' class='txt-bold'>--</b> из <b id='feed-plan-count' class='txt-bold'>--</b></span></div>";
-  html += "  <div id='feed-missed-warning' class='feed-missed-alert'>⚠️ Зафиксирован пропуск кормления!</div>";
+  html += "  <div class='sub-title' style='display: flex; justify-content: space-between; align-items: center;'>";
+  html += "    <span>🌾 Кормление</span>";
+  html += "    <span id='feed-disabled-label' style='color: #dc3545; font-weight: bold; font-size: 12px; display: none;'>ОТКЛЮЧЕНО</span>";
+  html += "  </div>";
+  html += "  <div id='feed-card-content'>";
+  html += "    <div class='status-row'><span>Режим управления:</span><span id='feed-control-mode' class='txt-bold'>--</span></div>";
+  html += "    <div class='status-row'><span>Режим работы:</span><span id='feed-operation-mode' style='text-align:right; font-weight:500; font-size:14px; max-width:65%;'>--</span></div>";
+  html += "    <div class='status-row' style='border-bottom:none; padding-bottom:0;'><span>Кормление за сутки:</span><span>Выполнено <b id='feed-done-count' class='txt-bold'>--</b> из <b id='feed-plan-count' class='txt-bold'>--</b></span></div>";
+  html += "    <div id='feed-missed-warning' class='feed-missed-alert'>⚠️ Зафиксирован пропуск кормления!</div>";
+  html += "  </div>";
   html += "</div>";
 
   // Навигационная сетка кнопок
@@ -257,191 +266,229 @@ String getHeader(String title) {
       }
 
       // ЛОГИКА ДЛЯ КАРТОЧКИ ВЕНТИЛЯЦИИ
-      // 1. Количество вентиляторов (Регистр 53)
       const fansCount = data["53"] !== undefined ? parseInt(data["53"]) : 0;
+      const ventDisabledLabel = document.getElementById('vent-disabled-label');
+      const ventCardContent = document.getElementById('vent-card-content');
+
       if (fansCount === 0) {
-        document.getElementById('vent-fans-count').innerHTML = "<span style='color:#dc3545;'>Вентиляция отключена ⚪</span>";
-        // Полностью скрываем строки притока и вытяжки, если вентиляторов 0
-        document.getElementById('row-vent-in').style.display = "none";
-        document.getElementById('row-vent-out').style.display = "none";
-        } else {
-        document.getElementById('vent-fans-count').innerHTML = `<span style='color:#28a745;'>${fansCount} шт. 🟢</span>`;
-        // Показываем строки притока и вытяжки, если вентиляторы используются
-        document.getElementById('row-vent-in').style.display = "flex";
-        document.getElementById('row-vent-out').style.display = "flex";
+        // Если вентиляторов 0, показываем надпись "ОТКЛЮЧЕНО" и скрываем контент карточки
+        if (ventDisabledLabel) ventDisabledLabel.style.display = "inline";
+        if (ventCardContent) ventCardContent.style.display = "none";
+      } else {
+        // Если вентиляторы используются, возвращаем обычный вид
+        if (ventDisabledLabel) ventDisabledLabel.style.display = "none";
+        if (ventCardContent) ventCardContent.style.display = "block";
+
+        const ventFansCountEl = document.getElementById('vent-fans-count');
+        if (ventFansCountEl) ventFansCountEl.innerHTML = `${fansCount} шт.`;
         
         // Проверка битов включения (R0:B12 и R0:B13)
         const isVentInOn = (r0 >> 12) & 1;
         const isVentOutOn = (r0 >> 13) & 1;
 
-        document.getElementById('vent-in-status').innerHTML = isVentInOn === 1 ? "<span style='color:#16a34a;'>Включен 🟢</span>" : "<span style='color:#64748b;'>Выключен ⚪</span>";
-        document.getElementById('vent-out-status').innerHTML = isVentOutOn === 1 ? "<span style='color:#16a34a;'>Включен 🟢</span>" : "<span style='color:#64748b;'>Выключен ⚪</span>";
+        const ventInStatusEl = document.getElementById('vent-in-status');
+        const ventOutStatusEl = document.getElementById('vent-out-status');
+        if (ventInStatusEl) ventInStatusEl.innerHTML = isVentInOn === 1 ? "<span style='color:#16a34a;'>Включен 🟢</span>" : "<span style='color:#64748b;'>Выключен ⚪</span>";
+        if (ventOutStatusEl) ventOutStatusEl.innerHTML = isVentOutOn === 1 ? "<span style='color:#16a34a;'>Включен 🟢</span>" : "<span style='color:#64748b;'>Выключен ⚪</span>";
+
+        // Режим работы (Регистр 1 Бит 15) и уставки (Регистры 34, 35)
+        const isManualMode = (r1 >> 15) & 1;
+        const ventModeNameEl = document.getElementById('vent-mode-name');
+        const ventR34El = document.getElementById('vent-r34');
+        const ventR35El = document.getElementById('vent-r35');
+
+        if (isManualMode === 1) {
+          if (ventModeNameEl) ventModeNameEl.innerHTML = "<span style='color:#d97706;'>Ручной 🛠️</span>";
+          if (ventR34El) ventR34El.innerText = "--";
+          if (ventR35El) ventR35El.innerText = "--";
+        } else {
+          if (ventModeNameEl) ventModeNameEl.innerHTML = "<span style='color:#2563eb;'>Автоматический 🤖</span>";
+          if (ventR34El) ventR34El.innerText = data["34"] !== undefined ? data["34"] : "--";
+          if (ventR35El) ventR35El.innerText = data["35"] !== undefined ? data["35"] : "--";
         }
 
-      // 2. Режим работы (Регистр 1 Бит 15) и уставки (Регистры 34, 35)
-      const isManualMode = (r1 >> 15) & 1;
-      if (isManualMode === 1) {
-        document.getElementById('vent-mode-name').innerHTML = "<span style='color:#d97706;'>Ручной 🛠️</span>";
-        document.getElementById('vent-r34').innerText = "--";
-        document.getElementById('vent-r35').innerText = "--";
-      } else {
-        document.getElementById('vent-mode-name').innerHTML = "<span style='color:#2563eb;'>Автоматический 🤖</span>";
-        document.getElementById('vent-r34').innerText = data["34"] !== undefined ? data["34"] : "--";
-        document.getElementById('vent-r35').innerText = data["35"] !== undefined ? data["35"] : "--";
+        // Расчет статуса по строгому приоритету
+        const isGasAlarm = (r0 >> 2) & 1;      // Рег 0 Бит 2
+        const isCoolingActive = (r0 >> 0) & 1;  // Рег 0 Бит 0
+        const isAutoVent = (r1 >> 3) & 1;       // Рег 1 Бит 3
+        const isManualVent = (r1 >> 4) & 1;     // Рег 1 Бит 4
+
+        let priorityStatusText = "Пауза 💤";
+        let statusColor = "#64748b"; 
+        let statusBg = "#f1f5f9";
+
+        if (isGasAlarm === 1) {
+          priorityStatusText = "Загазованно ⚠️";
+          statusColor = "#b91c1c"; 
+          statusBg = "#fee2e2";
+        } else if (isCoolingActive === 1) {
+          priorityStatusText = "Охлаждение ❄️";
+          statusColor = "#1d4ed8"; 
+          statusBg = "#dbeafe";
+        } else if (isManualVent === 1) {
+          priorityStatusText = "Проветривание (Ручное) 💨";
+          statusColor = "#b45309"; 
+          statusBg = "#fef3c7";
+        } else if (isAutoVent === 1) {
+          priorityStatusText = "Проветривание (Авто) 🔄";
+          statusColor = "#047857"; 
+          statusBg = "#d1fae5";
+        }
+
+        const statusEl = document.getElementById('vent-priority-status');
+        if (statusEl) {
+          statusEl.innerText = priorityStatusText;
+          statusEl.style.color = statusColor;
+          statusEl.style.backgroundColor = statusBg;
+        }
       }
 
-      // 3. Расчет статуса по строгому приоритету
-      const isGasAlarm = (r0 >> 2) & 1;      // Рег 0 Бит 2
-      const isCoolingActive = (r0 >> 0) & 1;  // Рег 0 Бит 0
-      const isAutoVent = (r1 >> 3) & 1;       // Рег 1 Бит 3
-      const isManualVent = (r1 >> 4) & 1;     // Рег 1 Бит 4
-
-      let priorityStatusText = "Пауза 💤";
-      let statusColor = "#64748b"; 
-      let statusBg = "#f1f5f9";
-
-      if (isGasAlarm === 1) {
-        priorityStatusText = "Загазованно ⚠️";
-        statusColor = "#b91c1c"; 
-        statusBg = "#fee2e2";
-      } else if (isCoolingActive === 1) {
-        priorityStatusText = "Охлаждение ❄️";
-        statusColor = "#1d4ed8"; 
-        statusBg = "#dbeafe";
-      } else if (isManualVent === 1) {
-        priorityStatusText = "Проветривание (Ручное) 💨";
-        statusColor = "#b45309"; 
-        statusBg = "#fef3c7";
-      } else if (isAutoVent === 1) {
-        priorityStatusText = "Проветривание (Авто) 🔄";
-        statusColor = "#047857"; 
-        statusBg = "#d1fae5";
-      }
-
-      const statusEl = document.getElementById('vent-priority-status');
-      statusEl.innerText = priorityStatusText;
-      statusEl.style.color = statusColor;
-      statusEl.style.backgroundColor = statusBg;
-
-      // --- ЛОГИКА ДЛЯ НОВОЙ КАРТОЧКИ ЛАЗА ---
-      // 1. Вывод режима по старшинству приоритетов
-      let doorModeText = "- 🤖";
-      let doorModeColor = "#2563eb";
-
-      if (((r2 >> 10) & 1) === 1) {
-        doorModeText = "Ручной режим 🛠️";
-        doorModeColor = "#d97706";
-      } else if (((r2 >> 15) & 1) === 1) {
-        doorModeText = "Авто по температуре 🌡️";
-        doorModeColor = "#0284c7";
-      } else if (((r2 >> 1) & 1) === 1) {
-        doorModeText = "Закр. по расп. / Откр. по календ. 📅⏰";
-        doorModeColor = "#7c3aed";
-      } else if (((r2 >> 0) & 1) === 1) {
-        doorModeText = "Авто по календарю 📅";
-        doorModeColor = "#059669";
-      }
+      // --- ЛОГИКА ДЛЯ КАРТОЧКИ ЛАЗА ---
+      const isDoorEnabled = (r2 >> 5) & 1; // Проверка 5-го бита регистра 2
       
-      const dmEl = document.getElementById('door-priority-mode');
-      dmEl.innerText = doorModeText;
-      dmEl.style.color = doorModeColor;
+      const doorDisabledLabel = document.getElementById('door-disabled-label');
+      const doorCardContent = document.getElementById('door-card-content');
 
-      // 2. Вывод состояния по алгоритму ветвления
-      let doorStateText = "Неизвестно";
-      let doorStateColor = "#475569";
-
-      const isMoving = (r2 >> 11) & 1;
-      const isGoingDown = (r0 >> 8) & 1;
-      const isGoingUp = (r0 >> 9) & 1;
-      const isBlocked = (r2 >> 12) & 1;
-      const intermediateCheck = (r2 >> 9) & 1;
-      const openCloseCheck = (r2 >> 8) & 1;
-      const insideTempLock = (r2 >> 6) & 1;
-      const outsideTempLock = (r2 >> 7) & 1;
-
-      if (isMoving === 1) {
-        // Лаз движется
-        if (isGoingDown === 1) {
-          doorStateText = "⏳ Закрывается... ⬇️";
-          doorStateColor = "#ea580c";
-        } else if (isGoingUp === 1) {
-          doorStateText = "⏳ Открывается... ⬆️";
-          doorStateColor = "#059669";
-        } else {
-          doorStateText = "⏳ В движении";
-          doorStateColor = "#d97706";
-        }
+      if (isDoorEnabled === 0) {
+        // Если бит равен 0, показываем надпись "ОТКЛЮЧЕНО" и скрываем контент карточки
+        if (doorDisabledLabel) doorDisabledLabel.style.display = "inline";
+        if (doorCardContent) doorCardContent.style.display = "none";
       } else {
-        // Лаз стоит
-        if (isBlocked === 1) {
-          doorStateText = "🛑 ЛАЗ ЗАБЛОКИРОВАН!";
-          doorStateColor = "#dc2626";
-        } else if (intermediateCheck === 0) {
-          doorStateText = "🔄 Промежуточное положение";
-          doorStateColor = "#475569";
+        // Если бит равен 1, скрываем надпись и показываем карточку как обычно
+        if (doorDisabledLabel) doorDisabledLabel.style.display = "none";
+        if (doorCardContent) doorCardContent.style.display = "block";
+
+        // 1. Вывод режима по старшинству приоритетов
+        let doorModeText = "- 🤖";
+        let doorModeColor = "#2563eb";
+
+        if (((r2 >> 10) & 1) === 1) {
+          doorModeText = "Ручной режим 🛠️";
+          doorModeColor = "#d97706";
+        } else if (((r2 >> 15) & 1) === 1) {
+          doorModeText = "Авто по температуре 🌡️";
+          doorModeColor = "#0284c7";
+        } else if (((r2 >> 1) & 1) === 1) {
+          doorModeText = "Закр. по расп. / Откр. по календ. 📅⏰";
+          doorModeColor = "#7c3aed";
+        } else if (((r2 >> 0) & 1) === 1) {
+          doorModeText = "Авто по календарю 📅";
+          doorModeColor = "#059669";
+        }
+        
+        const dmEl = document.getElementById('door-priority-mode');
+        if (dmEl) {
+          dmEl.innerText = doorModeText;
+          dmEl.style.color = doorModeColor;
+        }
+
+        // 2. Вывод состояния по алгоритму ветвления
+        let doorStateText = "Неизвестно";
+        let doorStateColor = "#475569";
+
+        const isMoving = (r2 >> 11) & 1;
+        const isGoingDown = (r0 >> 8) & 1;
+        const isGoingUp = (r0 >> 9) & 1;
+        const isBlocked = (r2 >> 12) & 1;
+        const intermediateCheck = (r2 >> 9) & 1;
+        const openCloseCheck = (r2 >> 8) & 1;
+        const insideTempLock = (r2 >> 6) & 1;
+        const outsideTempLock = (r2 >> 7) & 1;
+
+        if (isMoving === 1) {
+          if (isGoingDown === 1) {
+            doorStateText = "⏳ Закрывается... ⬇️";
+            doorStateColor = "#ea580c";
+          } else if (isGoingUp === 1) {
+            doorStateText = "⏳ Открывается... ⬆️";
+            doorStateColor = "#059669";
+          } else {
+            doorStateText = "⏳ В движении";
+            doorStateColor = "#d97706";
+          }
         } else {
-          // Проверяем открыт/закрыт по R2:B8
-          if (openCloseCheck === 1) {
-            // Лаз открыт
-            const closeTimeStr = parseMinutesToTime(data["9"]);
-            doorStateText = `🟢 Открыт (Закрытие в ${closeTimeStr})`;
-            doorStateColor = "#16a34a";
-          } else if (openCloseCheck === 0) {
-            // Лаз закрыт
-            if (insideTempLock === 1) {
-              doorStateText = "❄️ Закрыт (Запрет открытия: темп. внутри < нормы)";
-              doorStateColor = "#dc2626";
-            } else if (outsideTempLock === 1) {
-              doorStateText = "🥶 Закрыт (Запрет открытия: темп. на улице < нормы)";
-              doorStateColor = "#dc2626";
-            } else {
-              const openTimeStr = parseMinutesToTime(data["10"]);
-              doorStateText = `🔒 Закрыт (Открытие в ${openTimeStr})`;
-              doorStateColor = "#2563eb";
+          if (isBlocked === 1) {
+            doorStateText = "🛑 ЛАЗ ЗАБЛОКИРОВАН!";
+            doorStateColor = "#dc2626";
+          } else if (intermediateCheck === 0) {
+            doorStateText = "🔄 Промежуточное положение";
+            doorStateColor = "#475569";
+          } else {
+            if (openCloseCheck === 1) {
+              const closeTimeStr = parseMinutesToTime(data["9"]);
+              doorStateText = `🟢 Открыт (Закрытие в ${closeTimeStr})`;
+              doorStateColor = "#16a34a";
+            } else if (openCloseCheck === 0) {
+              if (insideTempLock === 1) {
+                doorStateText = "❄️ Закрыт (Запрет открытия по темп. внутри)";
+                doorStateColor = "#dc2626";
+              } else if (outsideTempLock === 1) {
+                doorStateText = "🥶 Закрыт (Запрет открытия по темп. на улице)";
+                doorStateColor = "#dc2626";
+              } else {
+                const openTimeStr = parseMinutesToTime(data["10"]);
+                doorStateText = `🔒 Закрыт (Открытие в ${openTimeStr})`;
+                doorStateColor = "#2563eb";
+              }
             }
           }
         }
-      }
 
-      const dsEl = document.getElementById('door-complex-status');
-      dsEl.innerText = doorStateText;
-      dsEl.style.color = doorStateColor;
+        const dsEl = document.getElementById('door-complex-status');
+        if (dsEl) {
+          dsEl.innerText = doorStateText;
+          dsEl.style.color = doorStateColor;
+        }
+      }
 
       // --- ЛОГИКА ДЛЯ КАРТОЧКИ КОРМЛЕНИЯ ---
-      // 1. Состояние системы кормления (Регистр 0 Бит 7)
-      const isFeedEnabled = (r0 >> 7) & 1;
-      if (isFeedEnabled === 1) {
-        document.getElementById('feed-enabled-status').innerHTML = "<span style='color:#16a34a;'>Кормление включено 🟢</span>";
+      const isFeedEnabled = (r0 >> 7) & 1; // Регистр 0 Бит 7
+      const feedDisabledLabel = document.getElementById('feed-disabled-label');
+      const feedCardContent = document.getElementById('feed-card-content');
+
+      if (isFeedEnabled === 0) {
+        // Если кормление выключено (бит равен 0), пишем ОТКЛЮЧЕНО и прячем параметры
+        if (feedDisabledLabel) feedDisabledLabel.style.display = "inline";
+        if (feedCardContent) feedCardContent.style.display = "none";
       } else {
-        document.getElementById('feed-enabled-status').innerHTML = "<span style='color:#64748b;'>Кормление выключено ⚪</span>";
+        // Если включено, скрываем надпись и обновляем параметры как обычно
+        if (feedDisabledLabel) feedDisabledLabel.style.display = "none";
+        if (feedCardContent) feedCardContent.style.display = "block";
+
+        // Режим управления кормлением (Регистр 3 Бит 14)
+        const isFeedManual = (r3 >> 14) & 1;
+        const feedControlModeEl = document.getElementById('feed-control-mode');
+        if (feedControlModeEl) {
+          feedControlModeEl.innerHTML = isFeedManual === 1 ? "<span style='color:#d97706;'>Ручной 🛠️</span>" : "<span style='color:#2563eb;'>Автоматический 🤖</span>";
+        }
+
+        // Режим работы (Регистр 3 Бит 15) и уставки следующего шага
+        const isMissedProcessing = (r3 >> 15) & 1;
+        const feedOperationModeEl = document.getElementById('feed-operation-mode');
+        if (feedOperationModeEl) {
+          if (isMissedProcessing === 1) {
+            feedOperationModeEl.innerHTML = "<span style='color:#7c3aed; font-weight:600;'>Отработка пропусков кормления 🔄</span>";
+          } else {
+            const nextFeederNum = data["12"] !== undefined ? data["12"] : "--";
+            const nextFeedTimeStr = parseMinutesToTime(data["16"]);
+            const nextFeedDuration = data["13"] !== undefined ? data["13"] : "--";
+            feedOperationModeEl.innerHTML = `Кормушка №<b>${nextFeederNum}</b> в <b>${nextFeedTimeStr}</b><br><span style='color:#64748b; font-size:12px;'>(Длительность: ${nextFeedDuration} мин)</span>`;
+          }
+        }
+
+        // Текущее состояние счетчиков за сутки (Регистры 14 и 15)
+        const feedDoneCountEl = document.getElementById('feed-done-count');
+        const feedPlanCountEl = document.getElementById('feed-plan-count');
+        if (feedDoneCountEl) feedDoneCountEl.innerText = data["14"] !== undefined ? data["14"] : "--";
+        if (feedPlanCountEl) feedPlanCountEl.innerText = data["15"] !== undefined ? data["15"] : "--";
+
+        // Проверка наличия пропуска кормления (Регистр 3 Бит 8)
+        const hasFeedMiss = (r3 >> 8) & 1;
+        const feedMissedWarningEl = document.getElementById('feed-missed-warning');
+        if (feedMissedWarningEl) {
+          feedMissedWarningEl.style.display = (hasFeedMiss === 1) ? "block" : "none";
+        }
       }
-
-      // 2. Режим управления кормлением (Регистр 3 Бит 14)
-      const isFeedManual = (r3 >> 14) & 1;
-      if (isFeedManual === 1) {
-        document.getElementById('feed-control-mode').innerHTML = "<span style='color:#d97706;'>Ручной 🛠️</span>";
-      } else {
-        document.getElementById('feed-control-mode').innerHTML = "<span style='color:#2563eb;'>Автоматический 🤖</span>";
-      }
-
-      // 3. Режим работы (Регистр 3 Бит 15) и уставки следующего шага
-      const isMissedProcessing = (r3 >> 15) & 1;
-      if (isMissedProcessing === 1) {
-        document.getElementById('feed-operation-mode').innerHTML = "<span style='color:#7c3aed; font-weight:600;'>Отработка пропусков кормления 🔄</span>";
-      } else {
-        const nextFeederNum = data["12"] !== undefined ? data["12"] : "--";
-        const nextFeedTimeStr = parseMinutesToTime(data["16"]);
-        const nextFeedDuration = data["13"] !== undefined ? data["13"] : "--";
-        document.getElementById('feed-operation-mode').innerHTML = `Кормушка №<b>${nextFeederNum}</b> в <b>${nextFeedTimeStr}</b><br><span style='color:#64748b; font-size:12px;'>(Длительность: ${nextFeedDuration} мин)</span>`;
-      }
-
-      // 4. Текущее состояние счетчиков за сутки (Регистры 14 и 15)
-      document.getElementById('feed-done-count').innerText = data["14"] !== undefined ? data["14"] : "--";
-      document.getElementById('feed-plan-count').innerText = data["15"] !== undefined ? data["15"] : "--";
-
-      // 5. Проверка наличия пропуска кормления (Регистр 3 Бит 8)
-      const hasFeedMiss = (r3 >> 8) & 1;
-      document.getElementById('feed-missed-warning').style.display = (hasFeedMiss === 1) ? "block" : "none";
 
       // АНАЛИЗ АВАРИЙ И ОШИБОК
       const batteryAlarm = (r1 >> 9) & 1;
@@ -449,10 +496,9 @@ String getHeader(String title) {
       const calcAlarm = (r3 >> 5) & 1;
       const feedAlarm = (r3 >> 9) & 1;
       const feederErrors = (data["48"] || 0) + (data["49"] || 0) + (data["50"] || 0) + (data["51"] || 0) + (data["52"] || 0);
-
       const hasAnyError = batteryAlarm || sensorAlarm || calcAlarm || feedAlarm || feederErrors > 0;
       document.getElementById('alert-banner').style.display = hasAnyError ? "block" : "none";
-
+      
     }).catch(err => console.error("Ошибка API данных:", err));
   }
   
