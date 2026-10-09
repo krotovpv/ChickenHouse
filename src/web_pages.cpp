@@ -192,6 +192,12 @@ String getHeader(String title) {
     const minutes = mins % 60;
     return `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}`;
   }
+  // Утилита для перевода десятых долей секунды из регистра в формат С.Ц (например, 15 -> 1.5)
+  function parseDeciSeconds(val) {
+    if (val === undefined || val === null || isNaN(val)) return "--";
+    const num = parseInt(val);
+    return (num / 10).toFixed(1);
+  }
   function update() {
     // 1. Запрос системного статуса (WiFi и MQTT)
     fetch('/api/status').then(r => r.json()).then(d => {
@@ -471,8 +477,8 @@ String getHeader(String title) {
           } else {
             const nextFeederNum = data["12"] !== undefined ? data["12"] : "--";
             const nextFeedTimeStr = parseMinutesToTime(data["16"]);
-            const nextFeedDuration = data["13"] !== undefined ? data["13"] : "--";
-            feedOperationModeEl.innerHTML = `Кормушка №<b>${nextFeederNum}</b> в <b>${nextFeedTimeStr}</b><br><span style='color:#64748b; font-size:12px;'>(Длительность: ${nextFeedDuration} мин)</span>`;
+            const nextFeedDuration = parseDeciSeconds(data["13"]);
+            feedOperationModeEl.innerHTML = `Кормушка №<b>${nextFeederNum}</b> в <b>${nextFeedTimeStr}</b><br><span style='color:#64748b; font-size:12px;'>(Длительность: ${nextFeedDuration} сек)</span>`;
           }
         }
 
@@ -498,7 +504,7 @@ String getHeader(String title) {
       const feederErrors = (data["48"] || 0) + (data["49"] || 0) + (data["50"] || 0) + (data["51"] || 0) + (data["52"] || 0);
       const hasAnyError = batteryAlarm || sensorAlarm || calcAlarm || feedAlarm || feederErrors > 0;
       document.getElementById('alert-banner').style.display = hasAnyError ? "block" : "none";
-      
+
     }).catch(err => console.error("Ошибка API данных:", err));
   }
   
@@ -1398,7 +1404,7 @@ void handleFeeding() {
         if (data[57] !== undefined) document.getElementById('r_57').innerText = data[57]; // Кол-во птиц
 
         // Форматирование времени для текущих уставок кормления
-        if (data[13] !== undefined) document.getElementById('r_13').innerText = data[13] + " мин"; // Длительность (Рег 13)
+        if (data[13] !== undefined) document.getElementById('r_13').innerText = (parseInt(data[13]) / 10).toFixed(1) + " сек"; // Длительность (Рег 13)
         if (data[16] !== undefined) document.getElementById('r_16').innerText = minToHm(data[16]); // Время следующего (Рег 16)
 
         // Заполнение таблицы расписания (110-124 и 125-139)
@@ -1410,7 +1416,9 @@ void handleFeeding() {
           if (tEl && data[tReg] !== undefined) tEl.innerText = minToHm(data[tReg]);
 
           let dEl = document.getElementById('r_' + dReg);
-          if (dEl && data[dReg] !== undefined) dEl.innerText = data[dReg] + " мин";
+          if (dEl && data[dReg] !== undefined) {
+            dEl.innerText = (parseInt(data[dReg]) / 10).toFixed(1) + " сек";
+          }
         }
       })
       .catch(err => console.error("Ошибка обновления данных кормления:", err));

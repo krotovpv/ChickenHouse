@@ -390,7 +390,16 @@ void setup() {
 
   // 3. Web Server
   dnsServer.start(DNS_PORT, "*", WiFi.softAPIP()); // Запускаем DNS сервер, который перенаправляет все домены на IP ESP32
-  webServer.onNotFound(handleIndex); // Любой неизвестный путь ведет на главную
+  // Запросы проверки связи от Android / Windows / iOS
+  webServer.on("/generate_204", handleIndex); 
+  webServer.on("/fwlink", handleIndex);
+  webServer.onNotFound([]() {
+    // Если запрос пришел не на главную, а на какой-то проверочный домен Google/Apple
+    // Перенаправляем телефон на наш IP-адрес шлюза
+    webServer.sendHeader("Location", "http://" + WiFi.softAPIP().toString(), true);
+    webServer.send(302, "text/plain", ""); 
+  });
+  //webServer.onNotFound(handleIndex); // Любой неизвестный путь ведет на главную
   webServer.on("/", handleIndex);
   webServer.on("/autoChickenHous", handleAutoChickenHous);
   webServer.on("/light", handleLight);
