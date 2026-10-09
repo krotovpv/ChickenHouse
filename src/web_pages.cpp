@@ -164,9 +164,10 @@ String getHeader(String title) {
   html += "  </div>";
   html += "  <div id='feed-card-content'>";
   html += "    <div class='status-row'><span>Режим управления:</span><span id='feed-control-mode' class='txt-bold'>--</span></div>";
+  html += "    <div class='status-row'><span>Функция отработки пропусков кормления:</span><span id='feed-missed-feature' class='txt-bold'>--</span></div>";
   html += "    <div class='status-row'><span>Режим работы:</span><span id='feed-operation-mode' style='text-align:right; font-weight:500; font-size:14px; max-width:65%;'>--</span></div>";
   html += "    <div class='status-row' style='border-bottom:none; padding-bottom:0;'><span>Кормление за сутки:</span><span>Выполнено <b id='feed-done-count' class='txt-bold'>--</b> из <b id='feed-plan-count' class='txt-bold'>--</b></span></div>";
-  html += "    <div id='feed-missed-warning' class='feed-missed-alert'>⚠️ Зафиксирован пропуск кормления!</div>";
+  html += "    <div id='feed-missed-warning' class='feed-missed-alert'>⚠️ Выполняется пропуск кормления!</div>";
   html += "  </div>";
   html += "</div>";
 
@@ -468,18 +469,20 @@ String getHeader(String title) {
           feedControlModeEl.innerHTML = isFeedManual === 1 ? "<span style='color:#d97706;'>Ручной 🛠️</span>" : "<span style='color:#2563eb;'>Автоматический 🤖</span>";
         }
 
-        // Режим работы (Регистр 3 Бит 15) и уставки следующего шага
-        const isMissedProcessing = (r3 >> 15) & 1;
+        const isMissedFeatureEnabled = (r3 >> 15) & 1;
+        const feedMissedFeatureEl = document.getElementById('feed-missed-feature');
+        if (feedMissedFeatureEl) {
+          feedMissedFeatureEl.innerHTML = isMissedFeatureEnabled === 1 
+            ? "<span style='color:#16a34a;'>Вкл</span>" 
+            : "<span style='color:#64748b;'>Выкл</span>";
+        }
+
         const feedOperationModeEl = document.getElementById('feed-operation-mode');
         if (feedOperationModeEl) {
-          if (isMissedProcessing === 1) {
-            feedOperationModeEl.innerHTML = "<span style='color:#7c3aed; font-weight:600;'>Отработка пропусков кормления 🔄</span>";
-          } else {
-            const nextFeederNum = data["12"] !== undefined ? data["12"] : "--";
-            const nextFeedTimeStr = parseMinutesToTime(data["16"]);
-            const nextFeedDuration = parseDeciSeconds(data["13"]);
-            feedOperationModeEl.innerHTML = `Кормушка №<b>${nextFeederNum}</b> в <b>${nextFeedTimeStr}</b><br><span style='color:#64748b; font-size:12px;'>(Длительность: ${nextFeedDuration} сек)</span>`;
-          }
+          const nextFeederNum = data["12"] !== undefined ? data["12"] : "--";
+          const nextFeedTimeStr = parseMinutesToTime(data["16"]);
+          const nextFeedDuration = parseDeciSeconds(data["13"]);
+          feedOperationModeEl.innerHTML = `Кормушка №<b>${nextFeederNum}</b> в <b>${nextFeedTimeStr}</b><br><span style='color:#64748b; font-size:12px;'>(Длительность: ${nextFeedDuration} сек)</span>`;
         }
 
         // Текущее состояние счетчиков за сутки (Регистры 14 и 15)
@@ -491,8 +494,13 @@ String getHeader(String title) {
         // Проверка наличия пропуска кормления (Регистр 3 Бит 8)
         const hasFeedMiss = (r3 >> 8) & 1;
         const feedMissedWarningEl = document.getElementById('feed-missed-warning');
+        
         if (feedMissedWarningEl) {
-          feedMissedWarningEl.style.display = (hasFeedMiss === 1) ? "block" : "none";
+          if (isMissedFeatureEnabled === 1 && hasFeedMiss === 1) {
+            feedMissedWarningEl.style.display = "block";
+          } else {
+            feedMissedWarningEl.style.display = "none";
+          }
         }
       }
 
