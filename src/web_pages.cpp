@@ -472,7 +472,7 @@ String getHeader(String title) {
           }
         } else {
           if (isBlocked === 1) {
-            doorStateText = "🛑 ЛАЗ ЗАБЛОКИРОВАН!";
+            doorStateText = "🛑 ЛАЗ ЗАФИКСИРОВАН!";
             doorStateColor = "#dc2626";
           } else if (intermediateCheck === 0) {
             doorStateText = "🔄 Промежуточное положение";
@@ -613,7 +613,7 @@ String getHeader(String title) {
     }).catch(err => console.error("Ошибка API данных:", err));
   }
   
-  setInterval(update, 3000);
+  setInterval(update, 1000);
   update();
   </script>
   )rawliteral";
@@ -624,13 +624,30 @@ String getHeader(String title) {
 
 // 2. Эндпоинт для отдачи данных в формате JSON
 void handleApiData() {
+  extern SemaphoreHandle_t modbusMutex; // Объявляем внешнюю ссылку на объект мьютекса
+
   JsonDocument doc;
-  for (const auto& item : memo) {
-    doc[String(item.first)] = item.second;
+
+  // Пытаемся захватить мьютекс шины. Ждем не более 50 мс.
+  if (xSemaphoreTake(modbusMutex, pdMS_TO_TICKS(50)) == pdTRUE) {
+    
+    // Безопасно копируем данные регистров из карты памяти в JSON-документ
+    for (const auto& item : memo) {
+      doc[String(item.first)] = item.second;
+    }
+    
+    // Сразу же возвращаем мьютекс, чтобы не блокировать опрос на Ядре 0
+    xSemaphoreGive(modbusMutex);
+    
+    String json;
+    serializeJson(doc, json);
+    webServer.send(200, "application/json", json);
+    
+  } else {
+    // В крайне редком случае блокировки шины, отдаем статус "Сервис недоступен",
+    // чтобы страница в браузере не зависала бесконечно
+    webServer.send(503, "text/plain", "Modbus Busy");
   }
-  String json;
-  serializeJson(doc, json);
-  webServer.send(200, "application/json", json);
 }
 
 // 3. Страница с таблицей
@@ -933,7 +950,7 @@ void handleTable() {
     }
 
 
-    setInterval(updateData, 2000);
+    setInterval(updateData, 1000);
     updateData();
     </script>
     )rawliteral";
@@ -1127,7 +1144,7 @@ void handleLight() {
     }
   }
 
-  setInterval(updateLightData, 2000);
+  setInterval(updateLightData, 1000);
   updateLightData();
   </script>
   )rawliteral";
@@ -1247,7 +1264,7 @@ void handleAlerts() {
     }
   }
 
-  setInterval(updateAlertsData, 2000);
+  setInterval(updateAlertsData, 1000);
   updateAlertsData();
   </script>
   )rawliteral";
@@ -1353,7 +1370,7 @@ void handleStatus() {
     }
   }
 
-  setInterval(updateStatusData, 2000);
+  setInterval(updateStatusData, 1000);
   updateStatusData();
   </script>
   )rawliteral";
@@ -1541,7 +1558,7 @@ void handleFeeding() {
     }
   }
 
-  setInterval(updateFeedingData, 2000);
+  setInterval(updateFeedingData, 1000);
   updateFeedingData();
   </script>
   )rawliteral";
@@ -1695,7 +1712,7 @@ void handleDoor() {
     }
   }
 
-  setInterval(updateDoorData, 2000);
+  setInterval(updateDoorData, 1000);
   updateDoorData();
   </script>
   )rawliteral";
@@ -1902,7 +1919,7 @@ void handleClimate() {
         if (state === 1) { el.innerText = textOn; el.className = 'badge ' + classOn; }
         else { el.innerText = textOff; el.className = 'badge ' + classOff; }
     }
-    setInterval(updateClimateData, 2000);
+    setInterval(updateClimateData, 1000);
     updateClimateData();
     </script>)rawliteral";
 
@@ -2071,7 +2088,7 @@ void handleSettings() {
 
     window.onload = () => scan(document.querySelector('button[onclick^="scan"]'));
     updateStatus();
-    setInterval(updateStatus, 2000);
+    setInterval(updateStatus, 1000);
   </script>)rawliteral";
   
   webServer.send(200, "text/html", html);

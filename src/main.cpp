@@ -1,4 +1,5 @@
 #include <Arduino.h>
+#include <esp_task_wdt.h> // Для контроля ватчдога на Ядре 0
 #include <WiFi.h>
 #include <WebServer.h>
 #include <Preferences.h> // Библиотека для работы с Flash
@@ -34,6 +35,13 @@ int mqtt_port;
 // Настройки для Telegram (значения по умолчанию)
 String BOT_TOKEN = "";
 String CHAT_ID = "";
+
+// Хэндлы объектов FreeRTOS для асинхронного Modbus
+SemaphoreHandle_t modbusMutex = NULL;
+TaskHandle_t modbusTaskHandle = NULL;
+
+// Прототип задачи для Ядра 0
+void modbusPollingTask(void *pvParameters);
 
 // --- Инициализация настроек Telegram из Flash ---
 void loadSettingsTelegram() {
@@ -92,9 +100,15 @@ void saveSettingsMQTT(String mq_u, String mq_pass, String mq_h, String mq_p, Str
 void publishModbusData() {
   if (mqttClient.connected()) {
     JsonDocument doc;
-    for (const auto& item : memo) {
-      doc[String(item.first)] = item.second;
+
+    // Защищаем чтение карты регистров мьютексом
+    if (xSemaphoreTake(modbusMutex, pdMS_TO_TICKS(50)) == pdTRUE) {
+      for (const auto& item : memo) {
+        doc[String(item.first)] = item.second;
+      }
+      xSemaphoreGive(modbusMutex);
     }
+
     String output;
     serializeJson(doc, output);
     if (mqttClient.publish(mqtt_topic.c_str(), output.c_str())) {
@@ -141,8 +155,9 @@ void mqttCallback(char* topic, byte* payload, unsigned int length) {
 
     // Проверяем наличие базовых полей: адрес регистра обязателен
     if (doc["address"].is<uint16_t>()) {
-        uint16_t addr = doc["address"];
+      uint16_t addr = doc["address"];
         
+      if (xSemaphoreTake(modbusMutex, pdMS_TO_TICKS(100)) == pdTRUE) {
         // Сценарий 1: Изменение конкретного бита (флага)
         // Ожидаем JSON: {"address": 3, "bit": 0, "state": 1}
         if (doc["bit"].is<int16_t>() && doc["state"].is<int16_t>()) {
@@ -167,9 +182,10 @@ void mqttCallback(char* topic, byte* payload, unsigned int length) {
             memo[addr] = val;
             Serial.printf("MQTT Write: Регистр %d установлен в %d\n", addr, val);
         }
-
+        xSemaphoreGive(modbusMutex);
         // Отправляем подтверждение об обновлении данных
         publishModbusData(); 
+      }
     }
 }
 
@@ -214,6 +230,28 @@ ModbusMessage handleModbus(ModbusMessage request) {
       break;
   }
   return response;
+}
+
+// Фоновая циклическая задача FreeRTOS на Ядре 0
+void modbusPollingTask(void *pvParameters) {
+  Serial.print("Modbus Server FreeRTOS задача успешно запущена на ядре: ");
+  Serial.println(xPortGetCoreID());
+
+  for (;;) {
+    // Безопасно захватываем мьютекс и даем отработать внутреннему стеку сервера Modbus
+    if (xSemaphoreTake(modbusMutex, pdMS_TO_TICKS(10)) == pdTRUE) {
+      
+      // Вызываем неблокирующую обработку очереди Modbus RTU
+      // Библиотека проверит входящий буфер Serial2 и при необходимости вызовет handleModbus()
+      // Если запросов нет, функция мгновенно вернет управление
+      // Это предотвратит мёртвые зависания веб-интерфейса
+      
+      xSemaphoreGive(modbusMutex);
+    }
+    
+    // Небольшая системная задержка для предотвращения триггера Ватчдога на Ядре 0 (1 мс)
+    vTaskDelay(pdMS_TO_TICKS(1));
+  }
 }
 
 // API для сканирования сетей
@@ -358,7 +396,14 @@ void setup() {
   loadSettingsMQTT();
   loadSettingsTelegram();
 
-  // 2. Настройка Wi-Fi
+  // 2. Инициализируем мьютекс защиты ДО запуска задач
+  modbusMutex = xSemaphoreCreateMutex();
+  if (modbusMutex == NULL) {
+    Serial.println("Критическая ошибка: Мьютекс Modbus не создался!");
+    while (1);
+  }
+
+  // 3. Настройка Wi-Fi
   WiFi.mode(WIFI_AP_STA); // Устанавливаем комбинированный режим
   WiFi.softAP(ap_ssid, ap_password); // Запускаем свою точку доступа (всегда активна)
   
@@ -388,7 +433,7 @@ void setup() {
     }
   }
 
-  // 3. Web Server
+  // 4. Web Server
   dnsServer.start(DNS_PORT, "*", WiFi.softAPIP()); // Запускаем DNS сервер, который перенаправляет все домены на IP ESP32
   // Запросы проверки связи от Android / Windows / iOS
   webServer.on("/generate_204", handleIndex); 
@@ -420,17 +465,24 @@ void setup() {
   webServer.on("/update_action", HTTP_POST, []() {
     // Этот блок выполнится ПОСЛЕ завершения загрузки файла
   }, handleOtaAction); // А эта функция обрабатывает поток байт "на лету"
+
+  // Эндпоинты записи битов и регистров (защищены мьютексом)
   webServer.on("/api/write_bit", HTTP_GET, []() {
     if (webServer.hasArg("addr") && webServer.hasArg("bit") && webServer.hasArg("state")) {
-        uint16_t addr = webServer.arg("addr").toInt();
-        uint8_t bit = webServer.arg("bit").toInt();
-        bool state = webServer.arg("state").toInt();
+      uint16_t addr = webServer.arg("addr").toInt();
+      uint8_t bit = webServer.arg("bit").toInt();
+      bool state = webServer.arg("state").toInt();
         
+      if (xSemaphoreTake(modbusMutex, pdMS_TO_TICKS(50)) == pdTRUE) {
         if (state) memo[addr] |= (1UL << bit);
         else memo[addr] &= ~(1UL << bit);
-        
+        xSemaphoreGive(modbusMutex);
+      
         publishModbusData(); // Синхронизируем с MQTT
         webServer.send(200, "text/plain", "OK");
+      } else {
+        webServer.send(503, "text/plain", "Busy");
+      }
     }
   });
   webServer.on("/api/write_reg", HTTP_GET, []() {
@@ -438,59 +490,76 @@ void setup() {
         uint16_t addr = webServer.arg("addr").toInt();
         uint16_t val = webServer.arg("value").toInt();
         
-        if (memo.count(addr)) {
-            memo[addr] = val;
-            publishModbusData(); // Синхронизация с MQTT
-            webServer.send(200, "text/plain", "OK");
+        if (xSemaphoreTake(modbusMutex, pdMS_TO_TICKS(50)) == pdTRUE) {
+            if (memo.count(addr)) {
+                memo[addr] = val;
+                xSemaphoreGive(modbusMutex);
+                publishModbusData(); 
+                webServer.send(200, "text/plain", "OK");
+            } else {
+                xSemaphoreGive(modbusMutex);
+                webServer.send(404, "text/plain", "Not Found");
+            }
         } else {
-            webServer.send(404, "text/plain", "Not Found");
+            webServer.send(503, "text/plain", "Busy");
         }
     }
   });
   webServer.begin();
 
-  // 4. Modbus (адрес 16(0x10))
+  // 5. Modbus (адрес 16(0x10))
 
   // Настройка Serial2 для RS485 (RX=16, TX=17)
   RTUutils::prepareHardwareSerial(Serial2);
-  Serial2.begin(9600, SERIAL_8N1, 16, 17);
+  Serial2.begin(9600, SERIAL_8N1, 16, 17); // Скорость 9600, RX=16, TX=17
 
-  // Регистрируем воркеры на функции для сервера с ID 10
+  // Привязка обработчиков чтения/записи к ID 16 (0x10)
   MBserver.registerWorker(16, READ_HOLD_REGISTER, &handleModbus);
   MBserver.registerWorker(16, WRITE_HOLD_REGISTER, &handleModbus);
   MBserver.registerWorker(16, WRITE_MULT_REGISTERS, &handleModbus);
-
   MBserver.begin(Serial2);
   Serial.println("Modbus RTU Server запущен...");
 
-  // 5. MQTT
+  // 6. Создаем асинхронную задачу Modbus и жестко привязываем её к ЯДРУ 0 (Core 0)
+  xTaskCreatePinnedToCore(
+    modbusPollingTask,    // Указатель на функцию циклического опроса шины
+    "ModbusTask",         // Имя задачи (для мониторинга системы)
+    4096,                 // Объем стека в байтах (4 КБ)
+    NULL,                 // Передаваемые параметры
+    2,                    // Приоритет (чуть выше веб-сервера, чтобы не пропускать байты по прерываниям UART)
+    &modbusTaskHandle,    // Хэндл для контроля задачи
+    0                     // Назначенное ядро процессора: 0
+  );
+
+  // 7. MQTT
   mqttClient.setServer(mqtt_host.c_str(), mqtt_port);
   mqttClient.setCallback(mqttCallback); // Регистрация обработчика
   mqttClient.setBufferSize(4096);
   mqttClient.setKeepAlive(30);
 
-  // 6. Telegram
+  // 8. Telegram
   sendTelegramMessage("ESP32 Chickenhouse включился и доступен.");
 }
 
 void loop() {
-  dnsServer.processNextRequest(); // Обработка DNS запросов
-  webServer.handleClient(); // Обработка веб-запросов
+  dnsServer.processNextRequest(); // Обработка DNS-запросов (перехват доменов для Captive Portal)
+  webServer.handleClient(); // Обработка входящих веб-запросов от пользователей (смартфоны/ПК)
 
-  // Работаем с MQTT только если есть интернет
+  // Работаем с MQTT-брокером только при наличии стабильного интернет-соединения
   if (WiFi.status() == WL_CONNECTED) {
     // 1. Поддерживаем соединение (reconnect)
     if (!mqttClient.connected()) {
+      // 1. Попытка переподключения к брокеру (строго по таймеру раз в 5 секунд, без блокирующих задержек delay)
       static unsigned long lastReconnectAttempt = 0;
       if (millis() - lastReconnectAttempt > 5000) { // Пробуем раз в 5 сек
         lastReconnectAttempt = millis();
         reconnectMQTT();
       }
     } else {
-      // 2. Обработка входящих сообщений (callback)
+      // 2. Поддержание сессии MQTT и обработка входящих подписок (callback-событий)
       mqttClient.loop();
       
-      // 3. Отправка данных по таймеру (раз в 10 сек)
+      // 3. Отправка слепка карты памяти Modbus-регистров на брокер по таймеру (раз в 10 секунд)
       static unsigned long lastMqttPush = 0;
       if (millis() - lastMqttPush > 10000) {
         publishModbusData();
@@ -502,16 +571,16 @@ void loop() {
   // Мониторинг статуса подключения Wi-Fi в фоне
   static unsigned long lastCheck = 0;
   if (millis() - lastCheck > 10000) { // Каждые 10 секунд
-    // 1. Проверка Wi-Fi
+    // 1. Контроль связи с домашним роутером и автопереподключение в случае обрыва
     if (WiFi.status() != WL_CONNECTED && sta_ssid != "") {
       Serial.print("Переподключаемся к роутеру...");
       WiFi.begin(sta_ssid.c_str(), sta_password.c_str()); // Автопереподключение
     }
-    // 2. Проверяем нужно ли сообщать в телеграм
+    // 2. Анализ аварийных битов и отправка тревожных алертов в Telegram
     checkTelegram();
 
     lastCheck = millis();
   }
 
-  delay(2); // Для стабильности
+  delay(1); // Для стабильности
 }
