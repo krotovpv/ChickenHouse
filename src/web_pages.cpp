@@ -126,6 +126,10 @@ String getHeader(String title) {
   html += "      <div class='hum-val'>Влажность: <span id='main-hum-out'>--</span>%</div>";
   html += "    </div>";
   html += "  </div>";
+  html += "  <div class='status-row' style='margin-top: 12px; border-bottom: none; padding-bottom: 0;'>";
+  html += "    <span>Нагреватель:</span>";
+  html += "    <span id='heater-status' class='txt-bold'>--</span>";
+  html += "  </div>";
   html += "</div>";
 
   // --- ВЕНТИЛЯЦИЯ ---
@@ -136,8 +140,8 @@ String getHeader(String title) {
   html += "  </div>";
   html += "  <div id='vent-card-content'>";
   html += "    <div class='status-row'><span>Вентиляторы:</span><span id='vent-fans-count' class='txt-bold'>--</span></div>";
-  html += "    <div class='status-row' id='row-vent-in' style='display:none;'><span>Приточный вентилятор:</span><span id='vent-in-status' class='txt-bold'>--</span></div>";
-  html += "    <div class='status-row' id='row-vent-out' style='display:none;'><span>Вытяжной вентилятор:</span><span id='vent-out-status' class='txt-bold'>--</span></div>";
+  html += "    <div class='status-row' id='row-vent-in'><span>Приточный вентилятор:</span><span id='vent-in-status' class='txt-bold'>--</span></div>";
+  html += "    <div class='status-row' id='row-vent-out'><span>Вытяжной вентилятор:</span><span id='vent-out-status' class='txt-bold'>--</span></div>";
   html += "    <div class='status-row'><span>Режим управления:</span><span id='vent-mode-name' class='txt-bold'>--</span></div>";
   html += "    <div class='status-row'><span>Параметры работы:</span><span id='vent-auto-params' style='color:#555;'>Вкл/час: <b id='vent-r34'>--</b> | Длит: <b id='vent-r35'>--</b> мин</span></div>";
   html += "    <div class='status-row' style='border-bottom:none; padding-bottom:0;'><span>Состояние системы:</span><span id='vent-priority-status' class='status-highlight'>--</span></div>";
@@ -249,7 +253,7 @@ String getHeader(String title) {
       const r2 = data["2"] || 0;
       const r3 = data["3"] || 0;
 
-      // ЛОГИКА ДЛЯ КАРТОЧКИ ТЕМПЕРАТУРЫ (С учётом знаковых битов)
+      // -- ЛОГИКА ДЛЯ КАРТОЧКИ ТЕМПЕРАТУРЫ (С учётом знаковых битов) --
       // Курятник: температура в R5, влажность в R6, знак в R0 бите 4
       if (data["5"] !== undefined) {
         let tIn = parseInt(data["5"]);
@@ -272,7 +276,23 @@ String getHeader(String title) {
         document.getElementById('main-hum-out').innerText = data["8"];
       }
 
-      // ЛОГИКА ДЛЯ КАРТОЧКИ ВЕНТИЛЯЦИИ
+      // ЛОГИКА ДЛЯ НАГРЕВАТЕЛЯ
+      const isHeaterOn = (r0 >> 14) & 1;       // Рег 0 Бит 14
+      const isEmergency1 = (r1 >> 10) & 1;     // Рег 1 Бит 10
+      const isEmergency2 = (r1 >> 5) & 1;      // Рег 1 Бит 5
+
+      const heaterEl = document.getElementById('heater-status');
+      if (heaterEl) {
+        if (isEmergency1 === 1 && isEmergency2 === 1) {
+          heaterEl.innerHTML = "<span style='color:#dc3545; font-weight:bold;'>Аварийное управление ⚠️</span>";
+        } else if (isHeaterOn === 1) {
+          heaterEl.innerHTML = "<span style='color:#16a34a;'>Включен 🟢</span>";
+        } else {
+          heaterEl.innerHTML = "<span style='color:#64748b;'>Выключен ⚪</span>";
+        }
+      }
+
+      // -- ЛОГИКА ДЛЯ КАРТОЧКИ ВЕНТИЛЯЦИИ --
       const fansCount = data["53"] !== undefined ? parseInt(data["53"]) : 0;
       const ventDisabledLabel = document.getElementById('vent-disabled-label');
       const ventCardContent = document.getElementById('vent-card-content');
