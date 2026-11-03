@@ -130,6 +130,10 @@ String getHeader(String title) {
   html += "    <span>Нагреватель:</span>";
   html += "    <span id='heater-status' class='txt-bold'>--</span>";
   html += "  </div>";
+  html += "  <div class='status-row' id='row-dehumidifier' style='display: none; border-bottom: none; padding-bottom: 0;'>";
+  html += "    <span>Осушитель:</span>";
+  html += "    <span id='dehumidifier-status' class='txt-bold'>--</span>";
+  html += "  </div>";
   html += "</div>";
 
   // --- ВЕНТИЛЯЦИЯ ---
@@ -252,6 +256,7 @@ String getHeader(String title) {
       const r1 = data["1"] || 0;
       const r2 = data["2"] || 0;
       const r3 = data["3"] || 0;
+      const r4 = data["4"] || 0;
 
       // -- ЛОГИКА ДЛЯ КАРТОЧКИ ТЕМПЕРАТУРЫ (С учётом знаковых битов) --
       // Курятник: температура в R5, влажность в R6, знак в R0 бите 4
@@ -290,6 +295,30 @@ String getHeader(String title) {
         } else {
           heaterEl.innerHTML = "<span style='color:#64748b;'>Выключен ⚪</span>";
         }
+      }
+
+      // ЛОГИКА ДЛЯ ОСУШИТЕЛЯ
+      const isDehumidifierUsed = (r4 >> 12) & 1; // Рег 4 Бит 12 (Используется ли осушитель)
+      const isDehumidifierOn = (r0 >> 15) & 1;   // Рег 0 Бит 15 (Включен/Выключен)
+
+      const rowDehumidifier = document.getElementById('row-dehumidifier');
+      const dehumidifierStatusEl = document.getElementById('dehumidifier-status');
+
+      if (isDehumidifierUsed === 1) {
+        // Если осушитель используется, показываем всю строку
+        if (rowDehumidifier) rowDehumidifier.style.display = "flex";
+        
+        // Меняем статус Вкл/Выкл
+        if (dehumidifierStatusEl) {
+          if (isDehumidifierOn === 1) {
+            dehumidifierStatusEl.innerHTML = "<span style='color:#16a34a;'>Включен 🟢</span>";
+          } else {
+            dehumidifierStatusEl.innerHTML = "<span style='color:#64748b;'>Выключен ⚪</span>";
+          }
+        }
+      } else {
+        // Если осушитель не используется в системе, полностью скрываем строку с экрана
+        if (rowDehumidifier) rowDehumidifier.style.display = "none";
       }
 
       // -- ЛОГИКА ДЛЯ КАРТОЧКИ ВЕНТИЛЯЦИИ --
