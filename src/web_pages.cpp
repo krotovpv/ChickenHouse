@@ -179,6 +179,14 @@ String getHeader(String title) {
   html += "  </div>";
   html += "</div>";
 
+  // --- ОСВЕЩЕНИЕ ---
+  html += "<div class='card'>";
+  html += "  <div class='sub-title'>💡 Освещение</div>";
+  html += "  <div class='status-row'><span>Режим управления:</span><span id='light-control-mode' class='txt-bold'>--</span></div>";
+  html += "  <div class='status-row'><span>Основной свет:</span><span id='light-main-status' class='txt-bold'>--</span></div>";
+  html += "  <div class='status-row' style='border-bottom:none; padding-bottom:0;'><span>Дежурный свет:</span><span id='light-aux-status' class='txt-bold'>--</span></div>";
+  html += "</div>";
+
   // Навигационная сетка кнопок
   html += "<div class='nav-grid'>";
   html += "  <a href='/autoChickenHous' class='nav-btn' style='background: #d97706; grid-column: span 2;'>🎛 Автоматизация курятника</a>";
@@ -550,6 +558,46 @@ String getHeader(String title) {
           } else {
             feedMissedWarningEl.style.display = "none";
           }
+        }
+      }
+
+      // ЛОГИКА КАРТОЧКИ ОСВЕЩЕНИЯ
+      const lightBit0 = (r3 >> 0) & 1; // Рег 3 Бит 0
+      const lightBit1 = (r3 >> 1) & 1; // Рег 3 Бит 1
+      const isMainLightOn = (r0 >> 10) & 1; // Рег 0 Бит 10
+      const isAuxLightOn = (r0 >> 11) & 1;  // Рег 0 Бит 11
+
+      // 1. Определение режима управления освещением
+      const lightModeEl = document.getElementById('light-control-mode');
+      if (lightModeEl) {
+        if (lightBit0 === 1) {
+          lightModeEl.innerHTML = "<span style='color:#059669;'>По календарю 📅</span>";
+        } else if (lightBit0 === 0 && lightBit1 === 1) {
+          lightModeEl.innerHTML = "<span style='color:#2563eb;'>По расписанию (свет включен) ⏰🟢</span>";
+        } else if (lightBit0 === 0 && lightBit1 === 0) {
+          lightModeEl.innerHTML = "<span style='color:#64748b;'>По расписанию (свет отключен) ⏰🛑</span>";
+        } else {
+          lightModeEl.innerText = "--";
+        }
+      }
+
+      // 2. Статус основного света
+      const mainLightEl = document.getElementById('light-main-status');
+      if (mainLightEl) {
+        if (isMainLightOn === 1) {
+          mainLightEl.innerHTML = "<span style='color:#16a34a;'>Включен 💡🟢</span>";
+        } else {
+          mainLightEl.innerHTML = "<span style='color:#64748b;'>Выключен ⚪</span>";
+        }
+      }
+
+      // 3. Статус дежурного (вспомогательного) света
+      const auxLightEl = document.getElementById('light-aux-status');
+      if (auxLightEl) {
+        if (isAuxLightOn === 1) {
+          auxLightEl.innerHTML = "<span style='color:#d97706;'>Включен 🌙🟡</span>";
+        } else {
+          auxLightEl.innerHTML = "<span style='color:#64748b;'>Выключен ⚪</span>";
         }
       }
 
