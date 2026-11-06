@@ -15,19 +15,21 @@ extern String mqtt_host;
 extern int mqtt_port;
 extern String BOT_TOKEN;
 extern String CHAT_ID;
+bool snapshotRegisters(std::map<uint16_t, uint16_t>& snapshot);
 
 // Прототипы функций сохранения настроек, которые остаются в главном файле
 //void saveSettingsWiFi(String s, String p);
 //void saveSettingsMQTT(String mq_u, String mq_pass, String mq_h, String mq_p, String mq_t);
 
 String getHeader(String title);
+String getAdminModeBanner();
 void handleIndex();
 void handleApiData();
 void handleTable();
 void handleAutoChickenHous();
 void handleLight();
 void handleAlerts();
-void handleStatus();
+void handleVentilation();
 void handleFeeding();
 void handleDoor();
 void handleClimate();

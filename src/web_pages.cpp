@@ -1,27 +1,67 @@
 #include "web_pages.h"
 
+extern bool isCurrentRequestAdmin();
+
+static String escapeHtml(const String& value) {
+  String escaped;
+  escaped.reserve(value.length());
+  for (size_t i = 0; i < value.length(); ++i) {
+    switch (value[i]) {
+      case '&': escaped += "&amp;"; break;
+      case '<': escaped += "&lt;"; break;
+      case '>': escaped += "&gt;"; break;
+      case '"': escaped += "&quot;"; break;
+      case '\'': escaped += "&#39;"; break;
+      default: escaped += value[i]; break;
+    }
+  }
+  return escaped;
+}
+
+static String getDesignSystemStyles() {
+  return "<style>"
+         " :root { --brand:#2563eb; --brand-dark:#1d4ed8; --page:#f1f5f9; --surface:#ffffff; --ink:#1e293b; --muted:#64748b; --line:#e2e8f0; --success:#15803d; --danger:#b91c1c; --warning:#b45309; }"
+         " body { background:var(--page); color:var(--ink); font-family:'Segoe UI',Tahoma,Geneva,Verdana,sans-serif; }"
+         " h1,h2 { color:var(--ink); font-weight:700; text-align:center; margin:0 0 20px; } h1 { font-size:24px; } h2 { font-size:23px; line-height:1.3; }"
+         " h3 { color:#334155; margin:0 0 15px; border-bottom:1px solid var(--line); padding-bottom:9px; font-size:15px; font-weight:700; letter-spacing:.04em; text-transform:uppercase; }"
+         " .sub-title { margin:0 0 12px; padding-bottom:8px; border-bottom:1px solid var(--line); color:#334155; font-size:15px; font-weight:700; letter-spacing:.04em; text-transform:uppercase; }"
+         " .card { box-sizing:border-box; padding:20px; margin-bottom:20px; background:var(--surface); border:1px solid var(--line); border-radius:14px; box-shadow:0 4px 16px rgba(15,23,42,.06); }"
+         " .admin-mode-banner { width:100%; max-width:var(--content-max,600px); box-sizing:border-box; align-self:center; margin-left:auto !important; margin-right:auto !important; }"
+         " .status-row { display:flex; justify-content:space-between; align-items:center; gap:12px; padding:11px 8px; border-bottom:1px solid #edf1f5; } .status-row:last-child { border-bottom:0; }"
+         " .badge { display:inline-block; padding:5px 11px; border-radius:999px; font-size:13px; font-weight:700; line-height:1.25; min-width:64px; text-align:center; }"
+         " .bg-success,.bg-on { background:var(--success); color:#fff; } .bg-danger,.bg-alarm { background:var(--danger); color:#fff; }"
+         " .bg-info { background:var(--brand); color:#fff; } .bg-neutral,.bg-normal,.bg-off { background:#e2e8f0; color:#334155; }"
+         " .val-box { padding:4px 12px; color:var(--ink); background:#f8fafc; border:1px solid var(--line); border-radius:8px; font-family:monospace; font-size:15px; font-weight:700; }"
+         " .btn { min-height:44px; box-sizing:border-box; display:flex; align-items:center; justify-content:center; margin:10px 0; padding:11px 14px; border:0; border-radius:10px; background:var(--brand); color:#fff; font-family:inherit; font-size:15px; font-weight:600; line-height:1.35; cursor:pointer; text-decoration:none; }"
+         " .btn-secondary { background:#475569; } .btn:hover,.nav-btn:hover { filter:brightness(.93); transform:translateY(-1px); }"
+         " .nav-btn { min-height:48px; display:flex; align-items:center; justify-content:center; border-radius:12px; color:#fff; font-size:15px; font-weight:600; text-align:center; text-decoration:none; box-shadow:0 4px 12px rgba(15,23,42,.12); }"
+         " .menu-btn { border:1px solid var(--line); border-radius:14px; box-shadow:0 4px 16px rgba(15,23,42,.06); }"
+         " input:not([type=checkbox]):not([type=radio]):not([type=submit]):not([type=button]),select,textarea { box-sizing:border-box; width:100%; padding:12px; margin:8px 0; border:1px solid var(--line); border-radius:8px; background:var(--surface); color:var(--ink); font:16px/1.4 'Segoe UI',Tahoma,Geneva,Verdana,sans-serif; }"
+         " table { width:100%; border-collapse:collapse; background:var(--surface); } th,td { padding:10px 12px; border:1px solid var(--line); text-align:center; } th { background:#f8fafc; color:#475569; font-size:13px; text-transform:uppercase; }"
+         " :where(a,button,input,select,textarea,[tabindex]):focus-visible { outline:3px solid #ffbf47; outline-offset:3px; box-shadow:0 0 0 2px #1f2937; }"
+         " .switch input:focus-visible + .slider { outline:3px solid #ffbf47; outline-offset:3px; }"
+         " .field-label { display:block; margin:10px 0 2px; color:#374151; font-size:14px; font-weight:600; line-height:1.4; }"
+         " .field-hint { margin:2px 0 6px; color:#555; font-size:14px; line-height:1.45; }"
+         " @media (prefers-reduced-motion: reduce) { *, *::before, *::after { scroll-behavior:auto !important; animation-duration:0.01ms !important; animation-iteration-count:1 !important; transition-duration:0.01ms !important; } }"
+         "</style>";
+}
+
+String getAdminModeBanner() {
+  if (isCurrentRequestAdmin()) {
+    return "<div class='admin-mode-banner' style='background:#fff1d6;border:2px solid #e9a23b;color:#713f12;padding:14px;border-radius:10px;margin:0 0 18px;text-align:center;font-weight:700;'>⚠️ Расширенный режим активен: запись и OTA разрешены.<form method='POST' action='/admin/disable' style='margin:8px 0 0'><button class='btn' style='background:#b42318;margin:0' type='submit'>🔒 Перейти в безопасный режим</button></form></div>";
+  }
+  return "";
+}
+
 // --- Вспомогательная функция для HTML обертки ---
 String getHeader(String title) {
   return "<html><head><meta charset='UTF-8'>"
          "<meta name='viewport' content='width=device-width, initial-scale=1.0'>"
          "<style>"
-         "  :root { --primary: #007bff; --bg: #f4f7f6; --text: #333; --card: #ffffff; }"
-         "  body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: var(--bg); color: var(--text); margin: 0; padding: 20px; display: flex; flex-direction: column; align-items: center; }"
+         "  body { --content-max:500px; margin: 0; padding: 20px; display: flex; flex-direction: column; align-items: center; }"
          "  .container { width: 100%; max-width: 500px; }"
-         "  h2, h3 { color: #444; margin-bottom: 15px; text-align: center; }"
-         "  .card { background: var(--card); border-radius: 12px; padding: 20px; box-shadow: 0 4px 15px rgba(0,0,0,0.05); margin-bottom: 20px; border: 1px solid #eee; }"
-         "  .btn { display: block; text-align: center; padding: 12px; background: var(--primary); color: white; text-decoration: none; border-radius: 8px; font-weight: 600; margin: 10px 0; transition: 0.3s; border: none; cursor: pointer; }"
-         "  .btn:hover { opacity: 0.9; transform: translateY(-1px); }"
-         "  .btn-secondary { background: #6c757d; }"
-         "  input, select { width: 100%; padding: 12px; margin: 8px 0; border: 1px solid #ddd; border-radius: 8px; box-sizing: border-box; font-size: 16px; }"
-         "  table { width: 100%; border-collapse: collapse; background: var(--card); border-radius: 8px; overflow: hidden; }"
-         "  th { background: #f8f9fa; padding: 12px; font-size: 13px; color: #888; text-transform: uppercase; border-bottom: 2px solid #eee; }"
-         "  td { padding: 14px; border-bottom: 1px solid #eee; text-align: center; font-weight: 500; }"
-         "  .status-row { display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid #fafafa; }"
-         "  .badge { padding: 4px 10px; border-radius: 20px; font-size: 12px; color: white; }"
-         "  .bg-success { background: #28a745; } .bg-danger { background: #dc3545; }"
-         "</style><title>" + title + "</title></head><body>"
-         "<div class='container'>"
+         "</style>" + getDesignSystemStyles() + "<title>" + title + "</title></head><body>"
+         "<div class='container'>" + getAdminModeBanner() +
          "<a href='/' class='btn btn-secondary' style='margin-bottom:20px;'>🏠 Главная</a>";
 }
 
@@ -31,28 +71,16 @@ String getHeader(String title) {
   String html = "<html><head><meta charset='UTF-8'>"
         "<meta name='viewport' content='width=device-width, initial-scale=1.0'>"
         "<style>"
-        "  :root { --primary: #007bff; --bg: #f4f7f6; --text: #333; --card: #ffffff; }"
-        "  body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: var(--bg); color: var(--text); margin: 0; padding: 20px; display: flex; flex-direction: column; align-items: center; }"
+        "  body { --content-max:500px; margin: 0; padding: 20px; display: flex; flex-direction: column; align-items: center; }"
         "  .container { width: 100%; max-width: 500px; }"
-        "  h2, h3 { color: #444; margin-bottom: 15px; text-align: center; }"
-        "  .card { background: var(--card); border-radius: 12px; padding: 15px 20px; box-shadow: 0 4px 15px rgba(0,0,0,0.05); margin-bottom: 20px; border: 1px solid #eee; width: 100%; max-width: 500px; box-sizing: border-box; }"
-        "  .btn { display: block; text-align: center; padding: 12px; background: var(--primary); color: white; text-decoration: none; border-radius: 8px; font-weight: 600; margin: 10px 0; transition: 0.3s; border: none; cursor: pointer; }"
-        "  .btn:hover { opacity: 0.9; transform: translateY(-1px); }"
-        "  .btn-secondary { background: #6c757d; }"
-        "  input, select { width: 100%; padding: 12px; margin: 8px 0; border: 1px solid #ddd; border-radius: 8px; box-sizing: border-box; font-size: 16px; }"
-        "  table { width: 100%; border-collapse: collapse; background: var(--card); border-radius: 8px; overflow: hidden; }"
-        "  th { background: #f8f9fa; padding: 12px; font-size: 13px; color: #888; text-transform: uppercase; border-bottom: 2px solid #eee; }"
-        "  td { padding: 14px; border-bottom: 1px solid #eee; text-align: center; font-weight: 500; }"
-        "  .status-row { display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid #fafafa; }"
-        "  .badge { padding: 4px 10px; border-radius: 20px; font-size: 12px; color: white; }"
-        "  .bg-success { background: #28a745; } .bg-danger { background: #dc3545; }"
-        "  .top-bar { display: flex; justify-content: space-between; align-items: center; }"
+        "  .top-bar { display: flex; justify-content: space-between; align-items: center; width: 100%; max-width: 500px; box-sizing: border-box; }"
         "  .signals-wrapper { display: flex; align-items: center; gap: 15px; }"
         "</style>"
+        + getDesignSystemStyles() +
         "<title>Панель управления</title></head>"
-        "<body>"
-
-        "<div class='top-bar card'>"
+        "<body>";
+  html += getAdminModeBanner();
+  html += "<div class='top-bar card'>"
           // Левая часть (Время)
           "<div id='rtc-current-time' class='fw-bold fs-5'>🕒--:--:-- --.--.--</div>"
     
@@ -73,8 +101,6 @@ String getHeader(String title) {
   html += R"rawliteral(
   <style>
     .status-card { margin-bottom: 20px; }
-    .status-row { display: flex; justify-content: space-between; align-items: center; padding: 12px 0; border-bottom: 1px solid #f4f4f4; }
-    .status-row:last-child { border-bottom: none; }
     .ip-info { font-size: 0.85em; color: #666; margin-top: 5px; line-height: 1.5; }
     .ip-info b { color: #333; font-family: monospace; }
     .sig-box { display: flex; align-items: flex-end; height: 17px; gap: 3px; margin-top: 5px; cursor: pointer; }
@@ -87,22 +113,20 @@ String getHeader(String title) {
     .online { background: #28a745; box-shadow: 0 0 8px rgba(40,167,69,0.4); }
     .offline { background: #dc3545; }
     .nav-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-top: 20px; }
-    .nav-btn { padding: 15px 10px; text-align: center; border-radius: 12px; color: white; text-decoration: none; font-weight: 600; box-shadow: 0 4px 6px rgba(0,0,0,0.1); font-size: 14px; }
-    .sub-title { font-size: 11px; color: #888; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 8px; font-weight: bold; border-bottom: 1px solid #eee; padding-bottom: 4px; }
     .alert-banner { display: none; background: #fee2e2; border: 1px solid #fca5a5; color: #991b1b; padding: 10px; border-radius: 8px; text-align: center; font-weight: bold; margin-bottom: 15px; font-size: 14px; animation: pulse 2s infinite; }
     @keyframes pulse { 0% { opacity: 1; } 50% { opacity: 0.8; } 100% { opacity: 1; } }
   
     /* Карточка температуры */
     .temp-card-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 5px; }
     .temp-block { background: #f8fafc; border: 1px solid #eaecf4; border-radius: 8px; padding: 10px; text-align: center; }
-    .temp-block .loc-title { font-size: 12px; color: #64748b; font-weight: 600; margin-bottom: 5px; text-transform: uppercase; }
+    .temp-block .loc-title { font-size: 14px; color: #64748b; font-weight: 600; margin-bottom: 5px; text-transform: uppercase; }
     .temp-block .temp-val { font-size: 20px; font-weight: bold; color: #1e293b; }
-    .temp-block .hum-val { font-size: 13px; color: #64748b; margin-top: 2px; }
+    .temp-block .hum-val { font-size: 14px; color: #64748b; margin-top: 2px; }
     
     /* Карточка вентиляции */
     .txt-bold { font-weight: bold; color: #1e293b; }
     .status-highlight { font-weight: bold; padding: 2px 8px; border-radius: 6px; font-size: 14px; }
-    .feed-missed-alert { display: none; background: #fee2e2; border: 1px solid #fca5a5; color: #991b1b; padding: 6px 12px; border-radius: 6px; font-weight: bold; font-size: 13px; text-align: center; margin-top: 10px; }
+    .feed-missed-alert { display: none; background: #fee2e2; border: 1px solid #fca5a5; color: #991b1b; padding: 6px 12px; border-radius: 6px; font-weight: bold; font-size: 14px; text-align: center; margin-top: 10px; }
     </style>
   )rawliteral";
 
@@ -140,7 +164,7 @@ String getHeader(String title) {
   html += "<div class='card'>";
   html += "  <div class='sub-title' style='display: flex; justify-content: space-between; align-items: center;'>";
   html += "    <span>💨 Вентиляция</span>";
-  html += "    <span id='vent-disabled-label' style='color: #dc3545; font-weight: bold; font-size: 12px; display: none;'>ОТКЛЮЧЕНО</span>";
+  html += "    <span id='vent-disabled-label' style='color: #dc3545; font-weight: bold; font-size: 14px; display: none;'>ОТКЛЮЧЕНО</span>";
   html += "  </div>";
   html += "  <div id='vent-card-content'>";
   html += "    <div class='status-row'><span>Вентиляторы:</span><span id='vent-fans-count' class='txt-bold'>--</span></div>";
@@ -156,7 +180,7 @@ String getHeader(String title) {
   html += "<div class='card'>";
   html += "  <div class='sub-title' style='display: flex; justify-content: space-between; align-items: center;'>";
   html += "    <span>🐓 Лаз</span>";
-  html += "    <span id='door-disabled-label' style='color: #dc3545; font-weight: bold; font-size: 12px; display: none;'>ОТКЛЮЧЕНО</span>";
+  html += "    <span id='door-disabled-label' style='color: #dc3545; font-weight: bold; font-size: 14px; display: none;'>ОТКЛЮЧЕНО</span>";
   html += "  </div>";
   html += "  <div id='door-card-content'>";
   html += "    <div class='status-row'><span>Режим управления:</span><span id='door-priority-mode' class='txt-bold'>--</span></div>";
@@ -168,7 +192,7 @@ String getHeader(String title) {
   html += "<div class='card'>";
   html += "  <div class='sub-title' style='display: flex; justify-content: space-between; align-items: center;'>";
   html += "    <span>🌾 Кормление</span>";
-  html += "    <span id='feed-disabled-label' style='color: #dc3545; font-weight: bold; font-size: 12px; display: none;'>ОТКЛЮЧЕНО</span>";
+  html += "    <span id='feed-disabled-label' style='color: #dc3545; font-weight: bold; font-size: 14px; display: none;'>ОТКЛЮЧЕНО</span>";
   html += "  </div>";
   html += "  <div id='feed-card-content'>";
   html += "    <div class='status-row'><span>Режим управления:</span><span id='feed-control-mode' class='txt-bold'>--</span></div>";
@@ -454,7 +478,7 @@ String getHeader(String title) {
         const isGoingDown = (r0 >> 8) & 1;
         const isGoingUp = (r0 >> 9) & 1;
         const isBlocked = (r2 >> 12) & 1;
-        const intermediateCheck = (r2 >> 9) & 1;
+        const isExtremePosition = (r2 >> 9) & 1;
         const openCloseCheck = (r2 >> 8) & 1;
         const insideTempLock = (r2 >> 6) & 1;
         const outsideTempLock = (r2 >> 7) & 1;
@@ -472,9 +496,15 @@ String getHeader(String title) {
           }
         } else {
           if (isBlocked === 1) {
-            doorStateText = "🛑 ЛАЗ ЗАФИКСИРОВАН!";
+            if (isExtremePosition === 0) {
+              doorStateText = "🛑 ЛАЗ ЗАФИКСИРОВАН В ПРОМЕЖУТОЧНОМ ПОЛОЖЕНИИ!";
+            } else if (openCloseCheck === 1) {
+              doorStateText = "🛑 ЛАЗ ЗАБЛОКИРОВАН ОТКРЫТЫМ!";
+            } else {
+              doorStateText = "🛑 ЛАЗ ЗАБЛОКИРОВАН ЗАКРЫТЫМ!";
+            }
             doorStateColor = "#dc2626";
-          } else if (intermediateCheck === 0) {
+          } else if (isExtremePosition === 0) {
             doorStateText = "🔄 Промежуточное положение";
             doorStateColor = "#475569";
           } else {
@@ -539,7 +569,7 @@ String getHeader(String title) {
           const nextFeederNum = data["12"] !== undefined ? data["12"] : "--";
           const nextFeedTimeStr = parseMinutesToTime(data["16"]);
           const nextFeedDuration = parseDeciSeconds(data["13"]);
-          feedOperationModeEl.innerHTML = `Кормушка №<b>${nextFeederNum}</b> в <b>${nextFeedTimeStr}</b><br><span style='color:#64748b; font-size:12px;'>(Длительность: ${nextFeedDuration} сек)</span>`;
+          feedOperationModeEl.innerHTML = `Кормушка №<b>${nextFeederNum}</b> в <b>${nextFeedTimeStr}</b><br><span style='color:#64748b; font-size:14px;'>(Длительность: ${nextFeedDuration} сек)</span>`;
         }
 
         // Текущее состояние счетчиков за сутки (Регистры 14 и 15)
@@ -624,34 +654,25 @@ String getHeader(String title) {
 
 // 2. Эндпоинт для отдачи данных в формате JSON
 void handleApiData() {
-  extern SemaphoreHandle_t modbusMutex; // Объявляем внешнюю ссылку на объект мьютекса
-
-  JsonDocument doc;
-
-  // Пытаемся захватить мьютекс шины. Ждем не более 50 мс.
-  if (xSemaphoreTake(modbusMutex, pdMS_TO_TICKS(50)) == pdTRUE) {
-    
-    // Безопасно копируем данные регистров из карты памяти в JSON-документ
-    for (const auto& item : memo) {
-      doc[String(item.first)] = item.second;
-    }
-    
-    // Сразу же возвращаем мьютекс, чтобы не блокировать опрос на Ядре 0
-    xSemaphoreGive(modbusMutex);
-    
-    String json;
-    serializeJson(doc, json);
-    webServer.send(200, "application/json", json);
-    
-  } else {
-    // В крайне редком случае блокировки шины, отдаем статус "Сервис недоступен",
-    // чтобы страница в браузере не зависала бесконечно
+  std::map<uint16_t, uint16_t> snapshot;
+  if (!snapshotRegisters(snapshot)) {
     webServer.send(503, "text/plain", "Modbus Busy");
+    return;
   }
+  JsonDocument doc;
+  for (const auto& item : snapshot) doc[String(item.first)] = item.second;
+  String json;
+  serializeJson(doc, json);
+  webServer.send(200, "application/json", json);
 }
 
 // 3. Страница с таблицей
 void handleTable() {
+    std::map<uint16_t, uint16_t> snapshot;
+    if (!snapshotRegisters(snapshot)) {
+      webServer.send(503, "text/plain", "Modbus Busy");
+      return;
+    }
     String html = getHeader("Мониторинг регистров");
     html += "<h2>Данные в реальном времени</h2>";
     
@@ -674,12 +695,12 @@ void handleTable() {
             margin: 0 auto; position: relative;
         }
         .bit-on { background: #28a745; box-shadow: 0 0 5px #28a745; border-color: #1e7e34; }
-        .bit-label { font-size: 8px; color: #999; display: block; text-align: center; }
+        .bit-label { font-size: 12px; color: #64748b; display: block; text-align: center; }
 
-        .switch { position: relative; display: inline-block; width: 40px; height: 20px; vertical-align: middle; margin-left: 10px; }
+        .switch { position: relative; display: inline-block; width: 48px; height: 28px; vertical-align: middle; margin-left: 10px; flex: 0 0 48px; }
         .switch input { opacity: 0; width: 0; height: 0; }
         .slider { position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background-color: #ccc; transition: .4s; border-radius: 20px; }
-        .slider:before { position: absolute; content: ""; height: 14px; width: 14px; left: 3px; bottom: 3px; background-color: white; transition: .4s; border-radius: 50%; }
+        .slider:before { position: absolute; content: ""; height: 20px; width: 20px; left: 4px; bottom: 4px; background-color: white; transition: .4s; border-radius: 50%; }
         input:checked + .slider { background-color: #28a745; }
         input:checked + .slider:before { transform: translateX(20px); }
         .reg-label { font-weight: bold; font-size: 14px; }
@@ -698,7 +719,7 @@ void handleTable() {
     html += "<tbody id='tableBody'>";
     
     // Первоначальный вывод строк из памяти memo
-    for (const auto& item : memo) {
+    for (const auto& item : snapshot) {
         html += "<tr id='reg-" + String(item.first) + "'>";
         html += "<td><b>" + String(item.first) + "</b></td>";
         html += "<td class='val-cell'>" + String(item.second) + "</td></tr>";
@@ -874,8 +895,8 @@ void handleTable() {
 
     function sendBit(addr, bit, state) {
       // Отправляем команду и СРАЗУ вызываем обновление данных после ответа сервера
-      fetch(`/api/write_bit?addr=${addr}&bit=${bit}&state=${state ? 1 : 0}`)
-      .then(r => { if(r.ok) setTimeout(updateData, 100); }); 
+      fetch('/api/write_bit', { method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded' }, body: new URLSearchParams({ addr, bit, state: state ? 1 : 0 }) })
+      .then(r => { if (r.status === 401) { window.location.href = '/admin?next=' + encodeURIComponent(window.location.pathname); return; } if(r.ok) setTimeout(updateData, 100); });
     }
 
     function sendValue(addr, val) {
@@ -884,8 +905,8 @@ void handleTable() {
           alert("Значение должно быть от 0 до 255");
           return;
       }
-      fetch(`/api/write_reg?addr=${addr}&value=${val}`)
-          .then(r => { if(r.ok) setTimeout(updateData, 100); });
+      fetch('/api/write_reg', { method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded' }, body: new URLSearchParams({ addr, value: val }) })
+          .then(r => { if (r.status === 401) { window.location.href = '/admin?next=' + encodeURIComponent(window.location.pathname); return; } if(r.ok) setTimeout(updateData, 100); });
     }
 
     function updateData() {
@@ -906,7 +927,7 @@ void handleTable() {
 
           // 2. Формируем заголовок
           const titleText = regTitles[key] ? regTitles[key] : `Регистр №${key}`;
-          const headerHtml = `<div style="background:#4e73df; color:white; padding:5px; margin-bottom:10px; border-radius:4px; font-size:11px; text-align:center; font-weight:bold; text-transform:uppercase;">${titleText}</div>`;
+          const headerHtml = `<div style="background:#4e73df; color:white; padding:5px; margin-bottom:10px; border-radius:4px; font-size:14px; text-align:center; font-weight:bold; text-transform:uppercase;">${titleText}</div>`;
 
           // --- КЕЙС 100 (ПАНЕЛЬ УПРАВЛЕНИЯ - ПЕРЕКЛЮЧАТЕЛИ) ---
           if (key == "100") {
@@ -916,8 +937,8 @@ void handleTable() {
               const name = bitNames[key] ? bitNames[key][i] : `Бит ${i}`;
               html += `
                 <div style="display:flex; align-items:center; justify-content:space-between; background:#f8f9fc; padding:5px 8px; border-radius:6px; border:1px solid #eaecf4;">
-                  <span style="font-size:11px;">${name}</span>
-                  <label class="switch"><input type="checkbox" ${isSet ? 'checked' : ''} onchange="sendBit(${key}, ${i}, this.checked)"><span class="slider"></span></label>
+                  <span style="font-size:14px;">${name}</span>
+                  <label class="switch"><input type="checkbox" aria-label="${name}" ${isSet ? 'checked' : ''} onchange="sendBit(${key}, ${i}, this.checked)"><span class="slider"></span></label>
                 </div>`;
             }
             valCell.innerHTML = html + `</div>`;
@@ -933,7 +954,7 @@ void handleTable() {
               html += `
                 <div style="display:flex; align-items:center; justify-content:center; background:${bgColor}; color:${textColor}; 
                             padding:10px 4px; border-radius:8px; border:1px solid #e0e4e8; text-align:center; min-height:38px; transition: 0.3s;">
-                  <span style="font-size:12px; font-weight:600; line-height:1.1;">${name}</span>
+                  <span style="font-size:14px; font-weight:600; line-height:1.3;">${name}</span>
                 </div>`;
             }
             valCell.innerHTML = html + '</div>';
@@ -967,7 +988,7 @@ void handleAutoChickenHous() {
   html += "<title>Управление курятником</title>";
   html += "<style>";
   // Базовые стили для адаптивности и красоты
-  html += "body { font-family: sans-serif; background-color: #f4f6f9; color: #333; margin: 0; padding: 20px; text-align: center; }";
+  html += "body { --content-max:900px; margin: 0; padding: 20px; text-align: center; }";
   html += "h1 { color: #2c3e50; margin-bottom: 30px; font-size: 24px; }";
   // Сетка для кнопок-карточек
   html += ".menu-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 20px; max-width: 900px; margin: 0 auto; }";
@@ -981,18 +1002,21 @@ void handleAutoChickenHous() {
   html += ".icon { font-size: 32px; margin-bottom: 12px; }";
   // Кастомный цвет для критической кнопки аварий
   html += ".btn-alert { border-left: 5px solid #ef4444; }";
-  html += "</style></head><body>";
+  html += "</style>";
+  html += getDesignSystemStyles();
+  html += "</head><body>";
+  html += getAdminModeBanner();
 
   html += "<h1>🐔 Автоматизация курятника</h1>";
   
   // Контейнер с кнопками меню
   html += "<div class='menu-grid'>";
   
-  html += "  <a href='/climate' class='menu-btn'><span class='icon'>🌡️</span>1. Климат-контроль</a>";
-  html += "  <a href='/light' class='menu-btn'><span class='icon'>💡</span>2. Освещение и распорядок</a>";
-  html += "  <a href='/feeding' class='menu-btn'><span class='icon'>🌾</span>3. Кормление и поголовье</a>";
-  html += "  <a href='/door' class='menu-btn'><span class='icon'>🐓</span>4. Лаз (дверь)</a>";
-  html += "  <a href='/status' class='menu-btn'><span class='icon'>📊</span>5. Статусы</a>";
+  html += "  <a href='/climate' class='menu-btn'><span class='icon'>🌡️</span>1. Температура и влажность</a>";
+  html += "  <a href='/ventilation' class='menu-btn'><span class='icon'>💨</span>2. Вентиляция</a>";
+  html += "  <a href='/door' class='menu-btn'><span class='icon'>🐓</span>3. Лаз</a>";
+  html += "  <a href='/feeding' class='menu-btn'><span class='icon'>🌾</span>4. Кормление и поголовье</a>";
+  html += "  <a href='/light' class='menu-btn'><span class='icon'>💡</span>5. Освещение и распорядок</a>";
   html += "  <a href='/alerts' class='menu-btn menu-btn-alert'><span class='icon'>⚠️</span>6. Аварии и ошибки</a>";
   html += "  <a href='/' class='menu-btn menu-btn-alert'><span class='icon'>⬅️</span>Назад</a>";
   
@@ -1010,24 +1034,16 @@ void handleLight() {
   html += "<meta name='viewport' content='width=device-width, initial-scale=1.0'>";
   html += "<title>Освещение и распорядок</title>";
   html += "<style>";
-  html += "body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: #f4f7f6; color: #333; margin: 0; padding: 20px; display: flex; flex-direction: column; align-items: center; }";
+  html += "body { --content-max:600px; margin: 0; padding: 20px; display: flex; flex-direction: column; align-items: center; }";
   html += ".container { width: 100%; max-width: 600px; }";
-  html += "h2 { color: #2c3e50; text-align: center; margin-bottom: 20px; }";
-  html += ".card { background: white; border-radius: 12px; padding: 20px; box-shadow: 0 4px 15px rgba(0,0,0,0.05); margin-bottom: 20px; border: 1px solid #eee; }";
-  html += "h3 { margin-top: 0; color: #4e73df; border-bottom: 2px solid #eaecf4; padding-bottom: 8px; font-size: 16px; text-transform: uppercase; }";
-  html += ".status-row { display: flex; justify-content: space-between; align-items: center; padding: 10px 0; border-bottom: 1px solid #f8f9fa; }";
-  html += ".status-row:last-child { border-bottom: none; }";
-  html += ".badge { padding: 5px 12px; border-radius: 20px; font-size: 13px; color: white; font-weight: bold; min-width: 60px; text-align: center; }";
-  html += ".bg-success { background: #28a745; }";
-  html += ".bg-danger { background: #dc3545; }";
-  html += ".val-box { font-weight: bold; color: #333; background: #f8f9fc; padding: 4px 10px; border-radius: 6px; border: 1px solid #eaecf4; font-family: monospace; font-size: 15px; }";
-  html += ".btn { display: block; text-align: center; padding: 12px; background: #6c757d; color: white; text-decoration: none; border-radius: 8px; font-weight: 600; margin-top: 10px; transition: 0.3s; border: none; }";
-  html += ".btn:hover { opacity: 0.9; }";
   html += "table { width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 14px; }";
   html += "th, td { padding: 8px; border: 1px solid #eaecf4; text-align: center; }";
   html += "th { background: #f8f9fc; color: #4e73df; font-weight: bold; }";
   html += ".month-name { text-align: left; font-weight: bold; }";
-  html += "</style></head><body>";
+  html += "</style>";
+  html += getDesignSystemStyles();
+  html += "</head><body>";
+  html += getAdminModeBanner();
 
   html += "<div class='container'>";
   html += "<h2>💡 Освещение и распорядок</h2>";
@@ -1160,24 +1176,19 @@ void handleAlerts() {
   html += "<meta name='viewport' content='width=device-width, initial-scale=1.0'>";
   html += "<title>Аварии и ошибки</title>";
   html += "<style>";
-  html += "body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: #f8fafc; color: #334155; margin: 0; padding: 20px; display: flex; flex-direction: column; align-items: center; }";
+  html += "body { --content-max:600px; margin: 0; padding: 20px; display: flex; flex-direction: column; align-items: center; }";
   html += ".container { width: 100%; max-width: 600px; }";
-  html += "h2 { color: #0f172a; text-align: center; margin-bottom: 24px; font-size: 22px; }";
-  html += ".card { background: white; border-radius: 12px; padding: 20px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05), 0 2px 4px -2px rgba(0,0,0,0.05); margin-bottom: 20px; border: 1px solid #e2e8f0; }";
-  html += "h3 { margin-top: 0; color: #64748b; border-bottom: 2px solid #f1f5f9; padding-bottom: 8px; font-size: 14px; text-transform: uppercase; letter-spacing: 0.5px; }";
   html += ".alert-row { display: flex; justify-content: space-between; align-items: center; padding: 12px; border-radius: 8px; margin-bottom: 8px; border: 1px solid #e2e8f0; background: #f8fafc; transition: all 0.3s ease; }";
   html += ".alert-row.active { background: #fef2f2; border-color: #fca5a5; color: #991b1b; font-weight: 600; }";
-  html += ".badge { padding: 4px 10px; border-radius: 6px; font-size: 12px; font-weight: bold; min-width: 70px; text-align: center; text-transform: uppercase; }";
-  html += ".bg-normal { background: #e2e8f0; color: #475569; }";
-  html += ".bg-alarm { background: #ef4444; color: white; animation: pulse 2s infinite; }";
+  html += ".bg-alarm { animation: pulse 2s infinite; }";
   html += ".counter-row { display: flex; justify-content: space-between; align-items: center; padding: 10px 0; border-bottom: 1px solid #f1f5f9; }";
   html += ".counter-row:last-child { border-bottom: none; }";
-  html += ".val-box { font-weight: bold; color: #0f172a; background: #f1f5f9; padding: 4px 12px; border-radius: 6px; border: 1px solid #cbd5e1; font-family: monospace; font-size: 15px; min-width: 30px; text-align: center; }";
   html += ".val-box.has-errors { background: #fee2e2; color: #b91c1c; border-color: #fca5a5; }";
-  html += ".btn { display: block; text-align: center; padding: 12px; background: #64748b; color: white; text-decoration: none; border-radius: 8px; font-weight: 600; margin-top: 15px; transition: 0.2s; border: none; }";
-  html += ".btn:hover { background: #475569; }";
   html += "@keyframes pulse { 0% { opacity: 1; } 50% { opacity: 0.6; } 100% { opacity: 1; } }";
-  html += "</style></head><body>";
+  html += "</style>";
+  html += getDesignSystemStyles();
+  html += "</head><body>";
+  html += getAdminModeBanner();
 
   html += "<div class='container'>";
   html += "<h2>⚠️ Аварии и ошибки шлюза</h2>";
@@ -1273,112 +1284,6 @@ void handleAlerts() {
   webServer.send(200, "text/html", html);
 }
 
-// 4.3 Статусы
-void handleStatus() {
-  String html = "<!DOCTYPE html><html lang='ru'><head>";
-  html += "<meta charset='UTF-8'>";
-  html += "<meta name='viewport' content='width=device-width, initial-scale=1.0'>";
-  html += "<title>Системные статусы</title>";
-  html += "<style>";
-  html += "body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: #f0f2f5; color: #1c1e21; margin: 0; padding: 20px; display: flex; flex-direction: column; align-items: center; }";
-  html += ".container { width: 100%; max-width: 600px; }";
-  html += "h2 { color: #1a73e8; text-align: center; margin-bottom: 20px; font-size: 24px; }";
-  html += ".card { background: white; border-radius: 12px; padding: 20px; box-shadow: 0 2px 10px rgba(0,0,0,0.05); margin-bottom: 20px; border: 1px solid #e4e6eb; }";
-  html += "h3 { margin-top: 0; color: #65676b; border-bottom: 2px solid #f0f2f5; padding-bottom: 8px; font-size: 14px; text-transform: uppercase; letter-spacing: 0.5px; }";
-  html += ".status-row { display: flex; justify-content: space-between; align-items: center; padding: 12px 8px; border-bottom: 1px solid #f0f2f5; }";
-  html += ".status-row:last-child { border-bottom: none; }";
-  html += ".status-name { font-size: 15px; color: #050505; }";
-  html += ".badge { padding: 6px 14px; border-radius: 20px; font-size: 12px; font-weight: 600; min-width: 80px; text-align: center; text-transform: uppercase; transition: all 0.2s ease; }";
-  html += ".bg-off { background: #bcc0c4; color: #4b4f56; }";
-  html += ".bg-on { background: #34a853; color: white; }";
-  html += ".btn { display: block; text-align: center; padding: 12px; background: #1a73e8; color: white; text-decoration: none; border-radius: 8px; font-weight: 600; margin-top: 15px; transition: background 0.2s; border: none; }";
-  html += ".btn:hover { background: #1557b0; }";
-  html += "</style></head><body>";
-
-  html += "<div class='container'>";
-  html += "<h2>📊 Системные статусы и режимы</h2>";
-
-  // Группа 1: Связь и обмен данными (Регистр 0)
-  html += "<div class='card'>";
-  html += "<h3>Связь и обмен (Регистр 0)</h3>";
-  html += "<div class='status-row'><span class='status-name'>Задержка управления (R0:B1)</span><span id='b_0_1' class='badge bg-off'>Пауза</span></div>";
-  html += "<div class='status-row'><span class='status-name'>Прием команд (R0:B5)</span><span id='b_0_5' class='badge bg-off'>Нет</span></div>";
-  html += "<div class='status-row'><span class='status-name'>Передача включена (R0:B6)</span><span id='b_0_6' class='badge bg-off'>Выкл</span></div>";
-  html += "<div class='status-row'><span class='status-name'>Связь с удаленным модулем (R0:B7)</span><span id='b_0_7' class='badge bg-off'>Отказ</span></div>";
-  html += "</div>";
-
-  // Группа 2: Отображение экранов локального дисплея (Регистр 2)
-  html += "<div class='card'>";
-  html += "<h3>Интерфейс прибора (Регистр 2)</h3>";
-  html += "<div class='status-row'><span class='status-name'>Экран отображения вентиляции (R2:B2)</span><span id='b_2_2' class='badge bg-off'>Скрыт</span></div>";
-  html += "<div class='status-row'><span class='status-name'>Экран отображения температур (R2:B3)</span><span id='b_2_3' class='badge bg-off'>Скрыт</span></div>";
-  html += "</div>";
-
-  // Группа 3: Настройки и управление (Регистр 3)
-  html += "<div class='card'>";
-  html += "<h3>Режимы и кнопки (Регистр 3)</h3>";
-  html += "<div class='status-row'><span class='status-name'>Настройка по Wi-Fi (R3:B2)</span><span id='b_3_2' class='badge bg-off'>Выкл</span></div>";
-  html += "<div class='status-row'><span class='status-name'>В меню \"Настройка\" (R3:B3)</span><span id='b_3_3' class='badge bg-off'>Нет</span></div>";
-  html += "<div class='status-row'><span class='status-name'>Ручной режим управления (R3:B4)</span><span id='b_3_4' class='badge bg-off'>Авто</span></div>";
-  html += "<div class='status-row'><span class='status-name'>Нажата кнопка на приборе (R3:B6)</span><span id='b_3_6' class='badge bg-off'>Отпущена</span></div>";
-  html += "</div>";
-
-  // Кнопка Назад
-  html += "<a href='/autoChickenHous' class='btn'>⬅️ Назад в меню</a>";
-  html += "</div>";
-
-  // JavaScript AJAX скрипт для обновления
-  html += R"rawliteral(
-  <script>
-  function updateStatusData() {
-    fetch('/api/data')
-      .then(r => r.json())
-      .then(data => {
-        // Чтение регистров
-        let r0 = data["0"] || 0;
-        let r2 = data["2"] || 0;
-        let r3 = data["3"] || 0;
-
-        // Разбор регистра 0
-        updateBadge('b_0_1', (r0 >> 1) & 1, "Активна", "Пауза");
-        updateBadge('b_0_5', (r0 >> 5) & 1, "Прием", "Нет");
-        updateBadge('b_0_6', (r0 >> 6) & 1, "Передача", "Выкл");
-        updateBadge('b_0_7', (r0 >> 7) & 1, "ОК", "Отказ");
-
-        // Разбор регистра 2
-        updateBadge('b_2_2', (r2 >> 2) & 1, "АКТИВЕН", "Скрыт");
-        updateBadge('b_2_3', (r2 >> 3) & 1, "АКТИВЕН", "Скрыт");
-
-        // Разбор регистра 3
-        updateBadge('b_3_2', (r3 >> 2) & 1, "АКТИВНА", "Выкл");
-        updateBadge('b_3_3', (r3 >> 3) & 1, "ДА", "Нет");
-        updateBadge('b_3_4', (r3 >> 4) & 1, "РУЧНОЙ", "Авто");
-        updateBadge('b_3_6', (r3 >> 6) & 1, "НАЖАТА", "Отпущена");
-      })
-      .catch(err => console.error("Ошибка обновления статусов:", err));
-  }
-
-  function updateBadge(id, state, textOn, textOff) {
-    let el = document.getElementById(id);
-    if (!el) return;
-    if (state === 1) {
-      el.innerText = textOn;
-      el.className = "badge bg-on";
-    } else {
-      el.innerText = textOff;
-      el.className = "badge bg-off";
-    }
-  }
-
-  setInterval(updateStatusData, 1000);
-  updateStatusData();
-  </script>
-  )rawliteral";
-
-  html += "</body></html>";
-  webServer.send(200, "text/html", html);
-}
-
 // 4.4 Кормление и поголовье
 void handleFeeding() {
   String html = "<!DOCTYPE html><html lang='ru'><head>";
@@ -1386,26 +1291,17 @@ void handleFeeding() {
   html += "<meta name='viewport' content='width=device-width, initial-scale=1.0'>";
   html += "<title>Кормление и поголовье</title>";
   html += "<style>";
-  html += "body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: #f4f7f6; color: #333; margin: 0; padding: 20px; display: flex; flex-direction: column; align-items: center; }";
+  html += "body { --content-max:700px; margin: 0; padding: 20px; display: flex; flex-direction: column; align-items: center; }";
   html += ".container { width: 100%; max-width: 700px; }";
-  html += "h2 { color: #2c3e50; text-align: center; margin-bottom: 20px; font-size: 24px; }";
-  html += ".card { background: white; border-radius: 12px; padding: 20px; box-shadow: 0 4px 15px rgba(0,0,0,0.05); margin-bottom: 20px; border: 1px solid #eee; }";
-  html += "h3 { margin-top: 0; color: #27ae60; border-bottom: 2px solid #e8f5e9; padding-bottom: 8px; font-size: 15px; text-transform: uppercase; letter-spacing: 0.5px; }";
-  html += ".status-row { display: flex; justify-content: space-between; align-items: center; padding: 10px 5px; border-bottom: 1px solid #f8f9fa; }";
-  html += ".status-row:last-child { border-bottom: none; }";
-  html += ".badge { padding: 5px 12px; border-radius: 20px; font-size: 13px; color: white; font-weight: bold; min-width: 65px; text-align: center; }";
-  html += ".bg-success { background: #28a745; }";
-  html += ".bg-danger { background: #dc3545; }";
-  html += ".bg-neutral { background: #6c757d; }";
-  html += ".val-box { font-weight: bold; color: #333; background: #f8f9fc; padding: 4px 12px; border-radius: 6px; border: 1px solid #eaecf4; font-family: monospace; font-size: 15px; }";
   html += ".grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; }";
   html += "table { width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 14px; }";
   html += "th, td { padding: 8px; border: 1px solid #eaecf4; text-align: center; }";
   html += "th { background: #f8f9fc; color: #27ae60; font-weight: bold; }";
-  html += ".btn { display: block; text-align: center; padding: 12px; background: #27ae60; color: white; text-decoration: none; border-radius: 8px; font-weight: 600; margin-top: 15px; transition: 0.2s; border: none; }";
-  html += ".btn:hover { background: #219653; }";
   html += "@media(max-width: 600px) { .grid-2 { grid-template-columns: 1fr; } }";
-  html += "</style></head><body>";
+  html += "</style>";
+  html += getDesignSystemStyles();
+  html += "</head><body>";
+  html += getAdminModeBanner();
 
   html += "<div class='container'>";
   html += "<h2>🌾 Кормление и поголовье птицы</h2>";
@@ -1574,24 +1470,15 @@ void handleDoor() {
   html += "<meta name='viewport' content='width=device-width, initial-scale=1.0'>";
   html += "<title>Управление лазом (дверью)</title>";
   html += "<style>";
-  html += "body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: #f8fafc; color: #1e293b; margin: 0; padding: 20px; display: flex; flex-direction: column; align-items: center; }";
+  html += "body { --content-max:650px; margin: 0; padding: 20px; display: flex; flex-direction: column; align-items: center; }";
   html += ".container { width: 100%; max-width: 650px; }";
-  html += "h2 { color: #0f172a; text-align: center; margin-bottom: 24px; font-size: 24px; }";
-  html += ".card { background: white; border-radius: 12px; padding: 20px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05); margin-bottom: 20px; border: 1px solid #e2e8f0; }";
-  html += "h3 { margin-top: 0; color: #d97706; border-bottom: 2px solid #fef3c7; padding-bottom: 8px; font-size: 15px; text-transform: uppercase; letter-spacing: 0.5px; }";
-  html += ".status-row { display: flex; justify-content: space-between; align-items: center; padding: 10px 6px; border-bottom: 1px solid #f1f5f9; }";
-  html += ".status-row:last-child { border-bottom: none; }";
-  html += ".badge { padding: 5px 12px; border-radius: 20px; font-size: 12px; color: white; font-weight: bold; min-width: 75px; text-align: center; text-transform: uppercase; }";
-  html += ".bg-success { background: #10b981; }";
-  html += ".bg-danger { background: #ef4444; }";
-  html += ".bg-info { background: #3b82f6; }";
-  html += ".bg-neutral { background: #64748b; }";
-  html += ".val-box { font-weight: bold; color: #0f172a; background: #f8fafc; padding: 4px 12px; border-radius: 6px; border: 1px solid #e2e8f0; font-family: monospace; font-size: 15px; }";
+  html += ".lock-status { display: inline-block; max-width: 65%; white-space: normal; line-height: 1.25; }";
   html += ".grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; }";
-  html += ".btn { display: block; text-align: center; padding: 12px; background: #d97706; color: white; text-decoration: none; border-radius: 8px; font-weight: 600; margin-top: 15px; transition: 0.2s; border: none; }";
-  html += ".btn:hover { background: #b45309; }";
   html += "@media(max-width: 600px) { .grid-2 { grid-template-columns: 1fr; } }";
-  html += "</style></head><body>";
+  html += "</style>";
+  html += getDesignSystemStyles();
+  html += "</head><body>";
+  html += getAdminModeBanner();
 
   html += "<div class='container'>";
   html += "<h2>🐓 Автоматика лаза (двери)</h2>";
@@ -1599,12 +1486,12 @@ void handleDoor() {
   // Блок 1: Физическое состояние и датчики
   html += "<div class='card'>";
   html += "<h3>Текущее состояние и датчики</h3>";
-  html += "<div class='status-row'><span>Положение лаза (R2):</span><div><span id='b_2_8' class='badge bg-neutral'>Открыт</span> <span id='b_2_9' class='badge bg-neutral'>Закрыт</span></div></div>";
+  html += "<div class='status-row'><span>Положение лаза (R2:B8–B9):</span><div><span id='b_2_8' class='badge bg-neutral'>Открыт</span> <span id='b_2_9' class='badge bg-neutral'>Крайнее</span></div></div>";
   html += "<div class='status-row'><span>Физический датчик открытой двери (R1:B2):</span><span id='b_1_2' class='badge bg-neutral'>Датчик</span></div>";
   html += "<div class='status-row'><span>Опрос концевого датчика двери (R1:B12):</span><span id='b_1_12' class='badge bg-neutral'>Нет</span></div>";
   html += "<div class='status-row'><span>Состояние движения (R2:B11):</span><span id='b_2_11' class='badge bg-neutral'>Стоит</span></div>";
   html += "<div class='status-row'><span>Направление движения (R0):</span><div><span id='b_0_9' class='badge bg-neutral'>Вверх ⬆️</span> <span id='b_0_8' class='badge bg-neutral'>Вниз ⬇️</span></div></div>";
-  html += "<div class='status-row'><span>Лаз зафиксирован (R2:B12):</span><span id='b_2_12' class='badge bg-neutral'>Нет</span></div>";
+  html += "<div class='status-row'><span>Лаз зафиксирован (R2:B12):</span><span id='b_2_12' class='badge bg-neutral lock-status'>Нет</span></div>";
   html += "<div class='status-row'><span>Занято направлением движения лаза (R2:B13):</span><span id='b_2_13' class='badge bg-neutral'>Нет</span></div>";
   html += "<div class='status-row'><span>Занято направлением движения (R2:B14):</span><span id='b_2_14' class='badge bg-neutral'>Нет</span></div>";
   html += "</div>";
@@ -1674,11 +1561,29 @@ void handleDoor() {
         updateBadge('b_2_1', (r2 >> 1) & 1, "Вкл", "Выкл", "bg-success", "bg-neutral");
         updateBadge('b_2_6', (r2 >> 6) & 1, "ЗАПРЕТ", "Нет", "bg-danger", "bg-success");
         updateBadge('b_2_7', (r2 >> 7) & 1, "ЗАПРЕТ", "Нет", "bg-danger", "bg-success");
-        updateBadge('b_2_8', (r2 >> 8) & 1, "ОТКРЫТ", "Пассив", "bg-success", "bg-neutral");
-        updateBadge('b_2_9', (r2 >> 9) & 1, "ЗАКРЫТ", "Пассив", "bg-danger", "bg-neutral");
+        updateBadge('b_2_8', (r2 >> 8) & 1, "ОТКРЫТ", "ЗАКРЫТ", "bg-success", "bg-danger");
+        updateBadge('b_2_9', (r2 >> 9) & 1, "КРАЙНЕЕ", "ПРОМЕЖУТОЧНОЕ", "bg-info", "bg-neutral");
         updateBadge('b_2_10', (r2 >> 10) & 1, "РУЧНОЙ", "Авто", "bg-danger", "bg-info");
         updateBadge('b_2_11', (r2 >> 11) & 1, "ДВИЖЕНИЕ", "Стоит", "bg-danger", "bg-neutral");
-        updateBadge('b_2_12', (r2 >> 12) & 1, "БЛОК", "Нет", "bg-danger", "bg-neutral");
+        const isHatchLocked = (r2 >> 12) & 1;
+        const isAtExtremePosition = (r2 >> 9) & 1;
+        const isOpen = (r2 >> 8) & 1;
+        const lockStatus = document.getElementById('b_2_12');
+        if (lockStatus) {
+          if (!isHatchLocked) {
+            lockStatus.innerText = "Нет";
+            lockStatus.className = "badge bg-neutral lock-status";
+          } else if (!isAtExtremePosition) {
+            lockStatus.innerText = "ЛАЗ ЗАФИКСИРОВАН В ПРОМЕЖУТОЧНОМ ПОЛОЖЕНИИ!";
+            lockStatus.className = "badge bg-danger lock-status";
+          } else if (isOpen) {
+            lockStatus.innerText = "ЛАЗ ЗАБЛОКИРОВАН ОТКРЫТЫМ!";
+            lockStatus.className = "badge bg-danger lock-status";
+          } else {
+            lockStatus.innerText = "ЛАЗ ЗАБЛОКИРОВАН ЗАКРЫТЫМ!";
+            lockStatus.className = "badge bg-danger lock-status";
+          }
+        }
         updateBadge('b_2_13', (r2 >> 13) & 1, "ЗАНЯТО", "Нет", "bg-danger", "bg-neutral");
         updateBadge('b_2_14', (r2 >> 14) & 1, "ЗАНЯТО", "Нет", "bg-danger", "bg-neutral");
         updateBadge('b_2_15', (r2 >> 15) & 1, "Вкл", "Выкл", "bg-success", "bg-neutral");
@@ -1721,38 +1626,116 @@ void handleDoor() {
   webServer.send(200, "text/html", html);
 }
 
-// 4.6 Климат-контроль
+// 4.6 Вентиляция
+void handleVentilation() {
+  String html = "<!DOCTYPE html><html lang='ru'><head>";
+  html += "<meta charset='UTF-8'><meta name='viewport' content='width=device-width, initial-scale=1.0'>";
+  html += "<title>Вентиляция</title><style>body { --content-max:700px; margin:0; padding:20px; display:flex; flex-direction:column; align-items:center; } .container { width:100%; max-width:700px; } .grid-2 { display:grid; grid-template-columns:1fr 1fr; gap:12px; } @media(max-width:650px) { .grid-2 { grid-template-columns:1fr; } }</style>";
+  html += getDesignSystemStyles();
+  html += "</head><body>";
+  html += getAdminModeBanner();
+  html += "<div class='container'><h2>💨 Вентиляция</h2>";
+
+  html += "<div class='card'><h3>Текущее состояние</h3><div class='grid-2'><div>";
+  html += "<div class='status-row'><span>Приточный вентилятор (R0:B12)</span><span id='b_0_12' class='badge bg-neutral'>Выкл</span></div>";
+  html += "<div class='status-row'><span>Вытяжной вентилятор (R0:B13)</span><span id='b_0_13' class='badge bg-neutral'>Выкл</span></div>";
+  html += "<div class='status-row'><span>Количество вентиляторов (R53)</span><span id='r_53' class='val-box'>--</span></div>";
+  html += "</div><div>";
+  html += "<div class='status-row'><span>Производительность вентиляторов (R54)</span><span id='r_54' class='val-box'>--</span></div>";
+  html += "<div class='status-row'><span>Объем помещения (R55)</span><span id='r_55' class='val-box'>--</span></div>";
+  html += "<div class='status-row'><span>Охлаждение (R3:B7)</span><span id='b_3_7' class='badge bg-neutral'>Выкл</span></div>";
+  html += "</div></div></div>";
+
+  html += "<div class='card'><h3>Режимы управления</h3>";
+  html += "<div class='status-row'><span>Ручное управление вентиляцией (R1:B15)</span><span id='b_1_15' class='badge bg-neutral'>Авто</span></div>";
+  html += "<div class='status-row'><span>Автоматическое проветривание (R1:B3)</span><span id='b_1_3' class='badge bg-neutral'>Выкл</span></div>";
+  html += "<div class='status-row'><span>Ручное проветривание (R1:B4)</span><span id='b_1_4' class='badge bg-neutral'>Выкл</span></div>";
+  html += "<div class='status-row'><span>Работа вентиляторов днем (R1:B13)</span><span id='b_1_13' class='badge bg-neutral'>Выкл</span></div>";
+  html += "<div class='status-row'><span>Работа вентиляторов во время сна (R1:B14)</span><span id='b_1_14' class='badge bg-neutral'>Выкл</span></div>";
+  html += "<div class='status-row'><span>Коррекция вентиляторов (R1:B6)</span><span id='b_1_6' class='badge bg-neutral'>Выкл</span></div>";
+  html += "<div class='status-row'><span>Управление по ГОСТ (R2:B4)</span><span id='b_2_4' class='badge bg-neutral'>Выкл</span></div></div>";
+
+  html += "<div class='card'><h3>Загазованность и параметры проветривания</h3>";
+  html += "<div class='status-row'><span>Датчик загазованности (R0:B2)</span><span id='b_0_2' class='badge bg-success'>Норма</span></div>";
+  html += "<div class='status-row'><span>Опрос датчика газа (R1:B11)</span><span id='b_1_11' class='badge bg-neutral'>Нет</span></div>";
+  html += "<div class='status-row'><span>Превышение лимита газа в час (R1:B8)</span><span id='b_1_8' class='badge bg-success'>Норма</span></div>";
+  html += "<div class='grid-2'><div>";
+  html += "<div class='status-row'><span>Срабатывания газа за час (R31)</span><span id='r_31' class='val-box'>--</span></div>";
+  html += "<div class='status-row'><span>Всего срабатываний газа (R32)</span><span id='r_32' class='val-box'>--</span></div>";
+  html += "<div class='status-row'><span>Включений вентиляторов при газе (R44)</span><span id='r_44' class='val-box'>--</span></div>";
+  html += "</div><div>";
+  html += "<div class='status-row'><span>Проветриваний за час (R34)</span><span id='r_34' class='val-box'>--</span></div>";
+  html += "<div class='status-row'><span>Допустимо проветриваний в час (R58)</span><span id='r_58' class='val-box'>--</span></div>";
+  html += "<div class='status-row'><span>Время смены воздуха, сек (R35)</span><span id='r_35' class='val-box'>--</span></div>";
+  html += "</div></div></div>";
+
+  html += "<div class='card'><h3>Расчетный объем свежего воздуха (м³)</h3><table><thead><tr><th>Режим расчета</th><th>Лето</th><th>Зима</th><th>Осень</th></tr></thead><tbody>";
+  html += "<tr><td><b>По ГОСТ</b></td><td id='r_60'>--</td><td id='r_61'>--</td><td id='r_62'>--</td></tr>";
+  html += "<tr><td><b>Текущий расчет</b></td><td id='r_63'>--</td><td id='r_64'>--</td><td id='r_65'>--</td></tr></tbody></table></div>";
+  html += "<a href='/autoChickenHous' class='btn'>⬅️ Назад в меню</a></div>";
+
+  html += R"rawliteral(<script>
+    function setBadge(id, active, onText, offText, onClass = 'bg-success', offClass = 'bg-neutral') {
+      const el = document.getElementById(id);
+      if (!el) return;
+      el.textContent = active ? onText : offText;
+      el.className = 'badge ' + (active ? onClass : offClass);
+    }
+    function updateVentilation() {
+      fetch('/api/data').then(response => response.json()).then(data => {
+        const r0 = Number(data['0']) || 0;
+        const r1 = Number(data['1']) || 0;
+        const r2 = Number(data['2']) || 0;
+        const r3 = Number(data['3']) || 0;
+        setBadge('b_0_12', (r0 >> 12) & 1, 'Работает', 'Выкл');
+        setBadge('b_0_13', (r0 >> 13) & 1, 'Работает', 'Выкл');
+        setBadge('b_0_2', (r0 >> 2) & 1, 'Газ обнаружен', 'Норма', 'bg-danger', 'bg-success');
+        setBadge('b_1_11', (r1 >> 11) & 1, 'Опрос', 'Нет', 'bg-info', 'bg-neutral');
+        setBadge('b_1_15', (r1 >> 15) & 1, 'Ручной', 'Авто', 'bg-danger', 'bg-success');
+        setBadge('b_1_3', (r1 >> 3) & 1, 'Вкл', 'Выкл');
+        setBadge('b_1_4', (r1 >> 4) & 1, 'Вкл', 'Выкл');
+        setBadge('b_1_6', (r1 >> 6) & 1, 'Активна', 'Выкл', 'bg-info', 'bg-neutral');
+        setBadge('b_1_8', (r1 >> 8) & 1, 'Превышение', 'Норма', 'bg-danger', 'bg-success');
+        setBadge('b_1_13', (r1 >> 13) & 1, 'Вкл', 'Выкл', 'bg-info', 'bg-neutral');
+        setBadge('b_1_14', (r1 >> 14) & 1, 'Вкл', 'Выкл', 'bg-info', 'bg-neutral');
+        setBadge('b_2_4', (r2 >> 4) & 1, 'По ГОСТ', 'Выкл');
+        setBadge('b_3_7', (r3 >> 7) & 1, 'Вкл', 'Выкл');
+        [31,32,34,35,44,53,54,55,58,60,61,62,63,64,65].forEach(reg => {
+          const el = document.getElementById('r_' + reg);
+          if (el && data[reg] !== undefined) el.textContent = data[reg];
+        });
+      }).catch(error => console.error('Ошибка обновления вентиляции:', error));
+    }
+    updateVentilation();
+    setInterval(updateVentilation, 1000);
+  </script>)rawliteral";
+
+  html += "</body></html>";
+  webServer.send(200, "text/html; charset=utf-8", html);
+}
+
+// 4.7 Температура и влажность
 void handleClimate() {
   String html = "<!DOCTYPE html><html lang='ru'><head>";
   html += "<meta charset='UTF-8'>";
   html += "<meta name='viewport' content='width=device-width, initial-scale=1.0'>";
-  html += "<title>Климат-контроль</title>";
+  html += "<title>Температура и влажность</title>";
   html += "<style>";
-  html += "body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: #f0f4f8; color: #1e293b; margin: 0; padding: 20px; display: flex; flex-direction: column; align-items: center; }";
+  html += "body { --content-max:800px; margin: 0; padding: 20px; display: flex; flex-direction: column; align-items: center; }";
   html += ".container { width: 100%; max-width: 800px; }";
-  html += "h2 { color: #0f172a; text-align: center; margin-bottom: 24px; font-size: 24px; }";
-  html += ".card { background: white; border-radius: 12px; padding: 20px; box-shadow: 0 4px 10px rgba(0,0,0,0.03); margin-bottom: 20px; border: 1px solid #e2e8f0; }";
-  html += "h3 { margin-top: 0; color: #0284c7; border-bottom: 2px solid #e0f2fe; padding-bottom: 8px; font-size: 15px; text-transform: uppercase; letter-spacing: 0.5px; }";
-  html += ".status-row { display: flex; justify-content: space-between; align-items: center; padding: 10px 6px; border-bottom: 1px solid #f1f5f9; }";
-  html += ".status-row:last-child { border-bottom: none; }";
-  html += ".badge { padding: 5px 12px; border-radius: 20px; font-size: 12px; color: white; font-weight: bold; min-width: 75px; text-align: center; text-transform: uppercase; }";
-  html += ".bg-success { background: #10b981; }";
-  html += ".bg-danger { background: #ef4444; }";
-  html += ".bg-info { background: #3b82f6; }";
-  html += ".bg-neutral { background: #64748b; }";
-  html += ".val-box { font-weight: bold; color: #0f172a; background: #f8fafc; padding: 4px 12px; border-radius: 6px; border: 1px solid #e2e8f0; font-family: monospace; font-size: 15px; }";
   html += ".grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; }";
   html += ".grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 15px; }";
   html += "table { width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 14px; }";
   html += "th, td { padding: 8px; border: 1px solid #e2e8f0; text-align: center; }";
   html += "th { background: #f8fafc; color: #0284c7; font-weight: bold; }";
-  html += ".btn { display: block; text-align: center; padding: 12px; background: #0284c7; color: white; text-decoration: none; border-radius: 8px; font-weight: 600; margin-top: 15px; transition: 0.2s; border: none; }";
-  html += ".btn:hover { background: #0369a1; }";
   html += "@media(max-width: 768px) { .grid-2, .grid-3 { grid-template-columns: 1fr; } }";
-  html += "</style></head><body>";
+  html += "</style>";
+  html += getDesignSystemStyles();
+  html += "</head><body>";
+  html += getAdminModeBanner();
 
   html += "<div class='container'>";
-  html += "<h2>🌡️ Управление микроклиматом</h2>";
+  html += "<h2>🌡️ Температура и влажность</h2>";
 
   // Блок 1: Текущие метеоданные и датчики
   html += "<div class='card'>";
@@ -1762,13 +1745,10 @@ void handleClimate() {
   html += "    <div class='status-row'><span>Темп. в курятнике (R5):</span><span id='r_5' class='val-box'>--</span></div>";
   html += "    <div class='status-row'><span>Влажность в курятнике (R6):</span><span id='r_6' class='val-box'>--</span></div>";
   html += "    <div class='status-row'><span>Кол-во датчиков темп. (R28):</span><span id='r_28' class='val-box'>--</span></div>";
-  html += "    <div class='status-row'><span>Загазованность (Датчик R0:B2):</span><span id='b_0_2' class='badge bg-neutral'>Норма</span></div>";
-  html += "    <div class='status-row'><span>Опрос датчика газа (R1:B11):</span><span id='b_1_11' class='badge bg-neutral'>Нет</span></div>";
   html += "  </div>";
   html += "  <div>";
   html += "    <div class='status-row'><span>Темп. на улице (R7):</span><span id='r_7' class='val-box'>--</span></div>";
   html += "    <div class='status-row'><span>Влажность на улице (R8):</span><span id='r_8' class='val-box'>--</span></div>";
-  html += "    <div class='status-row'><span>Объем помещения (R55):</span><span id='r_55' class='val-box'>--</span></div>";
   html += "    <div class='status-row'><span>Темп. < 0°C на улице (R0:B3):</span><span id='b_0_3' class='badge bg-neutral'>Нет</span></div>";
   html += "    <div class='status-row'><span>Темп. < 0°C в доме (R0:B4):</span><span id='b_0_4' class='badge bg-neutral'>Нет</span></div>";
   html += "  </div>";
@@ -1782,8 +1762,7 @@ void handleClimate() {
   html += "  <div>";
   html += "    <div class='status-row'><span>Нагрев (R0:B14):</span><span id='b_0_14' class='badge bg-neutral'>Выкл</span></div>";
   html += "    <div class='status-row'><span>Охлаждение (R0:B0):</span><span id='b_0_0' class='badge bg-neutral'>Выкл</span></div>";
-  html += "    <div class='status-row'><span>Приточный вент. (R0:B12):</span><span id='b_0_12' class='badge bg-neutral'>Выкл</span></div>";
-  html += "    <div class='status-row'><span>Вытяжной вент. (R0:B13):</span><span id='b_0_13' class='badge bg-neutral'>Выкл</span></div>";
+  html += "    <div class='status-row'><span>Управление охлаждением (R3:B7):</span><span id='b_3_7' class='badge bg-neutral'>Выкл</span></div>";
   html += "  </div>";
   html += "  <div>";
   html += "    <div class='status-row'><span>Управление осушителем (R1:B7):</span><span id='b_1_7' class='badge bg-neutral'>Выкл</span></div>";
@@ -1794,38 +1773,7 @@ void handleClimate() {
   html += "</div>";
   html += "</div>";
 
-  // Блок 3: Режимы и логика вентиляции
-  html += "<div class='card'>";
-  html += "<h3>Режимы управления и логика работы</h3>";
-  html += "<div class='status-row'><span>Речное (ручное) упр. вентиляцией (R1:B15):</span><span id='b_1_15' class='badge bg-neutral'>Выкл</span></div>";
-  html += "<div class='status-row'><span>Авто проветривание (R1:B3):</span><span id='b_1_3' class='badge bg-neutral'>Выкл</span></div>";
-  html += "<div class='status-row'><span>Ручное проветривание (R1:B4):</span><span id='b_1_4' class='badge bg-neutral'>Выкл</span></div>";
-  html += "<div class='status-row'><span>Управление охлаждением (R3:B7):</span><span id='b_3_7' class='badge bg-neutral'>Выкл</span></div>";
-  html += "<div class='status-row'><span>Управление вентиляторами ДНЕМ (R1:B13):</span><span id='b_1_13' class='badge bg-neutral'>Выкл</span></div>";
-  html += "<div class='status-row'><span>Управление вентиляторами во время СНА (R1:B14):</span><span id='b_1_14' class='badge bg-neutral'>Выкл</span></div>";
-  html += "<div class='status-row'><span>Коррекция вентиляторов (R1:B6):</span><span id='b_1_6' class='badge bg-neutral'>Выкл</span></div>";
-  html += "<div class='status-row'><span>Управление вентиляцией по ГОСТ (R2:B4):</span><span id='b_2_4' class='badge bg-neutral'>Выкл</span></div>";
-  html += "</div>";
-
-  // Блок 4: Контроль загазованности и статистика вентиляции
-  html += "<div class='card'>";
-  html += "<h3>Аналитика вентиляции и загазованности</h3>";
-  html += "<div class='status-row'><span>Превышение лимита газа в час (R1:B8):</span><span id='b_1_8' class='badge bg-neutral'>Норма</span></div>";
-  html += "<div class='grid-2'>";
-  html += "  <div>";
-  html += "    <div class='status-row'><span>Кол-во сработок газа в час (R31):</span><span id='r_31' class='val-box'>--</span></div>";
-  html += "    <div class='status-row'><span>Общее число сработок газа (R32):</span><span id='r_32' class='val-box'>--</span></div>";
-  html += "    <div class='status-row'><span>Включений вент./час при газе (R44):</span><span id='r_44' class='val-box'>--</span></div>";
-  html += "  </div>";
-  html += "  <div>";
-  html += "    <div class='status-row'><span>Включений вентиляции в час (R34):</span><span id='r_34' class='val-box'>--</span></div>";
-  html += "    <div class='status-row'><span>Допуст. проветриваний в час (R58):</span><span id='r_58' class='val-box'>--</span></div>";
-  html += "    <div class='status-row'><span>Время смены воздуха, сек (R35):</span><span id='r_35' class='val-box'>--</span></div>";
-  html += "  </div>";
-  html += "</div>";
-  html += "</div>";
-
-  // Блок 5: Оперативные уставки параметров
+  // Блок 3: Уставки температуры и влажности
   html += "<div class='card'>";
   html += "<h3>Временные и целевые уставки</h3>";
   html += "<div class='grid-2'>";
@@ -1838,21 +1786,8 @@ void handleClimate() {
   html += "  <div>";
   html += "    <div class='status-row'><span>Заданная влажность (R26):</span><span id='r_26' class='val-box'>--</span></div>";
   html += "    <div class='status-row'><span>Отклонение влажности (R27):</span><span id='r_27' class='val-box'>--</span></div>";
-  html += "    <div class='status-row'><span>Используется вентиляторов (R53):</span><span id='r_53' class='val-box'>--</span></div>";
-  html += "    <div class='status-row'><span>Производит. вент-ов (R54):</span><span id='r_54' class='val-box'>--</span></div>";
   html += "  </div>";
   html += "</div>";
-  html += "</div>";
-
-  // Блок 6: Справочные объемы воздуха
-  html += "<div class='card'>";
-  html += "<h3>Объемы свежего воздуха (куб.м)</h3>";
-  html += "<table>";
-  html += "<thead><tr><th>Режим расчета</th><th>Лето</th><th>Зима</th><th>Осень</th></tr></thead>";
-  html += "<tbody>";
-  html += "  <tr><td><b>По ГОСТ</b></td><td id='r_60'>--</td><td id='r_61'>--</td><td id='r_62'>--</td></tr>";
-  html += "  <tr><td><b>Текущий расчет</b></td><td id='r_63'>--</td><td id='r_64'>--</td><td id='r_65'>--</td></tr>";
-  html += "</tbody></table>";
   html += "</div>";
 
   // Кнопка Назад
@@ -1867,7 +1802,6 @@ void handleClimate() {
         .then(data => {
             let r0 = data['0'] || 0;
             let r1 = data['1'] || 0;
-            let r2 = data['2'] || 0;
             let r3 = data['3'] || 0;
             let r4 = data['4'] || 0;
 
@@ -1875,26 +1809,14 @@ void handleClimate() {
             const signOut = (r0 >> 3) & 1; // Бит 3 — минус на улице
 
             updateBadge('b_0_0', (r0 >> 0) & 1, 'АКТИВНО', 'Выкл', 'bg-danger', 'bg-neutral');
-            updateBadge('b_0_2', (r0 >> 2) & 1, 'ГАЗ!!', 'Норма', 'bg-danger', 'bg-success');
             updateBadge('b_0_3', (r0 >> 3) & 1, '< 0°C', 'Нет', 'bg-info', 'bg-neutral');
             updateBadge('b_0_4', (r0 >> 4) & 1, '< 0°C', 'Нет', 'bg-info', 'bg-neutral');
-            updateBadge('b_0_12', (r0 >> 12) & 1, 'РАБОТА', 'Выкл', 'bg-success', 'bg-neutral');
-            updateBadge('b_0_13', (r0 >> 13) & 1, 'РАБОТА', 'Выкл', 'bg-success', 'bg-neutral');
             updateBadge('b_0_14', (r0 >> 14) & 1, 'НАГРЕВ', 'Выкл', 'bg-danger', 'bg-neutral');
-            updateBadge('b_1_3', (r1 >> 3) & 1, 'Вкл', 'Выкл', 'bg-success', 'bg-neutral');
-            updateBadge('b_1_4', (r1 >> 4) & 1, 'Вкл', 'Выкл', 'bg-success', 'bg-neutral');
-            updateBadge('b_1_6', (r1 >> 6) & 1, 'АКТИВНА', 'Выкл', 'bg-info', 'bg-neutral');
             updateBadge('b_1_7', (r1 >> 7) & 1, 'Вкл', 'Выкл', 'bg-success', 'bg-neutral');
-            updateBadge('b_1_8', (r1 >> 8) & 1, 'ПРЕВЫШЕНИЕ', 'Норма', 'bg-danger', 'bg-success');
-            updateBadge('b_1_11', (r1 >> 11) & 1, 'ОПРОС', 'Нет', 'bg-info', 'bg-neutral');
-            updateBadge('b_1_13', (r1 >> 13) & 1, 'ДЕНЬ', 'Выкл', 'bg-info', 'bg-neutral');
-            updateBadge('b_1_14', (r1 >> 14) & 1, 'СОН', 'Выкл', 'bg-neutral', 'bg-neutral');
-            updateBadge('b_1_15', (r1 >> 15) & 1, 'РУЧНОЙ', 'Авто', 'bg-danger', 'bg-success');
-            updateBadge('b_2_4', (r2 >> 4) & 1, 'ГОСТ', 'Выкл', 'bg-success', 'bg-neutral');
             updateBadge('b_3_7', (r3 >> 7) & 1, 'Вкл', 'Выкл', 'bg-success', 'bg-neutral');
             updateBadge('b_4_4', (r4 >> 4) & 1, 'Да', 'Нет', 'bg-success', 'bg-neutral');
             updateBadge('b_4_12', (r4 >> 12) & 1, 'В СЕТИ', 'Выкл', 'bg-success', 'bg-neutral');
-            const climateRegs = [5, 6, 7, 8, 24, 25, 26, 27, 28, 29, 30, 31, 32, 34, 35, 44, 47, 53, 54, 55, 58, 60, 61, 62, 63, 64, 65];
+            const climateRegs = [5, 6, 7, 8, 24, 25, 26, 27, 28, 29, 30, 47];
             climateRegs.forEach(reg => {
                 let el = document.getElementById('r_' + reg);
                 if (el && data[reg] !== undefined) {
@@ -1906,7 +1828,6 @@ void handleClimate() {
 
                     if (reg===5||reg===7||reg===24||reg===25||reg===29||reg===30) { el.innerText = val + ' °C'; }
                     else if (reg===6||reg===8||reg===26||reg===27) { el.innerText = val + ' %'; }
-                    else if (reg===55) { el.innerText = val + ' м³'; }
                     else { el.innerText = val; }
                 }
             });
@@ -1939,8 +1860,6 @@ void handleSettings() {
   <style>
     .card { max-width: 100%; box-sizing: border-box; }
     .status-card { margin-bottom: 20px; }
-    .status-row { display: flex; justify-content: space-between; align-items: center; padding: 12px 0; border-bottom: 1px solid #f4f4f4; }
-    .status-row:last-child { border-bottom: none; }
     .ip-info { font-size: 0.85em; color: #666; margin-top: 5px; line-height: 1.5; text-align: left; }
     .ip-info b { color: #333; font-family: monospace; }
     .sig-box { display: flex; align-items: flex-end; height: 17px; gap: 3px; margin-top: 5px; }
@@ -1960,7 +1879,7 @@ void handleSettings() {
   html += "<h3>📊 Текущий статус связи</h3>";
 
   // WiFi
-  html += "<div class='status-row'><div><span>Сеть: <b id='ssid-name'>" + (sta_ssid != "" ? sta_ssid : "Ожидание...") + "</b></span>";
+  html += "<div class='status-row'><div><span>Сеть: <b id='ssid-name'>" + (sta_ssid != "" ? escapeHtml(sta_ssid) : "Ожидание...") + "</b></span>";
   html += "<div class='ip-info'>Локальный IP: <b id='sta-ip'>...</b><br>Точка (AP) IP: <b>" + WiFi.softAPIP().toString() + "</b></div></div>";
   html += "<div class='sig-box' id='wifi-bars'><div class='bar b1'></div><div class='bar b2'></div><div class='bar b3'></div><div class='bar b4'></div></div></div>";
   
@@ -1970,11 +1889,12 @@ void handleSettings() {
 
   // Блок Wi-Fi
   html += "<div class='card'><h3>📶 Сеть Wi-Fi</h3>";
-  html += "<button onclick='scan(this)' class='btn' style='width:100%'>🔄 Сканировать сети</button>";
+  html += "<button type='button' onclick='scan(this)' class='btn' style='width:100%'>🔄 Сканировать сети</button>";
+  html += "<label class='field-label' for='netList'>Доступные сети Wi-Fi</label>";
   html += "<select id='netList' onchange='document.getElementsByName(\"ssid\")[0].value=this.value'></select>";
   html += "<form action='/saveWiFi' method='POST'>";
-  html += "<input type='text' name='ssid' placeholder='SSID роутера' required>";
-  html += "<input type='password' name='pass' placeholder='Пароль' required>";
+  html += "<label class='field-label' for='wifi-ssid'>Имя сети (SSID)</label><input id='wifi-ssid' type='text' name='ssid' placeholder='SSID роутера' required>";
+  html += "<label class='field-label' for='wifi-password'>Пароль сети</label><input id='wifi-password' type='password' name='pass' placeholder='Пароль' required>";
   html += "<input type='submit' value='💾 Сохранить и перезагрузить' class='btn' style='background:#28a745; width:100%'>";
   html += "</form>";
   html += "</div>";
@@ -1982,10 +1902,11 @@ void handleSettings() {
   // Блок MQTT
   html += "<div class='card'><h3>☁️ Параметры MQTT</h3>";
   html += "<form action='/saveMQTT' method='POST'>";
-  html += "<input type='text' name='mq_user' value='" + mqtt_user + "' placeholder='Пользователь'>";
-  html += "<input type='password' name='mq_pass' value='" + mqtt_pass + "' placeholder='Пароль'>";
-  html += "<input type='text' name='mq_host' value='" + mqtt_host + "' placeholder='Брокер (host)'>";
-  html += "<input type='number' name='mq_port' value='" + String(mqtt_port) + "' placeholder='Порт'>";
+  html += "<label class='field-label' for='mqtt-user'>Пользователь MQTT</label><input id='mqtt-user' type='text' name='mq_user' value='" + escapeHtml(mqtt_user) + "' placeholder='Пользователь' autocomplete='username'>";
+  html += "<label class='field-label' for='mqtt-password'>Пароль MQTT</label><p class='field-hint'>" + String(mqtt_pass.length() ? "Пароль сохранён" : "Пароль не задан") + ". Оставьте поле пустым, чтобы не менять его.</p>";
+  html += "<input id='mqtt-password' type='password' name='mq_pass' value='' placeholder='Новый пароль (необязательно)' autocomplete='new-password'>";
+  html += "<label class='field-label' for='mqtt-host'>Адрес брокера MQTT</label><input id='mqtt-host' type='text' name='mq_host' value='" + escapeHtml(mqtt_host) + "' placeholder='Брокер (host)' autocomplete='url'>";
+  html += "<label class='field-label' for='mqtt-port'>Порт MQTT</label><input id='mqtt-port' type='number' name='mq_port' value='" + String(mqtt_port) + "' placeholder='Порт' inputmode='numeric'>";
   html += "<input type='submit' value='💾 Сохранить и перезагрузить' class='btn' style='background:#28a745; width:100%'>";
   html += "</form>";
   html += "</div>";
@@ -1993,10 +1914,10 @@ void handleSettings() {
   // Блок Телеграм
   html += "<div class='card'><h3>🤖 Оповещения Telegram</h3>";
   html += "<form action='/saveTG' method='POST'>";
-  html += "<label style='font-size:12px; color:#666;'>Токен бота (Найдите в Telegram бота @BotFather и создайте своего бота с помощью команды /newbot. Скопируйте выданный им Token):</label>";
-  html += "<input type='text' name='tg_token' value='" + BOT_TOKEN + "' placeholder='Пример: 123456:ABCdef...' required>";
-  html += "<label style='font-size:12px; color:#666;'>ID чата или пользователя (Найдите бота @myidbot (или @userinfobot) и отправьте ему команду /start. Он вернет ваш числовой Chat ID):</label>";
-  html += "<input type='text' name='tg_chat' value='" + CHAT_ID + "' placeholder='Пример: 987654321' required>";
+  html += "<label class='field-label' for='tg-token'>Токен Telegram-бота</label><p class='field-hint' id='tg-token-hint'>Токен " + String(BOT_TOKEN.length() ? "сохранён" : "не задан") + ". Оставьте поле пустым, чтобы не менять его.</p>";
+  html += "<input id='tg-token' type='password' name='tg_token' value='' placeholder='Новый токен (необязательно)' autocomplete='new-password' aria-describedby='tg-token-hint'>";
+  html += "<label class='field-label' for='tg-chat'>ID чата Telegram</label><p class='field-hint' id='tg-chat-hint'>ID " + String(CHAT_ID.length() ? "сохранён" : "не задан") + ". Оставьте поле пустым, чтобы не менять его. Чтобы узнать ID, найдите бота @myidbot или @userinfobot и отправьте /start.</p>";
+  html += "<input id='tg-chat' type='text' name='tg_chat' value='' placeholder='Новый ID чата (необязательно)' autocomplete='off' aria-describedby='tg-chat-hint'>";
   html += "<input type='submit' value='💾 Сохранить и перезагрузить' class='btn' style='background:#28a745; width:100%'>";
   html += "</form></div>";
   
@@ -2096,6 +2017,11 @@ void handleSettings() {
 
 // 6. Страница OTA
 void handleOtaPage() {
+  if (!isCurrentRequestAdmin()) {
+    webServer.sendHeader("Location", "/admin?next=/update", true);
+    webServer.send(303, "text/plain", "Сначала включите расширенный режим");
+    return;
+  }
   String html = getHeader("OTA Обновление прошивки");
   
   html += "<div class='card' style='margin-top: 10px;'>";
@@ -2104,7 +2030,7 @@ void handleOtaPage() {
   html += "    Выберите скомпилированный файл <b>firmware.bin</b>.";
   html += "  </p>";
   html += "  <form method='POST' action='/update_action' enctype='multipart/form-data'>";
-  html += "    <input type='file' name='update' accept='.bin' style='border: 1px dashed #bbb; padding: 15px; background: #fafafa;' required><br><br>";
+  html += "    <label class='field-label' for='firmware-file'>Файл прошивки (.bin)</label><input id='firmware-file' type='file' name='update' accept='.bin' style='border: 1px dashed #bbb; padding: 15px; background: #fafafa;' required><br><br>";
   html += "    <input type='submit' class='btn' value='🚀 Начать обновление ПО' style='background: #28a745; width: 100%; margin: 0;'>";
   html += "  </form>";
   html += "</div>";

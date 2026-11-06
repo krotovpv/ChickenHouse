@@ -36,12 +36,190 @@ int mqtt_port;
 String BOT_TOKEN = "";
 String CHAT_ID = "";
 
+// Пароль администратора задаётся пользователем при первом входе в режиме точки доступа.
+String webAdminPassword;
+String adminSessionToken;
+unsigned long adminSessionLastActivity = 0;
+const unsigned long ADMIN_SESSION_TIMEOUT_MS = 30UL * 60UL * 1000UL;
+
+bool isAdminModeActive() {
+  if (adminSessionToken.length() == 0) return false;
+  if (millis() - adminSessionLastActivity > ADMIN_SESSION_TIMEOUT_MS) {
+    adminSessionToken = "";
+    return false;
+  }
+  return true;
+}
+
+bool hasAdminSession();
+bool isCurrentRequestAdmin() { return hasAdminSession(); }
+
+bool hasAdminSession() {
+  if (!isAdminModeActive() || !webServer.hasHeader("Cookie")) return false;
+  String cookies = webServer.header("Cookie");
+  String expected = "CH_ADMIN=" + adminSessionToken;
+  int pos = cookies.indexOf(expected);
+  if (pos < 0) return false;
+  bool startsCookie = pos == 0 || cookies.charAt(pos - 1) == ';' || cookies.charAt(pos - 1) == ' ';
+  int end = pos + expected.length();
+  bool endsCookie = end == cookies.length() || cookies.charAt(end) == ';' || cookies.charAt(end) == ' ';
+  if (!startsCookie || !endsCookie) return false;
+  adminSessionLastActivity = millis();
+  return true;
+}
+
+bool requireAdminSession() {
+  if (hasAdminSession()) return true;
+  String next = webServer.uri();
+  if (next == "/saveWiFi" || next == "/saveMQTT" || next == "/saveTG") next = "/settings";
+  else if (next == "/update_action") next = "/update";
+  webServer.sendHeader("Location", "/admin?next=" + next, true);
+  webServer.send(303, "text/plain; charset=utf-8", "Сначала включите расширенный режим");
+  return false;
+}
+
+bool requireAdminApiSession(const char* returnPath) {
+  if (hasAdminSession()) return true;
+  webServer.sendHeader("X-Admin-Next", returnPath);
+  webServer.send(401, "text/plain; charset=utf-8", "Требуется расширенный режим");
+  return false;
+}
+
+bool parseUnsignedArg(const String& text, uint32_t maxValue, uint32_t& value) {
+  if (text.length() == 0) return false;
+  uint32_t parsed = 0;
+  for (size_t i = 0; i < text.length(); ++i) {
+    char c = text[i];
+    if (c < '0' || c > '9') return false;
+    uint32_t digit = c - '0';
+    if (digit > maxValue || parsed > (maxValue - digit) / 10) return false;
+    parsed = parsed * 10 + digit;
+  }
+  value = parsed;
+  return true;
+}
+
+String safeReturnPath(String requested) {
+  const char* allowed[] = {"/", "/settings", "/table", "/autoChickenHous", "/light", "/alerts", "/feeding", "/door", "/climate", "/ventilation", "/update"};
+  for (const char* path : allowed) if (requested == path) return requested;
+  return "/";
+}
+
+void loadAdminPassword() {
+  prefs.begin("webAdmin", true);
+  webAdminPassword = prefs.getString("password", "");
+  prefs.end();
+}
+
+void handleAdminPage();
+void handleAdminLogin();
+void handleAdminLogout();
+
+void handleAdminPage() {
+  webServer.sendHeader("Cache-Control", "no-store");
+  String next = safeReturnPath(webServer.arg("next"));
+  if (hasAdminSession()) {
+    if (webServer.hasArg("next")) {
+      webServer.sendHeader("Location", next, true);
+      webServer.send(303, "text/plain", "Возврат на предыдущую страницу");
+      return;
+    }
+    String html = getHeader("Расширенные возможности");
+    html += "<div class='card'><h2>🔓 Режим активен</h2><p>Запись, изменение настроек и OTA доступны в течение 30 минут.</p>";
+    html += "<a class='btn' href='/settings'>Перейти к настройкам</a>";
+    html += "<form method='POST' action='/admin/disable'><button class='btn' style='background:#b42318' type='submit'>🔒 Перейти в безопасный режим</button></form></div></div></body></html>";
+    webServer.send(200, "text/html; charset=utf-8", html);
+    return;
+  }
+
+  String html = getHeader("Вход в расширенный режим");
+  html += "<div class='card'><h2>🔐 Расширенные возможности</h2>";
+  if (webAdminPassword.length() == 0) {
+    // Начальная настройка разрешена только клиенту, подключённому к точке доступа устройства.
+    IPAddress remote = webServer.client().remoteIP();
+    IPAddress ap = WiFi.softAPIP();
+    if (remote[0] != ap[0] || remote[1] != ap[1] || remote[2] != ap[2]) {
+      html += "<p>Первичную настройку пароля администратора выполните через точку доступа устройства.</p></div></div></body></html>";
+      webServer.send(403, "text/html; charset=utf-8", html);
+      return;
+    }
+    html += "<p>Задайте пароль администратора. Он понадобится для доступа к записи и обновлению прошивки.</p>";
+    html += "<form method='POST' action='/admin/enable'><input type='hidden' name='next' value='" + next + "'><label class='field-label' for='admin-password'>Пароль администратора (не менее 12 символов)</label><input id='admin-password' type='password' name='password' minlength='12' placeholder='Новый пароль' autocomplete='new-password' required><label class='field-label' for='admin-password-confirm'>Повторите пароль</label><input id='admin-password-confirm' type='password' name='confirm' minlength='12' placeholder='Повторите пароль' autocomplete='new-password' required><button class='btn' type='submit'>Сохранить пароль и включить режим</button></form>";
+  } else {
+    html += "<p>Введите пароль, чтобы временно разрешить запись, изменение настроек и OTA.</p>";
+    html += "<form method='POST' action='/admin/enable'><input type='hidden' name='next' value='" + next + "'><label class='field-label' for='admin-password'>Пароль администратора</label><input id='admin-password' type='password' name='password' placeholder='Введите пароль' autocomplete='current-password' required><button class='btn' type='submit'>Включить расширенный режим</button></form>";
+  }
+  html += "</div></div></body></html>";
+  webServer.send(200, "text/html; charset=utf-8", html);
+}
+
+void sendAdminLoginError(const String& message, const String& next, bool firstSetup) {
+  String html = getHeader("Проверьте пароль");
+  html += "<div class='card'><div style='background:#fff1f0;border:1px solid #f1a7a0;border-left:5px solid #c9372c;color:#7a271a;padding:16px;border-radius:8px;margin-bottom:16px;'>";
+  html += "<div style='font-size:18px;font-weight:700;margin-bottom:6px;'>Не удалось включить расширенный режим</div><div>";
+  html += message;
+  html += "</div></div><p style='color:#555;text-align:center;'>";
+  html += firstSetup ? "Проверьте, что оба пароля совпадают и содержат не менее 12 символов." : "Проверьте раскладку клавиатуры и повторите ввод пароля.";
+  html += "</p><form method='POST' action='/admin/enable'><input type='hidden' name='next' value='" + next + "'>";
+  if (firstSetup) {
+    html += "<label class='field-label' for='admin-password'>Пароль администратора (не менее 12 символов)</label><input id='admin-password' type='password' name='password' minlength='12' placeholder='Новый пароль' autocomplete='new-password' required><label class='field-label' for='admin-password-confirm'>Повторите пароль</label><input id='admin-password-confirm' type='password' name='confirm' minlength='12' placeholder='Повторите пароль' autocomplete='new-password' required><button class='btn' type='submit'>Попробовать снова</button>";
+  } else {
+    html += "<label class='field-label' for='admin-password'>Пароль администратора</label><input id='admin-password' type='password' name='password' placeholder='Введите пароль' autocomplete='current-password' autofocus required><button class='btn' type='submit'>Попробовать снова</button>";
+  }
+  html += "</form><a href='/' class='btn btn-secondary'>Вернуться на главную</a></div></div></body></html>";
+  webServer.sendHeader("Cache-Control", "no-store");
+  webServer.send(403, "text/html; charset=utf-8", html);
+}
+
+void handleAdminLogin() {
+  String password = webServer.arg("password");
+  String next = safeReturnPath(webServer.arg("next"));
+  if (webAdminPassword.length() == 0) {
+    String confirm = webServer.arg("confirm");
+    IPAddress remote = webServer.client().remoteIP();
+    IPAddress ap = WiFi.softAPIP();
+    if (remote[0] != ap[0] || remote[1] != ap[1] || remote[2] != ap[2] || password.length() < 12 || password != confirm) {
+      if (remote[0] != ap[0] || remote[1] != ap[1] || remote[2] != ap[2]) {
+        webServer.send(403, "text/plain; charset=utf-8", "Первичную настройку пароля выполните через точку доступа устройства.");
+        return;
+      }
+      sendAdminLoginError("Пароли не совпадают или слишком короткие.", next, true);
+      return;
+    }
+    prefs.begin("webAdmin", false);
+    prefs.putString("password", password);
+    prefs.end();
+    webAdminPassword = password;
+  } else if (password != webAdminPassword) {
+    delay(300);
+    sendAdminLoginError("Введён неверный пароль.", next, false);
+    return;
+  }
+
+  adminSessionToken = String((uint32_t)esp_random(), HEX) + String((uint32_t)esp_random(), HEX) + String((uint32_t)esp_random(), HEX) + String((uint32_t)esp_random(), HEX);
+  adminSessionLastActivity = millis();
+  webServer.sendHeader("Set-Cookie", "CH_ADMIN=" + adminSessionToken + "; Path=/; HttpOnly; SameSite=Strict; Max-Age=1800");
+  webServer.sendHeader("Cache-Control", "no-store");
+  webServer.sendHeader("Location", next, true);
+  webServer.send(303, "text/plain", "Режим расширенных возможностей включён");
+}
+
+void handleAdminLogout() {
+  if (hasAdminSession()) adminSessionToken = "";
+  webServer.sendHeader("Set-Cookie", "CH_ADMIN=; Path=/; HttpOnly; SameSite=Strict; Max-Age=0");
+  webServer.sendHeader("Location", "/", true);
+  webServer.send(303, "text/plain", "Безопасный режим включён");
+}
+
 // Хэндлы объектов FreeRTOS для асинхронного Modbus
 SemaphoreHandle_t modbusMutex = NULL;
-TaskHandle_t modbusTaskHandle = NULL;
 
-// Прототип задачи для Ядра 0
-void modbusPollingTask(void *pvParameters);
+bool snapshotRegisters(std::map<uint16_t, uint16_t>& snapshot) {
+  if (modbusMutex == NULL || xSemaphoreTake(modbusMutex, pdMS_TO_TICKS(100)) != pdTRUE) return false;
+  snapshot = memo;
+  xSemaphoreGive(modbusMutex);
+  return true;
+}
 
 // --- Инициализация настроек Telegram из Flash ---
 void loadSettingsTelegram() {
@@ -100,14 +278,9 @@ void saveSettingsMQTT(String mq_u, String mq_pass, String mq_h, String mq_p, Str
 void publishModbusData() {
   if (mqttClient.connected()) {
     JsonDocument doc;
-
-    // Защищаем чтение карты регистров мьютексом
-    if (xSemaphoreTake(modbusMutex, pdMS_TO_TICKS(50)) == pdTRUE) {
-      for (const auto& item : memo) {
-        doc[String(item.first)] = item.second;
-      }
-      xSemaphoreGive(modbusMutex);
-    }
+    std::map<uint16_t, uint16_t> snapshot;
+    if (!snapshotRegisters(snapshot)) return;
+    for (const auto& item : snapshot) doc[String(item.first)] = item.second;
 
     String output;
     serializeJson(doc, output);
@@ -151,40 +324,44 @@ void reconnectMQTT() {
 
 void mqttCallback(char* topic, byte* payload, unsigned int length) {
     JsonDocument doc;
-    deserializeJson(doc, payload, length);
+    if (deserializeJson(doc, payload, length)) {
+      Serial.println("MQTT: некорректный JSON");
+      return;
+    }
 
     // Проверяем наличие базовых полей: адрес регистра обязателен
     if (doc["address"].is<uint16_t>()) {
       uint16_t addr = doc["address"];
         
+      bool changed = false;
       if (xSemaphoreTake(modbusMutex, pdMS_TO_TICKS(100)) == pdTRUE) {
+        auto registerIt = memo.find(addr);
         // Сценарий 1: Изменение конкретного бита (флага)
         // Ожидаем JSON: {"address": 3, "bit": 0, "state": 1}
-        if (doc["bit"].is<int16_t>() && doc["state"].is<int16_t>()) {
-            uint8_t bitNum = doc["bit"];
-            bool bitState = doc["state"];
+        if (registerIt != memo.end() && doc["bit"].is<uint8_t>() && (doc["state"].is<bool>() || doc["state"].is<uint8_t>())) {
+            uint8_t bitNum = doc["bit"].as<uint8_t>();
+            int bitStateValue = doc["state"].is<bool>() ? (doc["state"].as<bool>() ? 1 : 0) : doc["state"].as<int>();
             
-            if (bitNum < 16) { // Проверка диапазона (регистр 16 бит)
-                uint16_t currentVal = memo[addr];
-                if (bitState) {
-                    currentVal |= (1UL << bitNum);  // Установить бит в 1
+            if (bitNum < 16 && (bitStateValue == 0 || bitStateValue == 1)) {
+                uint16_t currentVal = registerIt->second;
+                if (bitStateValue) {
+                    currentVal |= (1U << bitNum);
                 } else {
-                    currentVal &= ~(1UL << bitNum); // Сбросить бит в 0
+                    currentVal &= ~(1U << bitNum);
                 }
-                memo[addr] = currentVal;
-                Serial.printf("MQTT Bit Write: Регистр %d, Бит %d установлен в %d\n", addr, bitNum, bitState);
+                registerIt->second = currentVal;
+                changed = true;
+                Serial.printf("MQTT Bit Write: Регистр %d, Бит %d установлен в %d\n", addr, bitNum, bitStateValue);
             }
         } 
-        // Сценарий 2: Полная перезапись значения (как было раньше)
-        // Ожидаем JSON: {"address": 3, "value": 123}
-        else if (doc["value"].is<int16_t>()) {
-            uint16_t val = doc["value"];
-            memo[addr] = val;
+        else if (registerIt != memo.end() && doc["value"].is<uint16_t>()) {
+            uint16_t val = doc["value"].as<uint16_t>();
+            registerIt->second = val;
+            changed = true;
             Serial.printf("MQTT Write: Регистр %d установлен в %d\n", addr, val);
         }
         xSemaphoreGive(modbusMutex);
-        // Отправляем подтверждение об обновлении данных
-        publishModbusData(); 
+        if (changed) publishModbusData();
       }
     }
 }
@@ -192,66 +369,62 @@ void mqttCallback(char* topic, byte* payload, unsigned int length) {
 // ОБРАБОТЧИК: Чтение (FC 03), Запись (FC 06), Запись массива (FC 16)
 ModbusMessage handleModbus(ModbusMessage request) {
   uint8_t  fc = request.getFunctionCode();
-  uint16_t address, countORvalue;
-
-  request.get(2, address); // Получаем стартовый адрес
-  request.get(4, countORvalue);   // Получаем кол-во (для FC03/16) или задаем значение (для FC06)
-
   ModbusMessage response;
-  // Проверка на наличие регистра в нашей карте (для одиночных операций)
-  if (fc == WRITE_HOLD_REGISTER || fc == READ_HOLD_REGISTER) {
-    if (memo.find(address) == memo.end()) {
-      return ModbusMessage(request.getServerID(), fc | 0x80, ILLEGAL_DATA_ADDRESS);
-    }
+  if (request.size() < 6) return ModbusMessage(request.getServerID(), fc | 0x80, ILLEGAL_DATA_VALUE);
+
+  uint16_t address = 0, countOrValue = 0;
+  if (request.get(2, address, countOrValue) != 6) {
+    return ModbusMessage(request.getServerID(), fc | 0x80, ILLEGAL_DATA_VALUE);
   }
+  if (modbusMutex == NULL || xSemaphoreTake(modbusMutex, pdMS_TO_TICKS(100)) != pdTRUE) {
+    return ModbusMessage(request.getServerID(), fc | 0x80, SERVER_DEVICE_BUSY);
+  }
+
+  auto rangeIsDefined = [](uint16_t start, uint16_t count) {
+    if (count == 0 || (uint32_t)start + count > 65536UL) return false;
+    for (uint32_t i = 0; i < count; ++i) {
+      if (memo.find((uint16_t)(start + i)) == memo.end()) return false;
+    }
+    return true;
+  };
 
   switch (fc) {
     case READ_HOLD_REGISTER: // FC 03
-      response.add(request.getServerID(), fc, (uint8_t)(countORvalue * 2));
-      for (uint16_t i = 0; i < countORvalue; ++i) {
-        // Если регистра нет в map, вернем 0
-        uint16_t val = (memo.count(address + i)) ? memo[address + i] : 0;
-        response.add(val);
+      if (request.size() != 6 || countOrValue > 125 || !rangeIsDefined(address, countOrValue)) {
+        response = ModbusMessage(request.getServerID(), fc | 0x80, ILLEGAL_DATA_ADDRESS);
+      } else {
+        response.add(request.getServerID(), fc, (uint8_t)(countOrValue * 2));
+        for (uint16_t i = 0; i < countOrValue; ++i) response.add(memo.find(address + i)->second);
       }
       break;
 
     case WRITE_HOLD_REGISTER: // FC 06
-      memo[address] = countORvalue; 
-      response = request;
+      if (request.size() != 6 || memo.find(address) == memo.end()) {
+        response = ModbusMessage(request.getServerID(), fc | 0x80, ILLEGAL_DATA_ADDRESS);
+      } else {
+        memo.find(address)->second = countOrValue;
+        response = request;
+      }
       break;
 
     case WRITE_MULT_REGISTERS: // FC 16
-      for (uint16_t i = 0; i < countORvalue; ++i) {
-        uint16_t val;
-        request.get(7 + (i * 2), val);
-        memo[address + i] = val; // Добавит или обновит ключ в map
+      if (request.size() < 7 || countOrValue == 0 || countOrValue > 123 || request[6] != countOrValue * 2 || request.size() != 7 + countOrValue * 2 || !rangeIsDefined(address, countOrValue)) {
+        response = ModbusMessage(request.getServerID(), fc | 0x80, ILLEGAL_DATA_VALUE);
+      } else {
+        for (uint16_t i = 0; i < countOrValue; ++i) {
+          uint16_t value = 0;
+          request.get(7 + i * 2, value);
+          memo.find(address + i)->second = value;
+        }
+        response.add(request.getServerID(), fc, address, countOrValue);
       }
-      response.add(request.getServerID(), fc, address, countORvalue);
+      break;
+    default:
+      response = ModbusMessage(request.getServerID(), fc | 0x80, ILLEGAL_FUNCTION);
       break;
   }
+  xSemaphoreGive(modbusMutex);
   return response;
-}
-
-// Фоновая циклическая задача FreeRTOS на Ядре 0
-void modbusPollingTask(void *pvParameters) {
-  Serial.print("Modbus Server FreeRTOS задача успешно запущена на ядре: ");
-  Serial.println(xPortGetCoreID());
-
-  for (;;) {
-    // Безопасно захватываем мьютекс и даем отработать внутреннему стеку сервера Modbus
-    if (xSemaphoreTake(modbusMutex, pdMS_TO_TICKS(10)) == pdTRUE) {
-      
-      // Вызываем неблокирующую обработку очереди Modbus RTU
-      // Библиотека проверит входящий буфер Serial2 и при необходимости вызовет handleModbus()
-      // Если запросов нет, функция мгновенно вернет управление
-      // Это предотвратит мёртвые зависания веб-интерфейса
-      
-      xSemaphoreGive(modbusMutex);
-    }
-    
-    // Небольшая системная задержка для предотвращения триггера Ватчдога на Ядре 0 (1 мс)
-    vTaskDelay(pdMS_TO_TICKS(1));
-  }
 }
 
 // API для сканирования сетей
@@ -293,6 +466,7 @@ void handleApiStatus() {
 
 // Обработка сохранения Wi-Fi
 void handleSaveWiFi() {
+  if (!requireAdminSession()) return;
   if (webServer.hasArg("ssid") && webServer.hasArg("pass")) {
     String newS = webServer.arg("ssid");
     String newP = webServer.arg("pass");
@@ -311,10 +485,12 @@ void handleSaveWiFi() {
 
 // Обработка сохранения MQTT
 void handleSaveMQTT() {
+  if (!requireAdminSession()) return;
   // Проверяем наличие аргумента хоста, который есть в форме MQTT
   if (webServer.hasArg("mq_host")) { 
     String new_Mq_u = webServer.arg("mq_user");
     String new_Mq_pass = webServer.arg("mq_pass");
+    if (new_Mq_pass.length() == 0) new_Mq_pass = mqtt_pass;
     String new_Mq_h = webServer.arg("mq_host");
     String new_Mq_p = webServer.arg("mq_port");
     String new_Mq_t = webServer.arg("mq_topic");
@@ -333,6 +509,7 @@ void handleSaveMQTT() {
 
 // Обработка сохранения Telegram
 void handleSaveTelegram() {
+  if (!requireAdminSession()) return;
   if (webServer.hasArg("tg_token") && webServer.hasArg("tg_chat")) { 
     String new_token = webServer.arg("tg_token");
     String new_chat  = webServer.arg("tg_chat");
@@ -340,6 +517,8 @@ void handleSaveTelegram() {
     // Удаляем случайные пробелы, которые пользователь мог скопировать
     new_token.trim();
     new_chat.trim();
+    if (new_token.length() == 0) new_token = BOT_TOKEN;
+    if (new_chat.length() == 0) new_chat = CHAT_ID;
     
     saveSettingsTelegram(new_token, new_chat);
     
@@ -357,19 +536,28 @@ void handleSaveTelegram() {
 
 // Логика обработки и записи файла во Flash-память
 void handleOtaAction() {
+  static bool uploadAuthorized = false;
   HTTPUpload& upload = webServer.upload();
   
   if (upload.status == UPLOAD_FILE_START) {
+    uploadAuthorized = hasAdminSession();
+    if (!uploadAuthorized) {
+      webServer.sendHeader("Location", "/admin?next=/update", true);
+      webServer.send(303, "text/plain; charset=utf-8", "Сначала включите расширенный режим");
+      return;
+    }
     Serial.printf("Начало OTA обновления: %s\n", upload.filename.c_str());
     // Если имя файла содержит "spiffs" или "littlefs", можно переключить U_SPIFFS, но для прошивки используем U_FLASH
     if (!Update.begin(UPDATE_SIZE_UNKNOWN, U_FLASH)) { 
       Update.printError(Serial);
     }
   } else if (upload.status == UPLOAD_FILE_WRITE) {
+    if (!uploadAuthorized) return;
     if (Update.write(upload.buf, upload.currentSize) != upload.currentSize) {
       Update.printError(Serial);
     }
   } else if (upload.status == UPLOAD_FILE_END) {
+    if (!uploadAuthorized) return;
     if (Update.end(true)) { // true - очищает и завершает прошивку
       Serial.printf("OTA Успешно завершено! Размер: %u байт. Перезагрузка...\n", upload.totalSize);
       
@@ -395,6 +583,7 @@ void setup() {
   loadSettingsWiFi();
   loadSettingsMQTT();
   loadSettingsTelegram();
+  loadAdminPassword();
 
   // 2. Инициализируем мьютекс защиты ДО запуска задач
   modbusMutex = xSemaphoreCreateMutex();
@@ -449,7 +638,7 @@ void setup() {
   webServer.on("/autoChickenHous", handleAutoChickenHous);
   webServer.on("/light", handleLight);
   webServer.on("/alerts", handleAlerts);
-  webServer.on("/status", handleStatus);
+  webServer.on("/ventilation", handleVentilation);
   webServer.on("/feeding", handleFeeding);
   webServer.on("/door", handleDoor);
   webServer.on("/climate", handleClimate);
@@ -458,37 +647,66 @@ void setup() {
   webServer.on("/api/scan", handleApiScan);
   webServer.on("/api/status", handleApiStatus);
   webServer.on("/settings", handleSettings);
+  webServer.on("/admin", HTTP_GET, handleAdminPage);
+  webServer.on("/admin/enable", HTTP_POST, handleAdminLogin);
+  webServer.on("/admin/disable", HTTP_POST, handleAdminLogout);
   webServer.on("/saveWiFi", HTTP_POST, handleSaveWiFi);
   webServer.on("/saveMQTT", HTTP_POST, handleSaveMQTT);
   webServer.on("/saveTG", HTTP_POST, handleSaveTelegram);
   webServer.on("/update", HTTP_GET, handleOtaPage);
   webServer.on("/update_action", HTTP_POST, []() {
-    // Этот блок выполнится ПОСЛЕ завершения загрузки файла
-  }, handleOtaAction); // А эта функция обрабатывает поток байт "на лету"
+    if (!hasAdminSession()) {
+      webServer.sendHeader("Location", "/admin?next=/update", true);
+      webServer.send(303, "text/plain; charset=utf-8", "Сначала включите расширенный режим");
+    } else if (Update.hasError()) {
+      webServer.send(500, "text/plain; charset=utf-8", "Ошибка обновления прошивки");
+    } else {
+      webServer.send(200, "text/plain; charset=utf-8", "Обновление завершено. Устройство перезагрузится.");
+    }
+  }, handleOtaAction);
 
   // Эндпоинты записи битов и регистров (защищены мьютексом)
-  webServer.on("/api/write_bit", HTTP_GET, []() {
+  webServer.on("/api/write_bit", HTTP_POST, []() {
+    if (!requireAdminApiSession("/table")) return;
     if (webServer.hasArg("addr") && webServer.hasArg("bit") && webServer.hasArg("state")) {
-      uint16_t addr = webServer.arg("addr").toInt();
-      uint8_t bit = webServer.arg("bit").toInt();
-      bool state = webServer.arg("state").toInt();
+      uint32_t addrValue, bitValue, stateValue;
+      if (!parseUnsignedArg(webServer.arg("addr"), 65535, addrValue) ||
+          !parseUnsignedArg(webServer.arg("bit"), 15, bitValue) ||
+          !parseUnsignedArg(webServer.arg("state"), 1, stateValue)) {
+        webServer.send(400, "text/plain", "Invalid arguments");
+        return;
+      }
+      uint16_t addr = static_cast<uint16_t>(addrValue);
+      uint8_t bit = static_cast<uint8_t>(bitValue);
         
       if (xSemaphoreTake(modbusMutex, pdMS_TO_TICKS(50)) == pdTRUE) {
-        if (state) memo[addr] |= (1UL << bit);
-        else memo[addr] &= ~(1UL << bit);
+        auto registerIt = memo.find(addr);
+        if (registerIt == memo.end()) {
+          xSemaphoreGive(modbusMutex);
+          webServer.send(404, "text/plain", "Not Found");
+          return;
+        }
+        if (stateValue) registerIt->second |= (1U << bit);
+        else registerIt->second &= ~(1U << bit);
         xSemaphoreGive(modbusMutex);
-      
-        publishModbusData(); // Синхронизируем с MQTT
+        publishModbusData();
         webServer.send(200, "text/plain", "OK");
       } else {
         webServer.send(503, "text/plain", "Busy");
       }
-    }
+    } else webServer.send(400, "text/plain", "Missing arguments");
   });
-  webServer.on("/api/write_reg", HTTP_GET, []() {
+  webServer.on("/api/write_reg", HTTP_POST, []() {
+    if (!requireAdminApiSession("/table")) return;
     if (webServer.hasArg("addr") && webServer.hasArg("value")) {
-        uint16_t addr = webServer.arg("addr").toInt();
-        uint16_t val = webServer.arg("value").toInt();
+        uint32_t addrValue, registerValue;
+        if (!parseUnsignedArg(webServer.arg("addr"), 65535, addrValue) ||
+            !parseUnsignedArg(webServer.arg("value"), 65535, registerValue)) {
+            webServer.send(400, "text/plain", "Invalid arguments");
+            return;
+        }
+        uint16_t addr = static_cast<uint16_t>(addrValue);
+        uint16_t val = static_cast<uint16_t>(registerValue);
         
         if (xSemaphoreTake(modbusMutex, pdMS_TO_TICKS(50)) == pdTRUE) {
             if (memo.count(addr)) {
@@ -503,8 +721,10 @@ void setup() {
         } else {
             webServer.send(503, "text/plain", "Busy");
         }
-    }
+    } else webServer.send(400, "text/plain", "Missing arguments");
   });
+  const char* headerKeys[] = {"Cookie"};
+  webServer.collectHeaders(headerKeys, 1);
   webServer.begin();
 
   // 5. Modbus (адрес 16(0x10))
@@ -519,17 +739,6 @@ void setup() {
   MBserver.registerWorker(16, WRITE_MULT_REGISTERS, &handleModbus);
   MBserver.begin(Serial2);
   Serial.println("Modbus RTU Server запущен...");
-
-  // 6. Создаем асинхронную задачу Modbus и жестко привязываем её к ЯДРУ 0 (Core 0)
-  xTaskCreatePinnedToCore(
-    modbusPollingTask,    // Указатель на функцию циклического опроса шины
-    "ModbusTask",         // Имя задачи (для мониторинга системы)
-    4096,                 // Объем стека в байтах (4 КБ)
-    NULL,                 // Передаваемые параметры
-    2,                    // Приоритет (чуть выше веб-сервера, чтобы не пропускать байты по прерываниям UART)
-    &modbusTaskHandle,    // Хэндл для контроля задачи
-    0                     // Назначенное ядро процессора: 0
-  );
 
   // 7. MQTT
   mqttClient.setServer(mqtt_host.c_str(), mqtt_port);
