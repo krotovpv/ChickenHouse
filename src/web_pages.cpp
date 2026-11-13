@@ -2029,10 +2029,50 @@ void handleOtaPage() {
   html += "  <p style='font-size: 14px; color: #555; text-align: center; margin-bottom: 20px;'>";
   html += "    Выберите скомпилированный файл <b>firmware.bin</b>.";
   html += "  </p>";
-  html += "  <form method='POST' action='/update_action' enctype='multipart/form-data'>";
+  html += "  <div style='background:#fff7e6;border:1px solid #f0c36d;color:#713f12;padding:12px 14px;border-radius:10px;margin:0 0 18px;font-size:14px;line-height:1.5;'><b>⚠️ Обновление с телефона:</b> отключите мобильный интернет на время загрузки и оставайтесь подключены к Wi‑Fi курятника. Иначе телефон может переключить передачу на мобильную сеть, и загрузка зависнет.</div>";
+  html += "  <form id='ota-form' method='POST' action='/update_action' enctype='multipart/form-data'>";
   html += "    <label class='field-label' for='firmware-file'>Файл прошивки (.bin)</label><input id='firmware-file' type='file' name='update' accept='.bin' style='border: 1px dashed #bbb; padding: 15px; background: #fafafa;' required><br><br>";
   html += "    <input type='submit' class='btn' value='🚀 Начать обновление ПО' style='background: #28a745; width: 100%; margin: 0;'>";
+  html += "    <div id='ota-progress' style='display:none;margin-top:16px;text-align:center'><b id='ota-message'>Подготовка обновления...</b><progress id='ota-bar' value='0' max='100' style='width:100%;margin-top:10px'></progress><div id='ota-percent'>0%</div></div>";
   html += "  </form>";
+  html += R"rawliteral(<script>
+    const otaForm = document.getElementById('ota-form');
+    otaForm.addEventListener('submit', event => {
+      event.preventDefault();
+      const fileInput = document.getElementById('firmware-file');
+      if (!fileInput.files.length) return;
+      const submitButton = otaForm.querySelector('[type=submit]');
+      const progress = document.getElementById('ota-progress');
+      const bar = document.getElementById('ota-bar');
+      const percent = document.getElementById('ota-percent');
+      const message = document.getElementById('ota-message');
+      const request = new XMLHttpRequest();
+      submitButton.disabled = true;
+      progress.style.display = 'block';
+      message.textContent = 'Передача прошивки... Не закрывайте страницу.';
+      request.upload.addEventListener('progress', event => {
+        if (event.lengthComputable) {
+          const value = Math.round(event.loaded * 100 / event.total);
+          bar.value = value;
+          percent.textContent = value + '%';
+        }
+      });
+      request.onload = () => {
+        if (request.status >= 200 && request.status < 300) {
+          document.open(); document.write(request.responseText); document.close();
+        } else {
+          message.textContent = 'Ошибка обновления: ' + (request.responseText || request.status);
+          submitButton.disabled = false;
+        }
+      };
+      request.onerror = () => {
+        message.textContent = 'Связь прервана. Проверьте состояние устройства перед повторной попыткой.';
+        submitButton.disabled = false;
+      };
+      request.open('POST', otaForm.action);
+      request.send(new FormData(otaForm));
+    });
+  </script>)rawliteral";
   html += "</div>";
   html += "</div></body></html>";
   
