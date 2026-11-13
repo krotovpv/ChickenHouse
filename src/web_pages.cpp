@@ -401,7 +401,7 @@ String getHeader(String title) {
         const isAutoVent = (r1 >> 3) & 1;       // Рег 1 Бит 3
         const isManualVent = (r1 >> 4) & 1;     // Рег 1 Бит 4
 
-        let priorityStatusText = "Пауза 💤";
+        let priorityStatusText = "Работа";
         let statusColor = "#64748b"; 
         let statusBg = "#f1f5f9";
 
