@@ -594,6 +594,7 @@ void setup() {
 
   // 3. Настройка Wi-Fi
   WiFi.mode(WIFI_AP_STA); // Устанавливаем комбинированный режим
+  WiFi.setSleep(false);
   WiFi.softAP(ap_ssid, ap_password); // Запускаем свою точку доступа (всегда активна)
   
   IPAddress IP = WiFi.softAPIP();
