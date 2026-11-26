@@ -1106,7 +1106,7 @@ void handleLight() {
   html += "<div class='card'>";
   html += "<h3>Годовой календарь (Восход / Закат)</h3>";
   html += "<table>";
-  html += "<thead><tr><th>Месяц</th><th>Восход (Рег)</th><th>Закат (Рег)</th></tr></thead>";
+  html += "<thead><tr><th>Месяц</th><th>Восход</th><th>Закат</th></tr></thead>";
   html += "<tbody>";
   const char* months[] = {"Январь", "Февраль", "Март", "Апрель", "Май", "Июнь", "Июль", "Август", "Сентябрь", "Октябрь", "Ноябрь", "Декабрь"};
   for (int i = 0; i < 12; i++) {
@@ -1224,7 +1224,7 @@ void handleAlerts() {
   html += getAdminModeBanner();
 
   html += "<div class='container'>";
-  html += "<h2>⚠️ Аварии и ошибки шлюза</h2>";
+  html += "<h2>⚠️ Аварии и ошибки</h2>";
 
   html += "<div class='card'><h3>Уведомление о влажности</h3><form method='POST' action='/saveAlerts'>";
   html += "<label><input type='checkbox' name='enabled'" + String(humidityEnabled ? " checked" : "") + "> Уведомлять о высокой влажности</label>";
@@ -1530,7 +1530,7 @@ void handleDoor() {
   html += getAdminModeBanner();
 
   html += "<div class='container'>";
-  html += "<h2>🐓 Автоматика лаза (двери)</h2>";
+  html += "<h2>🐓 Автоматика лаза</h2>";
 
   // Блок 1: Физическое состояние и датчики
   html += "<div class='card'>";

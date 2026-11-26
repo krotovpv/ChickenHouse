@@ -5,6 +5,7 @@
 #include <Preferences.h> // Библиотека для работы с Flash
 #include <ArduinoJson.h>
 #include <DNSServer.h>
+#include <ESPmDNS.h>
 #include <PubSubClient.h>
 #include "ModbusServerRTU.h"
 #include "registers.h"
@@ -21,6 +22,18 @@ ModbusServerRTU MBserver(2000);
 
 DNSServer dnsServer;
 const byte DNS_PORT = 53;
+static const char* MDNS_HOSTNAME = "chickenhouse";
+
+void handleCaptivePortalRequest() {
+  // Only redirect requests received via our AP, never clients of the router.
+  if (webServer.client().localIP() != WiFi.softAPIP()) {
+    webServer.send(404, "text/plain", "Not found");
+    return;
+  }
+  webServer.sendHeader("Cache-Control", "no-store");
+  webServer.sendHeader("Location", "http://" + WiFi.softAPIP().toString() + "/", true);
+  webServer.send(302, "text/plain", "");
+}
 
 // Настройки собственной точки доступа (AP)
 String ap_ssid = "ChickenHous";
@@ -803,6 +816,14 @@ void setup() {
   Serial.print("Адрес для браузера: http://");
   Serial.println(IP); // Обычно это 192.168.4.1
 
+  // mDNS follows Wi-Fi interface events, including a later STA connection.
+  if (MDNS.begin(MDNS_HOSTNAME)) {
+    MDNS.addService("http", "tcp", 80);
+    Serial.println("Локальное имя: http://chickenhouse.local/");
+  } else {
+    Serial.println("Не удалось запустить mDNS; используйте IP-адрес ESP32");
+  }
+
   // Пытаемся подключиться к внешнему роутеру (STA)
   if (sta_ssid != "") {
     WiFi.begin(sta_ssid.c_str(), sta_password.c_str());
@@ -825,16 +846,15 @@ void setup() {
 
   // 4. Web Server
   dnsServer.start(DNS_PORT, "*", WiFi.softAPIP()); // Запускаем DNS сервер, который перенаправляет все домены на IP ESP32
-  // Запросы проверки связи от Android / Windows / iOS
-  webServer.on("/generate_204", handleIndex); 
-  webServer.on("/fwlink", handleIndex);
-  webServer.onNotFound([]() {
-    // Если запрос пришел не на главную, а на какой-то проверочный домен Google/Apple
-    // Перенаправляем телефон на наш IP-адрес шлюза
-    webServer.sendHeader("Location", "http://" + WiFi.softAPIP().toString(), true);
-    webServer.send(302, "text/plain", ""); 
-  });
-  //webServer.onNotFound(handleIndex); // Любой неизвестный путь ведет на главную
+  // HTTP connectivity probes from Android, Apple devices and Windows.
+  webServer.on("/generate_204", HTTP_GET, handleCaptivePortalRequest);
+  webServer.on("/gen_204", HTTP_GET, handleCaptivePortalRequest);
+  webServer.on("/hotspot-detect.html", HTTP_GET, handleCaptivePortalRequest);
+  webServer.on("/library/test/success.html", HTTP_GET, handleCaptivePortalRequest);
+  webServer.on("/connecttest.txt", HTTP_GET, handleCaptivePortalRequest);
+  webServer.on("/ncsi.txt", HTTP_GET, handleCaptivePortalRequest);
+  webServer.on("/fwlink", HTTP_GET, handleCaptivePortalRequest);
+  webServer.onNotFound(handleCaptivePortalRequest);
   webServer.on("/", handleIndex);
   webServer.on("/autoChickenHous", handleAutoChickenHous);
   webServer.on("/light", handleLight);
