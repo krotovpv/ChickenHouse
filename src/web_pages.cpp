@@ -47,10 +47,22 @@ static String getDesignSystemStyles() {
 }
 
 String getAdminModeBanner() {
-  if (isCurrentRequestAdmin()) {
-    return "<div class='admin-mode-banner' style='background:#fff1d6;border:2px solid #e9a23b;color:#713f12;padding:14px;border-radius:10px;margin:0 0 18px;text-align:center;font-weight:700;'>⚠️ Расширенный режим активен: запись и OTA разрешены.<form method='POST' action='/admin/disable' style='margin:8px 0 0'><button class='btn' style='background:#b42318;margin:0' type='submit'>🔒 Перейти в безопасный режим</button></form></div>";
+  String banner = R"rawliteral(<div id="master-link-status" role="status" style="max-width:600px;margin:0 auto 14px;padding:12px;border-radius:8px;background:#fff1d6;color:#713f12;text-align:center;font-weight:bold">Ожидание данных от контроллера</div>
+  <script>
+  function refreshMasterLink() {
+    fetch('/api/status', {cache:'no-store'}).then(r => { if (!r.ok) throw Error(); return r.json(); }).then(d => {
+      const banner = document.getElementById('master-link-status');
+      if (d.master_status === 'fresh') { banner.style.display = 'none'; return; }
+      banner.style.display = 'block';
+      banner.textContent = d.master_status === 'waiting' ? 'Ожидание данных от контроллера' : 'Нет связи с контроллером / данные устарели';
+    }).catch(() => { const b = document.getElementById('master-link-status'); b.style.display = 'block'; b.textContent = 'Не удалось получить статус контроллера'; });
   }
-  return "";
+  refreshMasterLink(); setInterval(refreshMasterLink, 2000);
+  </script>)rawliteral";
+  if (isCurrentRequestAdmin()) {
+    banner += "<div class='admin-mode-banner' style='background:#fff1d6;border:2px solid #e9a23b;color:#713f12;padding:14px;border-radius:10px;margin:0 0 18px;text-align:center;font-weight:700;'>⚠️ Расширенный режим активен: запись и OTA разрешены.<form method='POST' action='/admin/disable' style='margin:8px 0 0'><button class='btn' style='background:#b42318;margin:0' type='submit'>🔒 Перейти в безопасный режим</button></form></div>";
+  }
+  return banner;
 }
 
 // --- Вспомогательная функция для HTML обертки ---
@@ -893,20 +905,36 @@ void handleTable() {
       "100": ["Бит 0", "Бит 1", "Бит 2", "Бит 3", "Бит 4", "Бит 5", "Бит 6", "Бит 7", "Бит 8", "Бит 9", "Бит 10", "Бит 11", "Бит 12", "Бит 13", "Бит 14", "Бит 15"]
     };
 
-    function sendBit(addr, bit, state) {
-      // Отправляем команду и СРАЗУ вызываем обновление данных после ответа сервера
-      fetch('/api/write_bit', { method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded' }, body: new URLSearchParams({ addr, bit, state: state ? 1 : 0 }) })
-      .then(r => { if (r.status === 401) { window.location.href = '/admin?next=' + encodeURIComponent(window.location.pathname); return; } if(r.ok) setTimeout(updateData, 100); });
+    const commandOptions = [
+      [0x0101, 'Включить проветривание'], [0x0102, 'Сбросить аварию датчика температуры'],
+      [0x0103, 'Открыть лаз и зафиксировать'], [0x0104, 'Закрыть лаз и зафиксировать'],
+      [0x0105, 'Зафиксировать лаз'], [0x0106, 'Расфиксировать лаз'],
+      [0x0107, 'Сбросить ошибки датчика загазованности'],
+      [0x0108, 'Выдать корм кормушкой К1'], [0x0109, 'Выдать корм кормушкой К2'],
+      [0x010A, 'Выдать корм кормушкой К3'], [0x010B, 'Выдать корм кормушкой К4'],
+      [0x01FF, 'Перезагрузить контроллер']
+    ];
+    async function sendCommand() {
+      const message = document.getElementById('command-message');
+      const value = document.getElementById('command-select').value;
+      if (!value) { message.textContent = 'Выберите команду'; return; }
+      try {
+        const response = await fetch('/api/write_reg', {method:'POST', headers:{'Content-Type':'application/x-www-form-urlencoded'}, body:new URLSearchParams({addr:'100', value})});
+        if (response.status === 401) { window.location.href = '/admin?next=' + encodeURIComponent(window.location.pathname); return; }
+        const result = await response.text();
+        const errors = {register_busy:'Командный регистр занят', invalid_value:'Недопустимая команда', read_only:'Регистр доступен только для чтения', lock_busy:'Устройство занято, повторите запрос'};
+        message.textContent = response.ok ? 'Команда принята ESP32' : (errors[result] || 'Не удалось отправить команду');
+        updateCommands(); updateData();
+      } catch (_) { message.textContent = 'Ошибка связи с ESP32'; }
     }
-
-    function sendValue(addr, val) {
-      // Проверка диапазона перед отправкой
-      if (val < 0 || val > 255) {
-          alert("Значение должно быть от 0 до 255");
-          return;
-      }
-      fetch('/api/write_reg', { method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded' }, body: new URLSearchParams({ addr, value: val }) })
-          .then(r => { if (r.status === 401) { window.location.href = '/admin?next=' + encodeURIComponent(window.location.pathname); return; } if(r.ok) setTimeout(updateData, 100); });
+    function updateCommands() {
+      fetch('/api/commands', {cache:'no-store'}).then(r => { if (!r.ok) throw Error(); return r.json(); }).then(data => {
+        const target = document.getElementById('command-state');
+        if (!target) return;
+        const c = data['100'];
+        const labels = {idle:'Команды ещё не отправлялись', pending:'Ожидание выполнения команды', completed:'Выполнение подтверждено контроллером', unknown:'Состояние команды неизвестно'};
+        target.textContent = c.unconfirmed ? 'Команда не подтверждена' : (labels[c.status] || 'Состояние команды неизвестно');
+      }).catch(() => { const target = document.getElementById('command-state'); if (target) target.textContent = 'Не удалось получить состояние команды'; });
     }
 
     function updateData() {
@@ -929,19 +957,14 @@ void handleTable() {
           const titleText = regTitles[key] ? regTitles[key] : `Регистр №${key}`;
           const headerHtml = `<div style="background:#4e73df; color:white; padding:5px; margin-bottom:10px; border-radius:4px; font-size:14px; text-align:center; font-weight:bold; text-transform:uppercase;">${titleText}</div>`;
 
-          // --- КЕЙС 100 (ПАНЕЛЬ УПРАВЛЕНИЯ - ПЕРЕКЛЮЧАТЕЛИ) ---
+          // R100 is a 16-bit command, never a set of independent switches.
           if (key == "100") {
-            let html = headerHtml + `<div style="display:grid; grid-template-columns: 1fr 1fr; gap:8px; padding:4px;">`;
-            for (let i = 0; i < 16; i++) {
-              const isSet = (value >> i) & 1;
-              const name = bitNames[key] ? bitNames[key][i] : `Бит ${i}`;
-              html += `
-                <div style="display:flex; align-items:center; justify-content:space-between; background:#f8f9fc; padding:5px 8px; border-radius:6px; border:1px solid #eaecf4;">
-                  <span style="font-size:14px;">${name}</span>
-                  <label class="switch"><input type="checkbox" aria-label="${name}" ${isSet ? 'checked' : ''} onchange="sendBit(${key}, ${i}, this.checked)"><span class="slider"></span></label>
-                </div>`;
+            if (!document.getElementById('command-select')) {
+              const options = commandOptions.map(([code, label]) => `<option value="${code}">0x${code.toString(16).toUpperCase().padStart(4, '0')} — ${label}</option>`).join('');
+              valCell.innerHTML = headerHtml + `<label for="command-select">Команда контроллеру</label><select id="command-select"><option value="">Выберите команду</option>${options}</select><button type="button" class="btn" onclick="sendCommand()">Отправить</button><div id="command-message" role="status"></div><div id="command-state" role="status"></div><div>Значение R100: <span id="command-value"></span></div>`;
+              updateCommands();
             }
-            valCell.innerHTML = html + `</div>`;
+            document.getElementById('command-value').textContent = `0x${Number(value).toString(16).toUpperCase().padStart(4, '0')}`;
 
           // --- КЕЙС 0-4 (ТОЛЬКО ОТОБРАЖЕНИЕ БИТОВ - ЦЕНТРИРОВАНИЕ + ФОН) ---
           } else if (['0', '1', '2', '3', '4'].includes(key)) {
@@ -972,6 +995,7 @@ void handleTable() {
 
 
     setInterval(updateData, 1000);
+    setInterval(updateCommands, 1000);
     updateData();
     </script>
     )rawliteral";

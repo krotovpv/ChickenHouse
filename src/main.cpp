@@ -8,6 +8,8 @@
 #include <PubSubClient.h>
 #include "ModbusServerRTU.h"
 #include "registers.h"
+#include "gateway_state.h"
+#include "mqtt_command_input.h"
 #include "telegram.h"
 #include "web_pages.h"
 #include <Update.h> // Системная библиотека для работы с OTA (шить Flash/FS)
@@ -213,6 +215,71 @@ void handleAdminLogout() {
 
 // Хэндлы объектов FreeRTOS для асинхронного Modbus
 SemaphoreHandle_t modbusMutex = NULL;
+GatewayState gatewayState;
+
+const char* masterStatusName(MasterStatus status) {
+  switch (status) {
+    case MasterStatus::waiting: return "waiting";
+    case MasterStatus::fresh: return "fresh";
+    default: return "stale";
+  }
+}
+
+const char* commandStatusName(CommandStatus status) {
+  switch (status) {
+    case CommandStatus::pending: return "pending";
+    case CommandStatus::completed: return "completed";
+    case CommandStatus::unknown: return "unknown";
+    default: return "idle";
+  }
+}
+
+const char* writeResultReason(WriteResult result) {
+  switch (result) {
+    case WriteResult::readOnly: return "read_only";
+    case WriteResult::invalidValue: return "invalid_value";
+    case WriteResult::busy: return "register_busy";
+    default: return "";
+  }
+}
+
+// The register check, command state and register update form one transaction.
+WriteResult submitCommand(uint16_t address, uint16_t value, bool mqtt, const char* requestId, bool& locked) {
+  locked = modbusMutex && xSemaphoreTake(modbusMutex, pdMS_TO_TICKS(100)) == pdTRUE;
+  if (!locked) return WriteResult::busy;
+  auto it = memo.find(address);
+  uint16_t unused = 0;
+  WriteResult result = gatewayState.submit(address, value, it == memo.end() ? unused : it->second,
+                                           mqtt, requestId, millis());
+  xSemaphoreGive(modbusMutex);
+  return result;
+}
+
+void publishCommandResult(int address, int value, const char* status, const char* reason, const char* requestId) {
+  if (!mqttClient.connected()) return;
+  JsonDocument doc;
+  if (address >= 0) doc["address"] = address; else doc["address"] = nullptr;
+  if (value >= 0) doc["value"] = value; else doc["value"] = nullptr;
+  doc["status"] = status;
+  if (reason && *reason) doc["reason"] = reason;
+  if (requestId && *requestId) doc["request_id"] = requestId;
+  String payload;
+  serializeJson(doc, payload);
+  if (!mqttClient.publish((mqtt_topic + "/result").c_str(), payload.c_str()))
+    Serial.println("MQTT: не удалось отправить результат команды");
+}
+
+void publishMasterStatus() {
+  if (!mqttClient.connected() || !modbusMutex || xSemaphoreTake(modbusMutex, pdMS_TO_TICKS(50)) != pdTRUE) return;
+  MasterStatus status = gatewayState.masterStatus(millis());
+  xSemaphoreGive(modbusMutex);
+  JsonDocument doc;
+  doc["master_status"] = masterStatusName(status);
+  String payload;
+  serializeJson(doc, payload);
+  if (!mqttClient.publish((mqtt_topic + "/status").c_str(), payload.c_str()))
+    Serial.println("MQTT: не удалось отправить статус Master");
+}
 
 bool snapshotRegisters(std::map<uint16_t, uint16_t>& snapshot) {
   if (modbusMutex == NULL || xSemaphoreTake(modbusMutex, pdMS_TO_TICKS(100)) != pdTRUE) return false;
@@ -315,6 +382,7 @@ void reconnectMQTT() {
       Serial.println("MQTT подключен!");
       String setTopic = mqtt_topic + "/set";
       mqttClient.subscribe(setTopic.c_str());
+      publishMasterStatus();
     } else {
       Serial.print("Ошибка, rc=");
       Serial.println(mqttClient.state());
@@ -323,47 +391,31 @@ void reconnectMQTT() {
 }
 
 void mqttCallback(char* topic, byte* payload, unsigned int length) {
-    JsonDocument doc;
-    if (deserializeJson(doc, payload, length)) {
-      Serial.println("MQTT: некорректный JSON");
-      return;
-    }
-
-    // Проверяем наличие базовых полей: адрес регистра обязателен
-    if (doc["address"].is<uint16_t>()) {
-      uint16_t addr = doc["address"];
-        
-      bool changed = false;
-      if (xSemaphoreTake(modbusMutex, pdMS_TO_TICKS(100)) == pdTRUE) {
-        auto registerIt = memo.find(addr);
-        // Сценарий 1: Изменение конкретного бита (флага)
-        // Ожидаем JSON: {"address": 3, "bit": 0, "state": 1}
-        if (registerIt != memo.end() && doc["bit"].is<uint8_t>() && (doc["state"].is<bool>() || doc["state"].is<uint8_t>())) {
-            uint8_t bitNum = doc["bit"].as<uint8_t>();
-            int bitStateValue = doc["state"].is<bool>() ? (doc["state"].as<bool>() ? 1 : 0) : doc["state"].as<int>();
-            
-            if (bitNum < 16 && (bitStateValue == 0 || bitStateValue == 1)) {
-                uint16_t currentVal = registerIt->second;
-                if (bitStateValue) {
-                    currentVal |= (1U << bitNum);
-                } else {
-                    currentVal &= ~(1U << bitNum);
-                }
-                registerIt->second = currentVal;
-                changed = true;
-                Serial.printf("MQTT Bit Write: Регистр %d, Бит %d установлен в %d\n", addr, bitNum, bitStateValue);
-            }
-        } 
-        else if (registerIt != memo.end() && doc["value"].is<uint16_t>()) {
-            uint16_t val = doc["value"].as<uint16_t>();
-            registerIt->second = val;
-            changed = true;
-            Serial.printf("MQTT Write: Регистр %d установлен в %d\n", addr, val);
-        }
-        xSemaphoreGive(modbusMutex);
-        if (changed) publishModbusData();
-      }
-    }
+  JsonDocument doc;
+  if (deserializeJson(doc, payload, length)) {
+    publishCommandResult(-1, -1, "rejected", "invalid_json", nullptr);
+    return;
+  }
+  const char* requestId = nullptr;
+  int address = doc["address"].is<uint16_t>() ? doc["address"].as<uint16_t>() : -1;
+  int value = doc["value"].is<uint16_t>() ? doc["value"].as<uint16_t>() : -1;
+  if (!readRequestId(doc["request_id"], requestId)) {
+    publishCommandResult(address, value, "rejected", "invalid_request_id", nullptr);
+    return;
+  }
+  if (!doc["bit"].isNull() || !doc["state"].isNull()) {
+    publishCommandResult(address, value, "rejected", "bit_write_forbidden", requestId);
+    return;
+  }
+  if (address < 0 || value < 0) {
+    publishCommandResult(address, value, "rejected", "invalid_arguments", requestId);
+    return;
+  }
+  bool locked;
+  WriteResult result = submitCommand(address, value, true, requestId, locked);
+  publishCommandResult(address, value, result == WriteResult::accepted ? "accepted" : "rejected",
+                       locked ? writeResultReason(result) : "lock_busy", requestId);
+  if (result == WriteResult::accepted && locked) publishModbusData();
 }
 
 // ОБРАБОТЧИК: Чтение (FC 03), Запись (FC 06), Запись массива (FC 16)
@@ -402,7 +454,9 @@ ModbusMessage handleModbus(ModbusMessage request) {
       if (request.size() != 6 || memo.find(address) == memo.end()) {
         response = ModbusMessage(request.getServerID(), fc | 0x80, ILLEGAL_DATA_ADDRESS);
       } else {
-        memo.find(address)->second = countOrValue;
+        auto& reg = memo.find(address)->second;
+        gatewayState.masterWrite(address, reg, countOrValue, millis());
+        reg = countOrValue;
         response = request;
       }
       break;
@@ -414,7 +468,9 @@ ModbusMessage handleModbus(ModbusMessage request) {
         for (uint16_t i = 0; i < countOrValue; ++i) {
           uint16_t value = 0;
           request.get(7 + i * 2, value);
-          memo.find(address + i)->second = value;
+          auto& reg = memo.find(address + i)->second;
+          gatewayState.masterWrite(address + i, reg, value, millis());
+          reg = value;
         }
         response.add(request.getServerID(), fc, address, countOrValue);
       }
@@ -449,6 +505,13 @@ void handleApiScan() {
 void handleApiStatus() {
   JsonDocument doc;
   bool isWifiConnected = (WiFi.status() == WL_CONNECTED);
+  if (!modbusMutex || xSemaphoreTake(modbusMutex, pdMS_TO_TICKS(50)) != pdTRUE) {
+    webServer.send(503, "text/plain", "lock_busy");
+    return;
+  }
+  MasterStatus masterStatus = gatewayState.masterStatus(millis());
+  xSemaphoreGive(modbusMutex);
+  doc["master_status"] = masterStatusName(masterStatus);
   
   doc["wifi_conn"] = isWifiConnected;
   doc["mqtt_conn"] = mqttClient.connected(); // Статус MQTT
@@ -461,6 +524,27 @@ void handleApiStatus() {
   
   String json;
   serializeJson(doc, json);
+  webServer.send(200, "application/json", json);
+}
+
+void handleApiCommands() {
+  if (!modbusMutex || xSemaphoreTake(modbusMutex, pdMS_TO_TICKS(50)) != pdTRUE) {
+    webServer.send(503, "text/plain", "lock_busy");
+    return;
+  }
+  CommandState states[2] = {gatewayState.command(100), gatewayState.command(101)};
+  bool timeout = gatewayState.timedOut(100, millis());
+  xSemaphoreGive(modbusMutex);
+  JsonDocument doc;
+  for (int i = 0; i < 2; ++i) {
+    JsonObject command = doc[String(100 + i)].to<JsonObject>();
+    command["value"] = states[i].value;
+    command["status"] = commandStatusName(states[i].status);
+    command["unconfirmed"] = i == 0 && timeout;
+  }
+  String json;
+  serializeJson(doc, json);
+  webServer.sendHeader("Cache-Control", "no-store");
   webServer.send(200, "application/json", json);
 }
 
@@ -647,6 +731,7 @@ void setup() {
   webServer.on("/api/data", handleApiData);
   webServer.on("/api/scan", handleApiScan);
   webServer.on("/api/status", handleApiStatus);
+  webServer.on("/api/commands", HTTP_GET, handleApiCommands);
   webServer.on("/settings", handleSettings);
   webServer.on("/admin", HTTP_GET, handleAdminPage);
   webServer.on("/admin/enable", HTTP_POST, handleAdminLogin);
@@ -669,60 +754,27 @@ void setup() {
   // Эндпоинты записи битов и регистров (защищены мьютексом)
   webServer.on("/api/write_bit", HTTP_POST, []() {
     if (!requireAdminApiSession("/table")) return;
-    if (webServer.hasArg("addr") && webServer.hasArg("bit") && webServer.hasArg("state")) {
-      uint32_t addrValue, bitValue, stateValue;
-      if (!parseUnsignedArg(webServer.arg("addr"), 65535, addrValue) ||
-          !parseUnsignedArg(webServer.arg("bit"), 15, bitValue) ||
-          !parseUnsignedArg(webServer.arg("state"), 1, stateValue)) {
-        webServer.send(400, "text/plain", "Invalid arguments");
-        return;
-      }
-      uint16_t addr = static_cast<uint16_t>(addrValue);
-      uint8_t bit = static_cast<uint8_t>(bitValue);
-        
-      if (xSemaphoreTake(modbusMutex, pdMS_TO_TICKS(50)) == pdTRUE) {
-        auto registerIt = memo.find(addr);
-        if (registerIt == memo.end()) {
-          xSemaphoreGive(modbusMutex);
-          webServer.send(404, "text/plain", "Not Found");
-          return;
-        }
-        if (stateValue) registerIt->second |= (1U << bit);
-        else registerIt->second &= ~(1U << bit);
-        xSemaphoreGive(modbusMutex);
-        publishModbusData();
-        webServer.send(200, "text/plain", "OK");
-      } else {
-        webServer.send(503, "text/plain", "Busy");
-      }
-    } else webServer.send(400, "text/plain", "Missing arguments");
+    webServer.send(403, "text/plain", "bit_write_forbidden");
   });
   webServer.on("/api/write_reg", HTTP_POST, []() {
     if (!requireAdminApiSession("/table")) return;
-    if (webServer.hasArg("addr") && webServer.hasArg("value")) {
-        uint32_t addrValue, registerValue;
-        if (!parseUnsignedArg(webServer.arg("addr"), 65535, addrValue) ||
-            !parseUnsignedArg(webServer.arg("value"), 65535, registerValue)) {
-            webServer.send(400, "text/plain", "Invalid arguments");
-            return;
-        }
-        uint16_t addr = static_cast<uint16_t>(addrValue);
-        uint16_t val = static_cast<uint16_t>(registerValue);
-        
-        if (xSemaphoreTake(modbusMutex, pdMS_TO_TICKS(50)) == pdTRUE) {
-            if (memo.count(addr)) {
-                memo[addr] = val;
-                xSemaphoreGive(modbusMutex);
-                publishModbusData(); 
-                webServer.send(200, "text/plain", "OK");
-            } else {
-                xSemaphoreGive(modbusMutex);
-                webServer.send(404, "text/plain", "Not Found");
-            }
-        } else {
-            webServer.send(503, "text/plain", "Busy");
-        }
-    } else webServer.send(400, "text/plain", "Missing arguments");
+    uint32_t address, value;
+    if (!webServer.hasArg("addr") || !webServer.hasArg("value") ||
+        !parseUnsignedArg(webServer.arg("addr"), 65535, address) ||
+        !parseUnsignedArg(webServer.arg("value"), 65535, value)) {
+      webServer.send(400, "text/plain", "invalid_arguments");
+      return;
+    }
+    bool locked;
+    WriteResult result = submitCommand(address, value, false, nullptr, locked);
+    if (!locked) webServer.send(503, "text/plain", "lock_busy");
+    else if (result == WriteResult::accepted) {
+      publishModbusData();
+      webServer.send(200, "text/plain", "accepted");
+    } else {
+      int status = result == WriteResult::busy ? 409 : result == WriteResult::readOnly ? 403 : 400;
+      webServer.send(status, "text/plain", writeResultReason(result));
+    }
   });
   const char* headerKeys[] = {"Cookie"};
   webServer.collectHeaders(headerKeys, 1);
@@ -754,6 +806,28 @@ void setup() {
 void loop() {
   dnsServer.processNextRequest(); // Обработка DNS-запросов (перехват доменов для Captive Portal)
   webServer.handleClient(); // Обработка входящих веб-запросов от пользователей (смартфоны/ПК)
+
+  // Transfer Modbus events while holding the mutex; perform network I/O only after releasing it.
+  CommandEvent completed;
+  bool haveCompleted = false;
+  MasterStatus currentMasterStatus = MasterStatus::waiting;
+  bool haveStatus = false;
+  if (modbusMutex && xSemaphoreTake(modbusMutex, 0) == pdTRUE) {
+    gatewayState.tick(millis());
+    haveCompleted = gatewayState.popCompletion(completed);
+    currentMasterStatus = gatewayState.masterStatus(millis());
+    haveStatus = true;
+    xSemaphoreGive(modbusMutex);
+  }
+  if (haveCompleted) publishCommandResult(completed.address, completed.value, "completed", nullptr, completed.requestId);
+  static MasterStatus lastPublishedStatus = MasterStatus::waiting;
+  static uint32_t lastStatusPush = 0;
+  if (haveStatus && mqttClient.connected() &&
+      (currentMasterStatus != lastPublishedStatus || (uint32_t)(millis() - lastStatusPush) >= 10000)) {
+    publishMasterStatus();
+    lastPublishedStatus = currentMasterStatus;
+    lastStatusPush = millis();
+  }
 
   // Работаем с MQTT-брокером только при наличии стабильного интернет-соединения
   if (WiFi.status() == WL_CONNECTED) {
