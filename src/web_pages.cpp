@@ -1,4 +1,5 @@
 #include "web_pages.h"
+#include "version.h"
 
 extern bool isCurrentRequestAdmin();
 
@@ -145,7 +146,7 @@ String getHeader(String title) {
   html += "<div class='container'>";
   
   // Блок критических аварий (скрыт по умолчанию, появляется при ошибках)
-  html += "<div id='alert-banner' class='alert-banner'>⚠️ ВНИМАНИЕ: Обнаружены активные ошибки или неисправности!</div>";
+  html += "<div id='alert-banner' class='alert-banner' role='alert'><div>⚠️ Обнаружены аварии или ошибки</div><div id='alert-details'></div><a href='/alerts'>Подробнее</a></div>";
 
   // --- НОВАЯ КАРТОЧКА: ТЕМПЕРАТУРА И ВЛАЖНОСТЬ ---
   html += "<div class='card'>";
@@ -236,6 +237,21 @@ String getHeader(String title) {
   // Скрипт динамического обновления
   html += R"rawliteral(
   <script>
+  function activeAlarmDescriptions(data) {
+    const r1 = Number(data[1]) || 0, r3 = Number(data[3]) || 0;
+    const alarms = [];
+    if (r1 & (1 << 9)) alarms.push('Авария батарейки');
+    if (r1 & (1 << 10)) alarms.push('Авария датчика температуры');
+    if (r3 & (1 << 5)) alarms.push('Ошибка расчёта вентиляции');
+    if (r3 & (1 << 9)) alarms.push('Ошибка при кормлении');
+    const labels = ['кормушки К1', 'кормушки К2', 'кормушки К3', 'кормушки К4', 'модуля Wi-Fi'];
+    labels.forEach((label, i) => {
+      const count = Number(data[48 + i]) || 0;
+      if (count > 0) alarms.push('Ошибки ' + label + ': ' + count);
+    });
+    return alarms;
+  }
+  // END activeAlarmDescriptions
   // Утилита для перевода минут из регистров в ЧЧ:ММ
   function parseMinutesToTime(totalMinutes) {
     if (totalMinutes === undefined || totalMinutes === null || isNaN(totalMinutes)) return "--:--";
@@ -327,14 +343,10 @@ String getHeader(String title) {
 
       // ЛОГИКА ДЛЯ НАГРЕВАТЕЛЯ
       const isHeaterOn = (r0 >> 14) & 1;       // Рег 0 Бит 14
-      const isEmergency1 = (r1 >> 10) & 1;     // Рег 1 Бит 10
-      const isEmergency2 = (r1 >> 5) & 1;      // Рег 1 Бит 5
 
       const heaterEl = document.getElementById('heater-status');
       if (heaterEl) {
-        if (isEmergency1 === 1 && isEmergency2 === 1) {
-          heaterEl.innerHTML = "<span style='color:#dc3545; font-weight:bold;'>Аварийное управление ⚠️</span>";
-        } else if (isHeaterOn === 1) {
+        if (isHeaterOn === 1) {
           heaterEl.innerHTML = "<span style='color:#16a34a;'>Включен 🟢</span>";
         } else {
           heaterEl.innerHTML = "<span style='color:#64748b;'>Выключен ⚪</span>";
@@ -342,7 +354,7 @@ String getHeader(String title) {
       }
 
       // ЛОГИКА ДЛЯ ОСУШИТЕЛЯ
-      const isDehumidifierUsed = (r4 >> 12) & 1; // Рег 4 Бит 12 (Используется ли осушитель)
+      const isDehumidifierUsed = (r4 >> 4) & 1; // Рег 4 Бит 4 (используется осушитель)
       const isDehumidifierOn = (r0 >> 15) & 1;   // Рег 0 Бит 15 (Включен/Выключен)
 
       const rowDehumidifier = document.getElementById('row-dehumidifier');
@@ -644,13 +656,9 @@ String getHeader(String title) {
       }
 
       // АНАЛИЗ АВАРИЙ И ОШИБОК
-      const batteryAlarm = (r1 >> 9) & 1;
-      const sensorAlarm = (r1 >> 10) & 1;
-      const calcAlarm = (r3 >> 5) & 1;
-      const feedAlarm = (r3 >> 9) & 1;
-      const feederErrors = (data["48"] || 0) + (data["49"] || 0) + (data["50"] || 0) + (data["51"] || 0) + (data["52"] || 0);
-      const hasAnyError = batteryAlarm || sensorAlarm || calcAlarm || feedAlarm || feederErrors > 0;
-      document.getElementById('alert-banner').style.display = hasAnyError ? "block" : "none";
+      const alarms = activeAlarmDescriptions(data);
+      document.getElementById('alert-details').innerText = alarms.join('; ');
+      document.getElementById('alert-banner').style.display = alarms.length ? "block" : "none";
 
     }).catch(err => console.error("Ошибка API данных:", err));
   }
@@ -893,11 +901,11 @@ void handleTable() {
     // Названия для битов регистров
     const bitNames = {
       "0": ["Охлаждение", "Задержка управления", "Загазованно (датчик)", "Темп. ниже нуля (улица)", "Темп. ниже нуля (курятник)", "Прием команд", "Передача включена", "Связь с удаленным модулем",
-            "Вкл. движение вниз", "Вкл. движение вверх", "Основное освещение", "Дежурное освещение", "Приточный вентилятор", "Вытяжной вентилятор", "Нагрев", "-"],
-      "1": ["Сон по расписанию", "На улице светло", "Дверь открыта", "Вкл. авто. проветривание", "Вкл. ручн. проветривание", "-", "Коррекция вентиляторов", "Управление осушителем", 
+            "Вкл. движение вниз", "Вкл. движение вверх", "Основное освещение", "Дежурное освещение", "Приточный вентилятор", "Вытяжной вентилятор", "Нагрев", "Реле осушителя"],
+      "1": ["Сон по расписанию", "На улице светло", "Дверь открыта", "Вкл. авто. проветривание", "Вкл. ручн. проветривание", "Аварийный режим нагревателя", "Коррекция вентиляторов", "Управление осушителем",
             "Датч. загаз. превышен (в час)", "Авария батарейки", "Авария датчика температуры", "Опрос датчика газа", "Опрос датчика двери", "Упр. вентиляторами днем", "Упр. вентиляторами во время сна", "Ручн. упр. вентиляцией"],
-      "2": ["Упр. лазом по календарю", "Упр. закрытием лаза по расписанию", "Включен экран отображения вентиляции", "Включен экран отображения температур", "Упр. вентиляцией по ГОСТ", "-", "Запрет открытия лаза по температуре", "Запрет открытия лаза по температуре на улице", 
-            "Лаз открыт", "Лаз закрыт", "Ручн. режим упр. лазом", "Есть движение лаза", "Лаз зафиксирован", "Занято направлением движения лаза", "Занято направлением движения", "Упр. лазом по температуре"],
+      "2": ["Упр. лазом по календарю", "Упр. закрытием лаза по расписанию", "Включен экран отображения вентиляции", "Включен экран отображения температур", "Упр. вентиляцией по ГОСТ", "Лаз используется", "Запрет открытия лаза по температуре", "Запрет открытия лаза по температуре на улице",
+            "Лаз открыт", "Лаз в крайнем положении", "Ручн. режим упр. лазом", "Есть движение лаза", "Лаз зафиксирован", "Резерв", "Резерв", "Упр. лазом по температуре"],
       "3": ["Упр. светом использует календарь", "При окткл. календаре свет горит постоянно", "Настройка по Wi-Fi", "Находимся в меню НАСТРОЙКА", "Находимся в одном из ручных режимов управления", "Ошибка при расчете вентиляции", "Нажата кнопка на приборе", "Управление охлаждением", 
             "Пропуски кормления", "Ошибки при кормлении", "-", "Кормление за сутки закончилось", "Количество кормлений = 0", "-", "Включен режим ручного кормления", "Отработка пропусков кормления"],
       "4": ["Подключена К1", "Подключена К2", "Подключена К3", "Подключена К4", "Используется осушитель", "-", "-", "-", 
@@ -1090,7 +1098,7 @@ void handleLight() {
   html += "<div class='status-row'><span>Время заката солнца (R37):</span><span id='r_37' class='val-box'>--</span></div>";
   html += "<div class='status-row'><span>Записанное время подъема (R38):</span><span id='r_38' class='val-box'>--</span></div>";
   html += "<div class='status-row'><span>Записанное время отбоя (R39):</span><span id='r_39' class='val-box'>--</span></div>";
-  html += "<div class='status-row'><span>Время дежурного освещения (R45):</span><span id='r_45' class='val-box'>--</span></div>";
+  html += "<div class='status-row'><span>Длительность дежурного освещения, мин (R45):</span><span id='r_45' class='val-box'>--</span></div>";
   html += "<div class='status-row'><span>Время сумерек (R46):</span><span id='r_46' class='val-box'>--</span></div>";
   html += "</div>";
 
@@ -1151,11 +1159,12 @@ void handleLight() {
         updateBitBadge('b_3_1', (r3 >> 1) & 1, "Да", "Нет");
 
         // Обновление оперативных регистров времени
-        const regList = [36, 37, 38, 39, 45, 46];
+        const regList = [36, 37, 38, 39, 46];
         regList.forEach(reg => {
           let el = document.getElementById('r_' + reg);
           if (el && data[reg] !== undefined) el.innerText = minToHm(data[reg]);
         });
+        if (data[45] !== undefined) document.getElementById('r_45').innerText = data[45] + ' мин';
 
         // Обновление календаря (регистры 72-83 и 84-95)
         for (let i = 0; i < 12; i++) {
@@ -1217,6 +1226,12 @@ void handleAlerts() {
   html += "<div class='container'>";
   html += "<h2>⚠️ Аварии и ошибки шлюза</h2>";
 
+  html += "<div class='card'><h3>Уведомление о влажности</h3><form method='POST' action='/saveAlerts'>";
+  html += "<label><input type='checkbox' name='enabled'" + String(humidityEnabled ? " checked" : "") + "> Уведомлять о высокой влажности</label>";
+  html += "<label for='humidity-limit'>Верхний предел влажности, %</label><input id='humidity-limit' name='limit' type='number' min='0' max='100' value='" + String(humidityLimit) + "' required>";
+  html += "<label><input type='checkbox' name='repeat'" + String(humidityRepeat ? " checked" : "") + "> Повторять, пока влажность превышает предел</label>";
+  html += "<label for='humidity-minutes'>Период повторов, минут</label><input id='humidity-minutes' name='minutes' type='number' min='1' max='10080' value='" + String(humidityRepeatMinutes) + "' required><button class='btn' type='submit'>Сохранить</button></form></div>";
+
   // Блок 1: Активные аварии (Биты)
   html += "<div class='card'>";
   html += "<h3>Критические аварии (Биты)</h3>";
@@ -1227,6 +1242,9 @@ void handleAlerts() {
   html += "<div id='row_b_3_9' class='alert-row'><span>Ошибка при кормлении (R3:B9)</span><span id='b_3_9' class='badge bg-normal'>Норма</span></div>";
   
   html += "</div>";
+
+  html += "<div class='card'><h3>Режимы управления</h3>";
+  html += "<div class='status-row'><span>Аварийный режим нагревателя (R1:B5)</span><span id='b_1_5' class='badge bg-normal'>--</span></div></div>";
 
   // Блок 2: Счетчики ошибок (Регистры)
   html += "<div class='card'>";
@@ -1254,6 +1272,10 @@ void handleAlerts() {
         // Чтение регистров для битовых масок
         let r1 = data["1"] || 0;
         let r3 = data["3"] || 0;
+
+        const heaterEmergency = document.getElementById('b_1_5');
+        heaterEmergency.innerText = ((r1 >> 5) & 1) ? 'Включён' : 'Выключен';
+        heaterEmergency.className = ((r1 >> 5) & 1) ? 'badge bg-alarm' : 'badge bg-normal';
 
         // Проверка битов 1 регистра
         updateAlarmState('b_1_9', 'row_b_1_9', (r1 >> 9) & 1, "АВАРИЯ");
@@ -1360,7 +1382,7 @@ void handleFeeding() {
   html += "<h3>Следующее кормление</h3>";
   html += "<div class='status-row'><span>Номер кормушки (R12):</span><span id='r_12' class='val-box'>--</span></div>";
   html += "<div class='status-row'><span>Время начала (R16):</span><span id='r_16' class='val-box'>--</span></div>";
-  html += "<div class='status-row'><span>Длительность, мин (R13):</span><span id='r_13' class='val-box'>--</span></div>";
+  html += "<div class='status-row'><span>Длительность, сек (R13):</span><span id='r_13' class='val-box'>--</span></div>";
   html += "</div>";
 
   // Блок 4: Статус оборудования (Кормушки и модули)
@@ -1387,7 +1409,7 @@ void handleFeeding() {
   html += "<div class='card'>";
   html += "<h3>График и длительность кормлений (1-15)</h3>";
   html += "<table>";
-  html += "<thead><tr><th>№</th><th>Время кормления</th><th>Длительность</th></tr></thead>";
+  html += "<thead><tr><th>№</th><th>Время кормления</th><th>Кормушка и длительность</th></tr></thead>";
   html += "<tbody>";
   for (int i = 1; i <= 15; i++) {
     int r_time = 110 + (i - 1);
@@ -1408,6 +1430,9 @@ void handleFeeding() {
   // JavaScript AJAX скрипт динамического обновления
   html += R"rawliteral(
   <script>
+  function formatFeedingRegister(value) {
+    return 'Кормушка ' + ((Number(value) >> 13) & 7) + ': ' + ((Number(value) & 0x1fff) / 10).toFixed(1) + ' сек';
+  }
   function minToHm(val) {
     if (val === undefined || val === null || val === "") return '--';
     const totalMinutes = parseInt(val);
@@ -1442,7 +1467,7 @@ void handleFeeding() {
         if (data[12] !== undefined) document.getElementById('r_12').innerText = data[12]; // Номер кормушки
         if (data[14] !== undefined) document.getElementById('r_14').innerText = data[14]; // Пройдено за сутки
         if (data[15] !== undefined) document.getElementById('r_15').innerText = data[15]; // План
-        if (data[56] !== undefined) document.getElementById('r_56').innerText = data[56]; // Масса
+        if (data[56] !== undefined) document.getElementById('r_56').innerText = (Number(data[56]) / 10).toFixed(1) + ' кг';
         if (data[57] !== undefined) document.getElementById('r_57').innerText = data[57]; // Кол-во птиц
 
         // Форматирование времени для текущих уставок кормления
@@ -1459,7 +1484,7 @@ void handleFeeding() {
 
           let dEl = document.getElementById('r_' + dReg);
           if (dEl && data[dReg] !== undefined) {
-            dEl.innerText = (parseInt(data[dReg]) / 10).toFixed(1) + " сек";
+            dEl.innerText = formatFeedingRegister(data[dReg]);
           }
         }
       })
@@ -1516,8 +1541,6 @@ void handleDoor() {
   html += "<div class='status-row'><span>Состояние движения (R2:B11):</span><span id='b_2_11' class='badge bg-neutral'>Стоит</span></div>";
   html += "<div class='status-row'><span>Направление движения (R0):</span><div><span id='b_0_9' class='badge bg-neutral'>Вверх ⬆️</span> <span id='b_0_8' class='badge bg-neutral'>Вниз ⬇️</span></div></div>";
   html += "<div class='status-row'><span>Лаз зафиксирован (R2:B12):</span><span id='b_2_12' class='badge bg-neutral lock-status'>Нет</span></div>";
-  html += "<div class='status-row'><span>Занято направлением движения лаза (R2:B13):</span><span id='b_2_13' class='badge bg-neutral'>Нет</span></div>";
-  html += "<div class='status-row'><span>Занято направлением движения (R2:B14):</span><span id='b_2_14' class='badge bg-neutral'>Нет</span></div>";
   html += "</div>";
 
   // Блок 2: Режимы работы и температурные блокировки
@@ -1608,8 +1631,6 @@ void handleDoor() {
             lockStatus.className = "badge bg-danger lock-status";
           }
         }
-        updateBadge('b_2_13', (r2 >> 13) & 1, "ЗАНЯТО", "Нет", "bg-danger", "bg-neutral");
-        updateBadge('b_2_14', (r2 >> 14) & 1, "ЗАНЯТО", "Нет", "bg-danger", "bg-neutral");
         updateBadge('b_2_15', (r2 >> 15) & 1, "Вкл", "Выкл", "bg-success", "bg-neutral");
 
         const timeRegs = [9, 10, 40, 41, 42]; // Регистры абсолютного времени суток
@@ -1624,7 +1645,7 @@ void handleDoor() {
 
         // Регистр 43 — Время хода привода в секундах
         let el43 = document.getElementById('r_43');
-        if (el43 && data[43] !== undefined) el43.innerText = data[43] + " сек";
+        if (el43 && data[43] !== undefined) el43.innerText = (Number(data[43]) / 10).toFixed(1) + " сек";
       })
       .catch(err => console.error("Ошибка обновления данных лаза:", err));
   }
@@ -1690,10 +1711,10 @@ void handleVentilation() {
   html += "</div><div>";
   html += "<div class='status-row'><span>Проветриваний за час (R34)</span><span id='r_34' class='val-box'>--</span></div>";
   html += "<div class='status-row'><span>Допустимо проветриваний в час (R58)</span><span id='r_58' class='val-box'>--</span></div>";
-  html += "<div class='status-row'><span>Время смены воздуха, сек (R35)</span><span id='r_35' class='val-box'>--</span></div>";
+  html += "<div class='status-row'><span>Время смены воздуха, мин (R35)</span><span id='r_35' class='val-box'>--</span></div>";
   html += "</div></div></div>";
 
-  html += "<div class='card'><h3>Расчетный объем свежего воздуха (м³)</h3><table><thead><tr><th>Режим расчета</th><th>Лето</th><th>Зима</th><th>Осень</th></tr></thead><tbody>";
+  html += "<div class='card'><h3>Расчетный объем свежего воздуха (м³/(ч·кг))</h3><table><thead><tr><th>Режим расчета</th><th>Лето</th><th>Зима</th><th>Осень</th></tr></thead><tbody>";
   html += "<tr><td><b>По ГОСТ</b></td><td id='r_60'>--</td><td id='r_61'>--</td><td id='r_62'>--</td></tr>";
   html += "<tr><td><b>Текущий расчет</b></td><td id='r_63'>--</td><td id='r_64'>--</td><td id='r_65'>--</td></tr></tbody></table></div>";
   html += "<a href='/autoChickenHous' class='btn'>⬅️ Назад в меню</a></div>";
@@ -1726,7 +1747,7 @@ void handleVentilation() {
         setBadge('b_3_7', (r3 >> 7) & 1, 'Вкл', 'Выкл');
         [31,32,34,35,44,53,54,55,58,60,61,62,63,64,65].forEach(reg => {
           const el = document.getElementById('r_' + reg);
-          if (el && data[reg] !== undefined) el.textContent = data[reg];
+          if (el && data[reg] !== undefined) el.textContent = reg >= 60 && reg <= 65 ? (Number(data[reg]) / 10).toFixed(1) : data[reg];
         });
       }).catch(error => console.error('Ошибка обновления вентиляции:', error));
     }
@@ -1875,6 +1896,7 @@ void handleClimate() {
 // 5. Страница настроек
 void handleSettings() {
   String html = getHeader("Настройки шлюза");
+  html += "<p>Версия прошивки: <strong>" + String(FIRMWARE_VERSION) + "</strong></p>";
   
   // Дополнительно форсируем ограничение ширины для всех внутренних элементов карточек
   //html += "<style>.card { max-width: 100%; box-sizing: border-box; }</style>";
@@ -1944,6 +1966,10 @@ void handleSettings() {
   html += "<input id='tg-chat' type='text' name='tg_chat' value='' placeholder='Новый ID чата (необязательно)' autocomplete='off' aria-describedby='tg-chat-hint'>";
   html += "<input type='submit' value='💾 Сохранить и перезагрузить' class='btn' style='background:#28a745; width:100%'>";
   html += "</form></div>";
+
+  html += "<div class='card'><h3>Пароль точки доступа</h3><p>После сохранения переподключитесь к ChickenHous с новым паролем.</p>";
+  html += "<form action='/savePasswords' method='POST'><input type='hidden' name='kind' value='ap'><label for='ap-new'>Новый пароль (8–63 печатных ASCII-символа)</label><input id='ap-new' type='password' name='password' minlength='8' maxlength='63' autocomplete='new-password' required><label for='ap-confirm'>Повторите пароль</label><input id='ap-confirm' type='password' name='confirm' minlength='8' maxlength='63' autocomplete='new-password' required><button class='btn' type='submit'>Сменить пароль точки доступа</button></form></div>";
+  html += "<div class='card'><h3>Пароль администратора</h3><form action='/savePasswords' method='POST'><input type='hidden' name='kind' value='admin'><label for='admin-current'>Текущий пароль</label><input id='admin-current' type='password' name='current' autocomplete='current-password' required><label for='admin-new'>Новый пароль (не менее 12 символов)</label><input id='admin-new' type='password' name='password' minlength='12' autocomplete='new-password' required><label for='admin-confirm'>Повторите пароль</label><input id='admin-confirm' type='password' name='confirm' minlength='12' autocomplete='new-password' required><button class='btn' type='submit'>Сменить пароль администратора</button></form></div>";
   
   html += "</body></html>";
 

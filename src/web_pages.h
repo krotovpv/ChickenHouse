@@ -15,6 +15,10 @@ extern String mqtt_host;
 extern int mqtt_port;
 extern String BOT_TOKEN;
 extern String CHAT_ID;
+extern uint8_t humidityLimit;
+extern bool humidityEnabled;
+extern bool humidityRepeat;
+extern uint16_t humidityRepeatMinutes;
 bool snapshotRegisters(std::map<uint16_t, uint16_t>& snapshot);
 
 // Прототипы функций сохранения настроек, которые остаются в главном файле

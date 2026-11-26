@@ -1,7 +1,9 @@
 #include "telegram.h"
+#include "humidity_control.h"
 #include <time.h>
 
 extern bool snapshotRegisters(std::map<uint16_t, uint16_t>& snapshot);
+extern bool snapshotHumidity(uint16_t&, bool&, uint8_t&, bool&, bool&, uint16_t&);
 
 static bool wasAlarmActive = false;
 
@@ -49,8 +51,8 @@ static String urlEncode(const String& value) {
   return encoded;
 }
 
-void sendTelegramMessage(String text) {
-  if (WiFi.status() != WL_CONNECTED || BOT_TOKEN.length() == 0 || CHAT_ID.length() == 0) return;
+static bool sendTelegramMessageInternal(String text, bool checkHumidity) {
+  if (WiFi.status() != WL_CONNECTED || BOT_TOKEN.length() == 0 || CHAT_ID.length() == 0) return false;
 
   // Certificate validity checks require a real clock. Try SNTP once per message if needed.
   if (time(nullptr) < 1700000000) {
@@ -59,7 +61,7 @@ void sendTelegramMessage(String text) {
     while (time(nullptr) < 1700000000 && millis() - started < 8000) delay(100);
     if (time(nullptr) < 1700000000) {
       Serial.println("Не удалось получить время для проверки TLS сертификата Telegram");
-      return;
+      return false;
     }
   }
 
@@ -69,9 +71,21 @@ void sendTelegramMessage(String text) {
 
   if (!secureClient.connect("api.telegram.org", 443)) {
     Serial.println("Ошибка TLS подключения к api.telegram.org");
-    return;
+    return false;
   }
 
+  // Recheck after time synchronisation and TLS connection, which can take seconds.
+  if (checkHumidity) {
+    uint16_t humidity, minutes;
+    uint8_t limit;
+    bool fresh, enabled, repeat;
+    if (!snapshotHumidity(humidity, fresh, limit, enabled, repeat, minutes) ||
+        !fresh || !enabled || humidity <= limit) {
+      secureClient.stop();
+      return false;
+    }
+    text = "🚨 Влажность в курятнике: " + String(humidity) + "% (предел " + String(limit) + "%).";
+  }
   // POST body encoding handles spaces, newlines, Cyrillic, and reserved URL characters.
   String body = "chat_id=" + urlEncode(CHAT_ID) + "&text=" + urlEncode(text);
   String request = "POST /bot" + BOT_TOKEN + "/sendMessage HTTP/1.1\r\n" +
@@ -84,8 +98,35 @@ void sendTelegramMessage(String text) {
 
   unsigned long waitStarted = millis();
   while (secureClient.connected() && !secureClient.available() && millis() - waitStarted < 2000) delay(10);
+  String status = secureClient.readStringUntil('\n');
+  bool success = status.startsWith("HTTP/1.1 200 ") || status.startsWith("HTTP/1.0 200 ");
   while (secureClient.available()) secureClient.read();
   secureClient.stop();
+  return success;
+}
+
+bool sendTelegramMessage(String text) {
+  return sendTelegramMessageInternal(text, false);
+}
+
+void humidityTelegramTask(void*) {
+  HumidityControl state;
+  for (;;) {
+    uint16_t humidity, minutes;
+    uint8_t limit;
+    bool fresh, enabled, repeat;
+    bool ready = snapshotHumidity(humidity, fresh, limit, enabled, repeat, minutes);
+    const bool connected = WiFi.status() == WL_CONNECTED && BOT_TOKEN.length() && CHAT_ID.length();
+    if (ready && (!enabled || (fresh && humidity <= limit) || connected)) {
+      if (state.update(fresh, enabled, humidity, limit, repeat, minutes, millis())) {
+        if (!sendTelegramMessageInternal("", true)) {
+          state.failed();
+          vTaskDelay(pdMS_TO_TICKS(10000));
+        }
+      }
+    }
+    vTaskDelay(pdMS_TO_TICKS(250));
+  }
 }
 
 void checkTelegram() {

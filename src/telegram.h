@@ -4,5 +4,6 @@
 extern String BOT_TOKEN;
 extern String CHAT_ID;
 
-void sendTelegramMessage(String text);
+bool sendTelegramMessage(String text);
 void checkTelegram();
+void humidityTelegramTask(void* arg);

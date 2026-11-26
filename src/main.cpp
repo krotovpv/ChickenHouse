@@ -10,6 +10,7 @@
 #include "registers.h"
 #include "gateway_state.h"
 #include "mqtt_command_input.h"
+#include "reset_button.h"
 #include "telegram.h"
 #include "web_pages.h"
 #include <Update.h> // Системная библиотека для работы с OTA (шить Flash/FS)
@@ -24,6 +25,17 @@ const byte DNS_PORT = 53;
 // Настройки собственной точки доступа (AP)
 String ap_ssid = "ChickenHous";
 String ap_password = "12345678";
+static const uint8_t FACTORY_RESET_PIN = 27;
+static ResetButton factoryResetButton;
+static volatile bool factoryResetRequested = false;
+
+void factoryResetButtonTask(void*) {
+  for (;;) {
+    if (factoryResetButton.update(digitalRead(FACTORY_RESET_PIN) == LOW, millis()))
+      factoryResetRequested = true;
+    vTaskDelay(pdMS_TO_TICKS(10));
+  }
+}
 
 // Настройки для подключения к роутеру (STA)
 String sta_ssid;
@@ -37,6 +49,10 @@ int mqtt_port;
 // Настройки для Telegram (значения по умолчанию)
 String BOT_TOKEN = "";
 String CHAT_ID = "";
+uint8_t humidityLimit = 95;
+bool humidityEnabled = true;
+bool humidityRepeat = false;
+uint16_t humidityRepeatMinutes = 30;
 
 // Пароль администратора задаётся пользователем при первом входе в режиме точки доступа.
 String webAdminPassword;
@@ -73,7 +89,8 @@ bool hasAdminSession() {
 bool requireAdminSession() {
   if (hasAdminSession()) return true;
   String next = webServer.uri();
-  if (next == "/saveWiFi" || next == "/saveMQTT" || next == "/saveTG") next = "/settings";
+  if (next == "/saveWiFi" || next == "/saveMQTT" || next == "/saveTG" || next == "/savePasswords") next = "/settings";
+  else if (next == "/saveAlerts") next = "/alerts";
   else if (next == "/update_action") next = "/update";
   webServer.sendHeader("Location", "/admin?next=" + next, true);
   webServer.send(303, "text/plain; charset=utf-8", "Сначала включите расширенный режим");
@@ -111,6 +128,56 @@ void loadAdminPassword() {
   prefs.begin("webAdmin", true);
   webAdminPassword = prefs.getString("password", "");
   prefs.end();
+}
+
+void loadApPassword() {
+  if (prefs.begin("configAP", true)) {
+    ap_password = prefs.getString("password", "12345678");
+    prefs.end();
+  }
+}
+
+void handleSavePasswords() {
+  if (!requireAdminSession()) return;
+  String kind = webServer.arg("kind");
+  String value = webServer.arg("password");
+  String confirm = webServer.arg("confirm");
+  if (value != confirm || (kind != "ap" && kind != "admin")) {
+    webServer.send(400, "text/plain; charset=utf-8", "Пароли не совпадают или неверный тип"); return;
+  }
+  if (kind == "ap") {
+    bool valid = value.length() >= 8 && value.length() <= 63;
+    for (size_t i = 0; i < value.length(); ++i) valid &= value[i] >= 32 && value[i] <= 126;
+    if (!valid) { webServer.send(400, "text/plain; charset=utf-8", "Пароль точки: от 8 до 63 печатных символов ASCII"); return; }
+  } else if (value.length() < 12 || webServer.arg("current") != webAdminPassword) {
+    webServer.send(400, "text/plain; charset=utf-8", "Неверный текущий пароль или новый пароль короче 12 символов"); return;
+  }
+  if (!prefs.begin(kind == "ap" ? "configAP" : "webAdmin", false)) {
+    webServer.send(500, "text/plain", "Storage error"); return;
+  }
+  size_t stored = prefs.putString("password", value);
+  prefs.end();
+  if (!stored) { webServer.send(500, "text/plain", "Storage error"); return; }
+  if (kind == "ap") {
+    webServer.send(200, "text/plain; charset=utf-8", "Пароль сохранён. Устройство перезагрузится; переподключитесь к ChickenHous с новым паролем.");
+    delay(1000); ESP.restart();
+  } else {
+    webAdminPassword = value;
+    adminSessionToken = "";
+    webServer.sendHeader("Set-Cookie", "CH_ADMIN=; Path=/; HttpOnly; SameSite=Strict; Max-Age=0");
+    webServer.send(200, "text/plain; charset=utf-8", "Пароль изменён. Войдите заново.");
+  }
+}
+
+void factoryReset() {
+  const char* spaces[] = {"configAP", "webAdmin", "configWiFi", "configMQTT2", "configTG", "configAlerts"};
+  for (const char* name : spaces) {
+    if (!prefs.begin(name, false)) { Serial.println("Factory reset: storage error"); return; }
+    bool cleared = prefs.clear();
+    prefs.end();
+    if (!cleared) { Serial.println("Factory reset: clear failed"); return; }
+  }
+  ESP.restart();
 }
 
 void handleAdminPage();
@@ -286,6 +353,50 @@ bool snapshotRegisters(std::map<uint16_t, uint16_t>& snapshot) {
   snapshot = memo;
   xSemaphoreGive(modbusMutex);
   return true;
+}
+
+bool snapshotHumidity(uint16_t& humidity, bool& fresh, uint8_t& limit,
+                      bool& enabled, bool& repeat, uint16_t& minutes) {
+  if (!modbusMutex || xSemaphoreTake(modbusMutex, pdMS_TO_TICKS(100)) != pdTRUE) return false;
+  humidity = memo.at(6);
+  fresh = gatewayState.masterStatus(millis()) == MasterStatus::fresh;
+  limit = humidityLimit; enabled = humidityEnabled;
+  repeat = humidityRepeat; minutes = humidityRepeatMinutes;
+  xSemaphoreGive(modbusMutex);
+  return true;
+}
+
+void loadAlertSettings() {
+  if (!prefs.begin("configAlerts", true)) return;
+  humidityLimit = prefs.getUChar("limit", 95);
+  if (humidityLimit > 100) humidityLimit = 95;
+  humidityEnabled = prefs.getBool("enabled", true);
+  humidityRepeat = prefs.getBool("repeat", false);
+  humidityRepeatMinutes = prefs.getUShort("minutes", 30);
+  if (!humidityRepeatMinutes || humidityRepeatMinutes > 10080) humidityRepeatMinutes = 30;
+  prefs.end();
+}
+
+void handleSaveAlerts() {
+  if (!requireAdminSession()) return;
+  uint32_t limit, minutes;
+  if (!parseUnsignedArg(webServer.arg("limit"), 100, limit) ||
+      !parseUnsignedArg(webServer.arg("minutes"), 10080, minutes) || !minutes) {
+    webServer.send(400, "text/plain; charset=utf-8", "Проверьте предел влажности (0–100) и период (1–10080 минут)"); return;
+  }
+  bool enabled = webServer.hasArg("enabled"), repeat = webServer.hasArg("repeat");
+  if (!prefs.begin("configAlerts", false)) { webServer.send(500, "text/plain", "Storage error"); return; }
+  bool ok = prefs.putUChar("limit", limit) && prefs.putBool("enabled", enabled) &&
+            prefs.putBool("repeat", repeat) && prefs.putUShort("minutes", minutes);
+  prefs.end();
+  if (!ok) { webServer.send(500, "text/plain", "Storage error"); return; }
+  if (!modbusMutex || xSemaphoreTake(modbusMutex, pdMS_TO_TICKS(100)) != pdTRUE) {
+    webServer.send(503, "text/plain", "Settings saved; restart needed"); return;
+  }
+  humidityLimit = limit; humidityEnabled = enabled; humidityRepeat = repeat; humidityRepeatMinutes = minutes;
+  xSemaphoreGive(modbusMutex);
+  webServer.sendHeader("Location", "/alerts", true);
+  webServer.send(303, "text/plain; charset=utf-8", "Настройки сохранены");
 }
 
 // --- Инициализация настроек Telegram из Flash ---
@@ -661,6 +772,9 @@ void handleOtaAction() {
 
 void setup() {
   Serial.begin(9600);
+  pinMode(FACTORY_RESET_PIN, INPUT_PULLUP);
+  if (xTaskCreate(factoryResetButtonTask, "reset_button", 2048, nullptr, 1, nullptr) != pdPASS)
+    Serial.println("Не удалось запустить опрос кнопки сброса");
   randomSeed(analogRead(0));
 
   // 1. Загружаем настройки из Flash
@@ -668,6 +782,8 @@ void setup() {
   loadSettingsMQTT();
   loadSettingsTelegram();
   loadAdminPassword();
+  loadApPassword();
+  loadAlertSettings();
 
   // 2. Инициализируем мьютекс защиты ДО запуска задач
   modbusMutex = xSemaphoreCreateMutex();
@@ -739,6 +855,8 @@ void setup() {
   webServer.on("/saveWiFi", HTTP_POST, handleSaveWiFi);
   webServer.on("/saveMQTT", HTTP_POST, handleSaveMQTT);
   webServer.on("/saveTG", HTTP_POST, handleSaveTelegram);
+  webServer.on("/savePasswords", HTTP_POST, handleSavePasswords);
+  webServer.on("/saveAlerts", HTTP_POST, handleSaveAlerts);
   webServer.on("/update", HTTP_GET, handleOtaPage);
   webServer.on("/update_action", HTTP_POST, []() {
     if (!hasAdminSession()) {
@@ -801,9 +919,15 @@ void setup() {
 
   // 8. Telegram
   sendTelegramMessage("ESP32 Chickenhouse включился и доступен.");
+  if (xTaskCreate(humidityTelegramTask, "humidity_alert", 8192, nullptr, 1, nullptr) != pdPASS)
+    Serial.println("Не удалось запустить контроль влажности");
 }
 
 void loop() {
+  if (factoryResetRequested) {
+    factoryResetRequested = false;
+    factoryReset();
+  }
   dnsServer.processNextRequest(); // Обработка DNS-запросов (перехват доменов для Captive Portal)
   webServer.handleClient(); // Обработка входящих веб-запросов от пользователей (смартфоны/ПК)
 
