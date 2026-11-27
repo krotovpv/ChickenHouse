@@ -1,0 +1,16 @@
+const fs = require('fs');
+const assert = require('assert');
+const page = fs.readFileSync('src/web_pages.cpp', 'utf8');
+assert(fs.existsSync('src/table_assets.h'), 'table assets must exist');
+const assets = fs.readFileSync('src/table_assets.h', 'utf8');
+const start = page.indexOf('void handleTable()');
+const end = page.indexOf('\nvoid handleAutoChickenHous()', start);
+const section = page.slice(start, end);
+assert(section.includes('tableStyleUrl()'), 'table stylesheet must use the versioned asset URL');
+assert(section.includes('tableScriptUrl()'), 'table script must use the versioned asset URL');
+assert(section.indexOf('tableScriptUrl()') > section.indexOf('</tbody></table></div>'), 'script must load after the table markup');
+assert(!section.includes('defer') && !section.includes("type='module'"), 'table script must execute as a regular script');
+assert(assets.includes('const char tableStyle[] PROGMEM'), 'stylesheet must be stored in flash');
+assert(assets.includes('const char tableScript[] PROGMEM'), 'script must be stored in flash');
+assert(assets.includes('onclick="sendCommand()"'), 'command action must remain globally callable');
+console.log('PASS: table assets load in the original order and retain command action');

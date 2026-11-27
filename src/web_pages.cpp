@@ -1608,8 +1608,8 @@ void handleDoor() {
         updateBadge('b_2_1', (r2 >> 1) & 1, "Вкл", "Выкл", "bg-success", "bg-neutral");
         updateBadge('b_2_6', (r2 >> 6) & 1, "ЗАПРЕТ", "Нет", "bg-danger", "bg-success");
         updateBadge('b_2_7', (r2 >> 7) & 1, "ЗАПРЕТ", "Нет", "bg-danger", "bg-success");
-        updateBadge('b_2_8', (r2 >> 8) & 1, "ОТКРЫТ", "ЗАКРЫТ", "bg-success", "bg-danger");
-        updateBadge('b_2_9', (r2 >> 9) & 1, "КРАЙНЕЕ", "ПРОМЕЖУТОЧНОЕ", "bg-info", "bg-neutral");
+        updateBadge('b_2_8', (r2 >> 8) & 1, "Открыт", "Закрыт", "bg-success", "bg-danger");
+        updateBadge('b_2_9', (r2 >> 9) & 1, "Крайнее", "Промежуточное", "bg-info", "bg-neutral");
         updateBadge('b_2_10', (r2 >> 10) & 1, "РУЧНОЙ", "Авто", "bg-danger", "bg-info");
         updateBadge('b_2_11', (r2 >> 11) & 1, "ДВИЖЕНИЕ", "Стоит", "bg-danger", "bg-neutral");
         const isHatchLocked = (r2 >> 12) & 1;

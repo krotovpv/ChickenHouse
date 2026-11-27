@@ -1,0 +1,1943 @@
+#include "web_pages.h"
+#include "version.h"
+
+
+static String escapeHtml(const String& value) {
+  String escaped;
+  escaped.reserve(value.length());
+  for (size_t i = 0; i < value.length(); ++i) {
+    switch (value[i]) {
+      case '&': escaped += "&amp;"; break;
+      case '<': escaped += "&lt;"; break;
+      case '>': escaped += "&gt;"; break;
+      case '"': escaped += "&quot;"; break;
+      case '\'': escaped += "&#39;"; break;
+      default: escaped += value[i]; break;
+    }
+  }
+  return escaped;
+}
+
+static String getDesignSystemStyles() {
+  return "<style>"
+         " :root { --brand:#2563eb; --brand-dark:#1d4ed8; --page:#f1f5f9; --surface:#ffffff; --ink:#1e293b; --muted:#64748b; --line:#e2e8f0; --success:#15803d; --danger:#b91c1c; --warning:#b45309; }"
+         " body { background:var(--page); color:var(--ink); font-family:'Segoe UI',Tahoma,Geneva,Verdana,sans-serif; }"
+         " h1,h2 { color:var(--ink); font-weight:700; text-align:center; margin:0 0 20px; } h1 { font-size:24px; } h2 { font-size:23px; line-height:1.3; }"
+         " h3 { color:#334155; margin:0 0 15px; border-bottom:1px solid var(--line); padding-bottom:9px; font-size:15px; font-weight:700; letter-spacing:.04em; text-transform:uppercase; }"
+         " .sub-title { margin:0 0 12px; padding-bottom:8px; border-bottom:1px solid var(--line); color:#334155; font-size:15px; font-weight:700; letter-spacing:.04em; text-transform:uppercase; }"
+         " .card { box-sizing:border-box; padding:20px; margin-bottom:20px; background:var(--surface); border:1px solid var(--line); border-radius:14px; box-shadow:0 4px 16px rgba(15,23,42,.06); }"
+         " .status-row { display:flex; justify-content:space-between; align-items:center; gap:12px; padding:11px 8px; border-bottom:1px solid #edf1f5; } .status-row:last-child { border-bottom:0; }"
+         " .badge { box-sizing:border-box; display:inline-block; padding:5px 11px; border-radius:999px; font-family:inherit; font-size:13px; font-weight:700; line-height:1.25; min-width:64px; max-width:100%; overflow-wrap:anywhere; text-align:center; }"
+         " .bg-success,.bg-on { background:var(--success); color:#fff; } .bg-danger,.bg-alarm { background:var(--danger); color:#fff; }"
+         " .bg-info { background:#315f97; color:#fff; } .bg-neutral,.bg-normal,.bg-off { background:#e2e8f0; color:#334155; }"
+         " .val-box { padding:4px 12px; color:var(--ink); background:#f8fafc; border:1px solid var(--line); border-radius:8px; font-family:monospace; font-size:15px; font-weight:700; }"
+         " .btn { min-height:44px; box-sizing:border-box; display:flex; align-items:center; justify-content:center; margin:10px 0; padding:11px 14px; border:0; border-radius:10px; background:var(--brand); color:#fff; font-family:inherit; font-size:15px; font-weight:600; line-height:1.35; cursor:pointer; text-decoration:none; }"
+         " .btn-secondary { background:#475569; } .btn:hover,.nav-btn:hover { filter:brightness(.93); transform:translateY(-1px); }"
+         " .nav-btn { min-height:48px; display:flex; align-items:center; justify-content:center; border-radius:12px; color:#fff; font-size:15px; font-weight:600; text-align:center; text-decoration:none; box-shadow:0 4px 12px rgba(15,23,42,.12); }"
+         " .menu-btn { border:1px solid var(--line); border-radius:14px; box-shadow:0 4px 16px rgba(15,23,42,.06); }"
+         " input:not([type=checkbox]):not([type=radio]):not([type=submit]):not([type=button]),select,textarea { box-sizing:border-box; width:100%; padding:12px; margin:8px 0; border:1px solid var(--line); border-radius:8px; background:var(--surface); color:var(--ink); font:16px/1.4 'Segoe UI',Tahoma,Geneva,Verdana,sans-serif; }"
+         " table { width:100%; border-collapse:collapse; background:var(--surface); } th,td { padding:10px 12px; border:1px solid var(--line); text-align:center; } th { background:#f8fafc; color:#475569; font-size:13px; text-transform:uppercase; }"
+         " :where(a,button,input,select,textarea,[tabindex]):focus-visible { outline:3px solid #ffbf47; outline-offset:3px; box-shadow:0 0 0 2px #1f2937; }"
+         " .switch input:focus-visible + .slider { outline:3px solid #ffbf47; outline-offset:3px; }"
+         " .field-label { display:block; margin:10px 0 2px; color:#374151; font-size:14px; font-weight:600; line-height:1.4; }"
+         " .field-hint { margin:2px 0 6px; color:#555; font-size:14px; line-height:1.45; }"
+         " @media (prefers-reduced-motion: reduce) { *, *::before, *::after { scroll-behavior:auto !important; animation-duration:0.01ms !important; animation-iteration-count:1 !important; transition-duration:0.01ms !important; } }"
+         R"sunny(
+:root{--brand:#9a5418;--brand-dark:#793d13;--page:#fff8e9;--surface:#fffefa;--ink:#44392e;--muted:#786a5a;--line:#eddfcc}body{background:var(--page);color:var(--ink)}h1,h2,h3,.sub-title{color:#503f32}h1,h2,h3{text-align:left}.card{background:#fffefa;border-color:#eddfcc;border-radius:16px;box-shadow:0 5px 16px rgba(112,77,38,.05)}.status-row{border-color:#e8dfd1}.val-box{background:#fffdf7;border-color:#dfd1bb}.btn,.nav-btn{background:#9a5418}.bg-normal,.bg-neutral,.bg-off{background:#e9e5dd;color:#51483d}
+.sunny-navigation{box-sizing:border-box;background:#fff0d4;z-index:10}.sunny-brand{display:flex;align-items:center;gap:8px;color:#793f27;text-decoration:none;font-size:20px;font-weight:800;line-height:1.15}.sunny-brand img{width:64px;height:64px;object-fit:contain}.sunny-brand small{display:block;color:#866d55;font-size:10px;letter-spacing:.07em;text-transform:uppercase;margin-top:4px}.sunny-links{display:flex;flex-direction:column;gap:3px;margin-top:18px}.sunny-link{display:flex;align-items:center;gap:9px;min-height:44px;padding:5px 10px;color:#5d4838;text-decoration:none;border-radius:10px;font-size:14px;font-weight:650;box-sizing:border-box}.sunny-link:hover,.sunny-link[aria-current=page]{background:#efaa37;color:#38291d}.sunny-link svg{width:26px;height:26px;flex:0 0 26px}.sunny-detail-link{display:inline-block;color:#704016;font-weight:700;font-size:14px;margin-top:12px}
+.sunny-climate,.page-climate .container>.card{background:#fff0c8;border-color:#e9c86d;border-top:5px solid #dfa52f}.sunny-ventilation,.page-ventilation .container>.card{background:#d7f1e7;border-color:#9dcfbd;border-top:5px solid #3f9f80}.sunny-door,.page-door .container>.card{background:#e1eaff;border-color:#aebfe8;border-top:5px solid #6689cc}.sunny-feeding,.page-feeding .container>.card{background:#ffe5c3;border-color:#e9bd83;border-top:5px solid #d38a30}.sunny-light,.page-light .container>.card{background:#fff0a9;border-color:#e8d071;border-top:5px solid #d8a92b}.page-alerts .container>.card{background:#fff1eb;border-color:#edb7aa;border-top:5px solid #c95d4d}
+.sunny-welcome{box-sizing:border-box;width:100%;max-width:500px;margin:4px auto 18px;padding:20px;background:#ffedbf;border:1px solid #f7d992;border-radius:16px}.sunny-welcome h1{margin:0 0 6px;font-size:28px}.sunny-welcome p{margin:0;color:#765b42;font-size:14px}.sunny-clock{font-size:13px;color:#786a5a}.sunny-clock strong{display:block;color:#44392e;font-size:18px;font-variant-numeric:tabular-nums}.sunny-status-caption{font-size:12px;color:#5e5549;display:flex;gap:4px;align-items:center}.top-bar.card{border-color:#eddfcc}table{display:block;overflow-x:auto}table tbody,table thead{min-width:100%}
+@media(min-width:901px){body{padding-left:250px!important}.sunny-navigation{position:fixed;left:0;top:0;bottom:0;width:225px;padding:18px 14px;overflow-y:auto;border-right:1px solid #eddfcc}}
+@media(max-width:900px){.sunny-navigation{width:100%;max-width:100%;padding:8px 12px;margin-bottom:18px;border:1px solid #eddfcc;border-radius:14px}.sunny-brand img{width:46px;height:46px}.sunny-brand small{font-size:9px}.sunny-links{flex-direction:row;overflow-x:auto;margin-top:5px;padding-bottom:3px}.sunny-link{flex:0 0 auto;white-space:nowrap}.sunny-link svg{width:23px;height:23px;flex-basis:23px}body{padding:12px!important}.top-bar .signals-wrapper{gap:8px}}
+)sunny"
+         R"sunny(
+#regTable{table-layout:fixed}#regTable .val-cell{min-width:0}#regTable .val-cell>div[style*="display:grid"]>div{overflow-wrap:anywhere}
+@media(max-width:650px){#regTable,#regTable tbody{display:block;width:100%}#regTable thead{display:none}#regTable tr{display:block;border-bottom:1px solid #eddfcc;padding:10px 0}#regTable tr>td{display:block;border:0;width:100%;box-sizing:border-box}#regTable .val-cell>div[style*="display:grid"]{grid-template-columns:1fr!important}}
+)sunny"
+         R"sunny(
+.sunny-card-icon{display:inline-flex;align-items:center;justify-content:center;width:32px;height:32px;vertical-align:middle;margin-right:8px;flex:none}.sunny-card-icon svg{width:100%;height:100%}.sunny-clock{display:flex;align-items:center;gap:4px}.sunny-status-caption .sunny-card-icon{width:26px;height:26px;margin-right:0}.sunny-status-caption .dot{margin-right:0}@media(max-width:420px){.sunny-status-caption{font-size:0}.sunny-status-caption .sig-box,.sunny-status-caption .dot{font-size:initial}.sunny-clock strong{font-size:15px}}
+)sunny"
+         R"sunny(
+/* Страницы разделов используют ту же центрированную область, что и обзор. */
+@media(min-width:901px){body:not(.sunny-home){box-sizing:border-box;width:min(100%,1320px);max-width:1320px;margin:0 auto!important;padding:26px 36px 60px 286px!important;align-items:stretch!important}body:not(.sunny-home) .sunny-navigation{left:max(0px,calc((100vw - 1320px)/2));width:250px;padding:24px 18px}body:not(.sunny-home) .container{max-width:1000px!important}body:not(.sunny-home) #master-link-status{max-width:1000px!important;width:100%;box-sizing:border-box}}
+.sunny-detail-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px;align-items:start}.sunny-detail-grid>h2,.sunny-detail-grid>a,.sunny-detail-grid>.sunny-wide{grid-column:1/-1}.sunny-detail-grid>.card{min-width:0;margin:0}.sunny-detail-grid .card .grid-2,.sunny-detail-grid .card .grid-3{grid-template-columns:1fr}.sunny-detail-grid>.card h3,.sunny-subpage .card h3{font-size:17px;text-transform:none;letter-spacing:0;color:#503f32}.sunny-detail-grid .status-row{font-size:14px;padding:11px 0;align-items:flex-start}.sunny-detail-grid .status-row>span:first-child{min-width:0;overflow-wrap:anywhere}.sunny-detail-grid .status-row>span:last-child{text-align:right;flex-shrink:0}
+.sunny-detail-grid table{display:table;width:100%;table-layout:fixed;border-collapse:collapse;background:rgba(255,255,255,.65)}.sunny-detail-grid th,.sunny-detail-grid td{padding:10px 8px;border:0;border-bottom:1px solid #e6d9c5;text-align:left;overflow-wrap:anywhere;font-size:14px}.sunny-detail-grid th{background:rgba(255,255,255,.45);color:#6b5745;font-size:12px;text-transform:none;letter-spacing:0}.sunny-detail-grid table .badge{box-sizing:border-box;min-width:0;max-width:100%}
+.sunny-subpage .container>.card{margin-bottom:16px}.sunny-subpage .container>p{line-height:1.5}#master-link-status{box-sizing:border-box}#master-link-status[data-warning="true"]{background:#c52e21!important;color:#fff!important;border:2px solid #922217;box-shadow:0 4px 14px rgba(146,34,23,.28);font-size:16px;line-height:1.4}#master-link-status[data-warning="true"]::before{content:'⚠ ';}
+.sunny-detail-grid .status-row,.sunny-detail-grid .counter-row,.sunny-detail-grid .alert-row{box-sizing:border-box;min-height:54px;align-items:center;gap:12px}.sunny-detail-grid .counter-row{border-color:#e8dfd1}.sunny-detail-grid .card .grid-2,.sunny-detail-grid .card .grid-3{gap:0}.sunny-detail-grid .grid-2>div:not(:last-child)>.status-row:last-child,.sunny-detail-grid .grid-3>div:not(:last-child)>.status-row:last-child{border-bottom:1px solid #e8dfd1}.sunny-detail-grid .status-row>div:last-child{min-width:0;text-align:right}
+@media(max-width:900px){.sunny-detail-grid{grid-template-columns:1fr}.sunny-detail-grid>h2,.sunny-detail-grid>a,.sunny-detail-grid>.sunny-wide{grid-column:1}.sunny-detail-grid table th,.sunny-detail-grid table td{padding:9px 5px;font-size:12px}.sunny-detail-grid>.card{padding:17px}}
+)sunny"
+         R"sunny(
+.sunny-settings-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px}.sunny-settings-grid>.card{min-width:0;margin:0}.sunny-settings-grid>.status-card{grid-column:1/-1}.sunny-subpage .container>.btn-secondary{display:inline-flex;min-height:40px;padding:8px 14px;background:#fff0ce;color:#704016;border:1px solid #ead5b3}.sunny-subpage .container>h2{margin-top:12px}@media(max-width:900px){.sunny-settings-grid{grid-template-columns:1fr}.sunny-settings-grid>.status-card{grid-column:1}}
+)sunny"
+         R"sunny(
+/* Выдвижное меню на мобильных устройствах; без JS остаются обычные ссылки. */
+.sunny-mobile-bar,.sunny-menu-close{display:none}.sunny-menu-shade[hidden]{display:none}
+@media(max-width:900px){body.sunny-menu-ready .sunny-mobile-bar{display:flex;align-items:center;gap:10px;box-sizing:border-box;width:100%;max-width:100%;padding:8px 12px;margin:0 0 16px;background:#fff0d4;border:1px solid #eddfcc;border-radius:12px}.sunny-mobile-brand{display:flex;align-items:center;gap:8px;color:#793f27;text-decoration:none;font-size:18px;font-weight:800;flex:1;min-width:0}.sunny-mobile-brand img{width:46px;height:46px;object-fit:contain}.sunny-mobile-bar button,.sunny-menu-close{min-height:44px;border:1px solid #e1c99c;border-radius:9px;padding:8px 12px;background:#fffaf0;color:#654126;font:inherit;font-weight:700;cursor:pointer}.sunny-menu-close{display:block;margin:0 0 12px auto;min-width:44px}.sunny-menu-shade:not([hidden]){display:block;position:fixed;inset:0;z-index:100;background:rgba(38,28,20,.52)}body.sunny-menu-ready .sunny-navigation{position:fixed;top:0;left:0;bottom:0;z-index:101;width:min(310px,86vw);max-width:100%;height:100vh;height:100dvh;overflow-y:auto;box-sizing:border-box;margin:0;padding:20px;border:0;border-radius:0;background:#fff0d4;transform:translateX(-105%);visibility:hidden;transition:transform .2s ease,visibility .2s}body.sunny-menu-ready .sunny-navigation.sunny-menu-open{transform:translateX(0);visibility:visible}body.sunny-menu-ready .sunny-links{display:flex;flex-direction:column;gap:3px;overflow:visible;margin-top:18px;padding:0}body.sunny-menu-ready .sunny-link{white-space:normal;width:100%;min-height:48px}body.sunny-drawer-open{overflow:hidden}}
+@media(prefers-reduced-motion:reduce){.sunny-navigation{transition:none!important}}
+)sunny"
+         "</style>";
+}
+
+static String sunnyNavigation() {
+  String navigation = R"sunny(<header class='sunny-mobile-bar'><a href='/' class='sunny-mobile-brand'><img src='/sunny-logo.png?v=e3bcdb15507e' alt=''><span>ChickenHouse</span></a><button type='button' id='sunny-menu-open' aria-controls='sunny-menu-panel' aria-expanded='false' aria-label='Открыть меню'>☰ <span>Меню</span></button></header><div id='sunny-menu-shade' class='sunny-menu-shade' hidden></div><nav id='sunny-menu-panel' class='sunny-navigation' aria-label='Разделы панели'><button type='button' id='sunny-menu-close' class='sunny-menu-close' aria-label='Закрыть меню'>✕</button><a class='sunny-brand' href='/'><img src='/sunny-logo.png?v=e3bcdb15507e' alt=''><span>ChickenHouse<small>Панель курятника</small></span></a><div class='sunny-links'><a href='/' class='sunny-link'><svg aria-hidden="true" focusable="false" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" fill="none" stroke="#69462F" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M7 22 24 8l17 14v17a3 3 0 0 1-3 3H10a3 3 0 0 1-3-3Z" fill="#FFE6A6"/><path d="M5 23 24 7l19 16M17 42V29h14v13"/><circle cx="35" cy="13" r="4" fill="#F6B737" stroke="none"/></svg><span>Обзор</span></a><a href='/climate' class='sunny-link'><svg aria-hidden="true" focusable="false" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" fill="none" stroke="#69462F" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M19 27V12a5 5 0 0 1 10 0v15a9 9 0 1 1-10 0Z" fill="#FFE6A6"/><path d="M24 17v16"/><circle cx="24" cy="35" r="3" fill="#E79538" stroke="none"/><path d="M36 16c0 4-5 7-5 11a5 5 0 1 0 10 0c0-4-5-7-5-11Z" fill="#BFE9E2"/></svg><span>Температура и влажность</span></a><a href='/ventilation' class='sunny-link'><svg aria-hidden="true" focusable="false" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" fill="none" stroke="#69462F" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="24" cy="24" r="18" fill="#E2F1DE"/><path d="M24 20c-5-2-6-8-2-10 3-1 6 4 5 9M28 24c4-3 10-1 10 3 0 4-6 4-10 1M22 28c1 5-3 10-7 8-3-2-1-8 3-10" fill="#A8D7C1"/><circle cx="24" cy="24" r="3.5" fill="#F6B737"/></svg><span>Вентиляция</span></a><a href='/door' class='sunny-link'><svg aria-hidden="true" focusable="false" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" fill="none" stroke="#69462F" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M10 41V11h28v30" fill="#FFE7B6"/><path d="M16 41V17h16v24M7 41h34"/><path d="M20 19v20M28 19v20" stroke="#D2954F"/><circle cx="28" cy="29" r="1.7" fill="#80502F" stroke="none"/></svg><span>Лаз</span></a><a href='/feeding' class='sunny-link'><svg aria-hidden="true" focusable="false" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" fill="none" stroke="#69462F" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M7 30h34l-4 10H11Z" fill="#F8C66B"/><path d="M12 30c1-7 6-10 12-10s11 3 12 10" fill="#FFF0CF"/><path d="M18 14c-2-3-1-5 1-7 3 2 4 5 2 7M28 15c0-4 2-6 5-6 1 4-1 6-5 6" fill="#A8D7A2"/><circle cx="24" cy="25" r="1.5" fill="#D89132" stroke="none"/></svg><span>Кормление и поголовье</span></a><a href='/light' class='sunny-link'><svg aria-hidden="true" focusable="false" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" fill="none" stroke="#69462F" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M17 31c-1-3-5-5-5-11a12 12 0 0 1 24 0c0 6-4 8-5 11Z" fill="#FFE18A"/><path d="M18 36h12M20 41h8M24 2v3M5 20h3M40 20h3M10 7l2 2M38 7l-2 2"/><path d="M21 29v-7l3 2 3-2v7"/></svg><span>Освещение</span></a><a href='/alerts' class='sunny-link'><svg aria-hidden="true" focusable="false" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" fill="none" stroke="#69462F" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 9a4.6 4.6 0 0 1 8 0l15 26a4 4 0 0 1-3.5 6H8.5A4 4 0 0 1 5 35Z" fill="#FFE5D6" stroke="#A24436"/><path d="M24 19v9" stroke="#A24436"/><circle cx="24" cy="34" r="2" fill="#A24436" stroke="none"/></svg><span>Аварии и ошибки</span></a><a href='/table' class='sunny-link'><svg aria-hidden="true" focusable="false" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" fill="none" stroke="#69462F" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><rect x="7" y="9" width="34" height="30" rx="4" fill="#E8F0EB"/><path d="M7 19h34M18 19v20M29 19v20M7 29h34"/><circle cx="13" cy="14" r="1.5" fill="#E4A643" stroke="none"/><circle cx="18" cy="14" r="1.5" fill="#E4A643" stroke="none"/></svg><span>Все регистры</span></a><a href='/settings' class='sunny-link'><svg aria-hidden="true" focusable="false" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" fill="none" stroke="#69462F" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><rect x="7" y="7" width="34" height="34" rx="8" fill="#FFF0CF"/><path d="M14 17h20M14 24h20M14 31h20"/><circle cx="20" cy="17" r="3.5" fill="#F6B737"/><circle cx="29" cy="24" r="3.5" fill="#A8D7C1"/><circle cx="20" cy="31" r="3.5" fill="#EBA16E"/></svg><span>Настройки</span></a><a href='/update' class='sunny-link'><svg aria-hidden="true" focusable="false" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" fill="none" stroke="#69462F" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 6h16l8 8v27H12Z" fill="#FFF0CF"/><path d="M28 6v9h8M24 34V20m-6 6 6-6 6 6"/><path d="M18 38h12" stroke="#DA9C41"/></svg><span>Обновление ПО</span></a></div></nav><script>
+// BEGIN sunny mobile menu
+(function(){
+  const path = location.pathname;
+  document.querySelectorAll('.sunny-link').forEach(function(a){ if(a.getAttribute('href')===path) a.setAttribute('aria-current','page'); });
+  if (!window.matchMedia) return;
+  const open = document.getElementById('sunny-menu-open');
+  const close = document.getElementById('sunny-menu-close');
+  const shade = document.getElementById('sunny-menu-shade');
+  const nav = document.getElementById('sunny-menu-panel');
+  const mobile = window.matchMedia('(max-width: 900px)');
+  function setMenu(show, restore) {
+    const active = mobile.matches && show;
+    nav.classList.toggle('sunny-menu-open', active);
+    shade.hidden = !active;
+    open.setAttribute('aria-expanded', String(active));
+    document.body.classList.toggle('sunny-drawer-open', active);
+    if (active) { nav.inert = false; nav.removeAttribute('aria-hidden'); close.focus(); }
+    else {
+      if (restore && mobile.matches) open.focus();
+      nav.inert = mobile.matches;
+      if (mobile.matches) nav.setAttribute('aria-hidden', 'true'); else nav.removeAttribute('aria-hidden');
+    }
+  }
+  open.addEventListener('click', function(){setMenu(true, false)});
+  close.addEventListener('click', function(){setMenu(false, true)});
+  shade.addEventListener('click', function(){setMenu(false, true)});
+  document.addEventListener('keydown', function(event){
+    if (!nav.classList.contains('sunny-menu-open')) return;
+    if (event.key === 'Escape') { event.preventDefault(); setMenu(false, true); return; }
+    if (event.key === 'Tab') {
+      const focusable = nav.querySelectorAll('button:not([disabled]), a[href]');
+      if (!focusable.length) return;
+      const first = focusable[0], last = focusable[focusable.length - 1];
+      if (event.shiftKey && document.activeElement === first) { event.preventDefault(); last.focus(); }
+      else if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first.focus(); }
+    }
+  });
+  if (mobile.addEventListener) mobile.addEventListener('change', function(){setMenu(false, false)});
+  else if (mobile.addListener) mobile.addListener(function(){setMenu(false, false)});
+  document.body.classList.add('sunny-menu-ready');
+  setMenu(false, false);
+})();
+// END sunny mobile menu
+</script>)sunny";
+  navigation.replace("/sunny-logo.png?v=e3bcdb15507e", sunnyLogoUrl());
+  return navigation;
+}
+
+String getPageNavigation() {
+  String banner = "<script>const uiBuildAtLoad='" + uiBuildId() + "';</script>";
+  banner += R"rawliteral(<div id="master-link-status" role="status" style="max-width:600px;margin:0 auto 14px;padding:12px;border-radius:8px;background:#fff1d6;color:#713f12;text-align:center;font-weight:bold">Ожидание данных от контроллера</div>
+  <script>
+  let uiUpdateRequired = false;
+  function showUiUpdateRequired(reason) {
+    if (uiUpdateRequired) return;
+    uiUpdateRequired = true;
+    const overlay = document.createElement('div');
+    overlay.setAttribute('role', 'alertdialog');
+    overlay.setAttribute('aria-modal', 'true');
+    overlay.style.cssText = 'position:fixed;inset:0;z-index:10000;background:rgba(38,28,20,.88);display:flex;align-items:center;justify-content:center;padding:20px';
+    const box = document.createElement('div');
+    box.style.cssText = 'background:#fffefa;color:#44392e;padding:24px;border-radius:16px;max-width:440px;line-height:1.5';
+    const message = document.createElement('p');
+    message.textContent = reason || 'Прошивка обновилась. Обновите страницу перед продолжением работы. Несохранённые изменения будут потеряны.';
+    const button = document.createElement('button');
+    button.type = 'button'; button.textContent = 'Обновить страницу'; button.className = 'btn';
+    button.addEventListener('click', function(){ location.reload(); });
+    box.appendChild(message); box.appendChild(button); overlay.appendChild(box); document.body.appendChild(overlay); button.focus();
+    document.addEventListener('click', function(e){ if (!overlay.contains(e.target)) { e.preventDefault(); e.stopImmediatePropagation(); } }, true);
+    document.addEventListener('submit', function(e){ e.preventDefault(); e.stopImmediatePropagation(); }, true);
+  }
+  function refreshMasterLink() {
+    fetch('/api/status', {cache:'no-store'}).then(r => {
+      if (!r.ok) throw Error();
+      const actualBuild = r.headers.get('X-UI-Build');
+      if (uiBuildAtLoad && (!actualBuild || actualBuild !== uiBuildAtLoad)) { showUiUpdateRequired(); throw Error('UI version changed or unavailable'); }
+      return r.json();
+    }).then(d => {
+      const banner = document.getElementById('master-link-status');
+      banner.dataset.warning = String(d.master_status !== 'waiting' && d.master_status !== 'fresh');
+      if (d.master_status === 'fresh') { banner.style.display = 'none'; return; }
+      banner.style.display = 'block';
+      banner.textContent = d.master_status === 'waiting' ? 'Ожидание данных от контроллера' : 'Нет связи с контроллером / данные устарели';
+    }).catch(() => { const b = document.getElementById('master-link-status'); b.dataset.warning = 'true'; b.style.display = 'block'; b.textContent = 'Не удалось получить статус контроллера'; });
+  }
+  refreshMasterLink(); setInterval(refreshMasterLink, 2000);
+  window.addEventListener('pageshow', refreshMasterLink);
+  document.addEventListener('visibilitychange', function(){ if (!document.hidden) refreshMasterLink(); });
+  </script>)rawliteral";
+  return sunnyNavigation() + banner;
+}
+
+// --- Вспомогательная функция для HTML обертки ---
+String getHeader(String title, bool showHome) {
+  return "<html><head><meta charset='UTF-8'>"
+         "<meta name='viewport' content='width=device-width, initial-scale=1.0'>"
+         "<style>"
+         "  body { --content-max:500px; margin: 0; padding: 20px; display: flex; flex-direction: column; align-items: center; }"
+         "  .container { width: 100%; max-width: 500px; }"
+         "</style>" + getDesignSystemStyles() + "<title>" + title + "</title></head><body class='sunny-subpage'>"
+         "<div class='container'>" + getPageNavigation() +
+         (showHome ? "<a href='/' class='btn btn-secondary' style='margin-bottom:20px;'>🏠 Главная</a>" : "");
+}
+
+// 1. Главная страница
+  void handleIndex() {
+  //String html = getHeader("Панель управления");
+  String html = "<html><head><meta charset='UTF-8'>"
+        "<meta name='viewport' content='width=device-width, initial-scale=1.0'>"
+        "<style>"
+        "  body { --content-max:500px; margin: 0; padding: 20px; display: flex; flex-direction: column; align-items: center; }"
+        "  .container { width: 100%; max-width: 500px; }"
+        "  .top-bar { display: flex; justify-content: space-between; align-items: center; width: 100%; max-width: 500px; box-sizing: border-box; }"
+        "  .signals-wrapper { display: flex; align-items: center; gap: 15px; }"
+        "</style>"
+        + getDesignSystemStyles() +
+        "<title>Панель управления</title></head>"
+        "<body class='sunny-home'>";
+  html += getPageNavigation();
+  html += "<div class='sunny-page-heading'><span>ПАНЕЛЬ УПРАВЛЕНИЯ</span><strong>Курятник</strong></div><div class='sunny-welcome'><div><span class='sunny-eyebrow'>☀ &nbsp; ПАНЕЛЬ КУРЯТНИКА</span><h1>Всё под крылышком</h1><p>Основные показатели и состояние ваших систем — на одном экране.</p></div><span class='sunny-sun' aria-hidden='true'>☀</span></div>";
+  html += "<div class='top-bar card'>"
+          // Левая часть (Время)
+          "<div class='sunny-clock'><span class='sunny-card-icon'><svg aria-hidden='true' focusable='false' xmlns='http://www.w3.org/2000/svg' viewBox='0 0 48 48' fill='none' stroke='#69462F' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'><circle cx='24' cy='25' r='17' fill='#FFE7B6'/><circle cx='24' cy='25' r='12' fill='#FFFDF5'/><path d='M24 17v9l6 4M20 5h8'/><circle cx='24' cy='25' r='1.5' fill='#E4A643' stroke='none'/></svg></span><span><span id='rtc-clock-label'>Время контроллера · нет данных</span><strong id='rtc-current-time'>--:--:-- --.--.--</strong></span></div>"
+    
+          // Правая часть (Сигналы вместе)
+          "<div class='signals-wrapper'>"
+            "<span class='sunny-status-caption'><span class='sunny-card-icon'><svg aria-hidden='true' focusable='false' xmlns='http://www.w3.org/2000/svg' viewBox='0 0 48 48' fill='none' stroke='#69462F' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'><rect x='6' y='7' width='36' height='34' rx='11' fill='#E4F3E9'/><path d='M11 20a19 19 0 0 1 26 0M16 25a12 12 0 0 1 16 0M21 30a4.5 4.5 0 0 1 6 0'/><circle cx='24' cy='35' r='2.1' fill='#E4A643' stroke='none'/></svg></span>Wi-Fi <span class='sig-box' id='wifi-bars' title='Wi-Fi'>"
+              "<div class='bar b1'></div>"
+              "<div class='bar b2'></div>"
+              "<div class='bar b3'></div>"
+              "<div class='bar b4'></div>"
+            "</span></span>"
+            "<span class='sunny-status-caption'><span class='sunny-card-icon'><svg aria-hidden='true' focusable='false' xmlns='http://www.w3.org/2000/svg' viewBox='0 0 48 48' fill='none' stroke='#69462F' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'><rect x='5' y='6' width='38' height='36' rx='11' fill='#FFF0CF'/><path d='M24 15v6M24 27v6M14 30l7-5M34 30l-7-5'/><circle cx='24' cy='11' r='3.5' fill='#F6B737'/><circle cx='24' cy='24' r='4' fill='#A8D7C1'/><circle cx='12' cy='33' r='3.5' fill='#FFFDF5'/><circle cx='36' cy='33' r='3.5' fill='#FFFDF5'/></svg></span>MQTT <span id='mqtt-dot' class='dot' title='MQTT'></span></span>"
+          "</div>"
+        "</div>";
+         
+
+  // 1. Стили интерфейса
+  html += R"rawliteral(
+  <style>
+    .status-card { margin-bottom: 20px; }
+    .ip-info { font-size: 0.85em; color: #666; margin-top: 5px; line-height: 1.5; }
+    .ip-info b { color: #333; font-family: monospace; }
+    .sig-box { display: flex; align-items: flex-end; height: 17px; gap: 3px; margin-top: 5px; cursor: pointer; }
+    .bar { width: 4px; background: #e0e0e0; border-radius: 1px; transition: 0.3s; }
+    .b1 { height: 5px; } .b2 { height: 9px; } .b3 { height: 13px; } .b4 { height: 17px; }
+    .green { background: #28a745 !important; }
+    .yellow { background: #ffc107 !important; }
+    .red { background: #dc3545 !important; }
+    .dot { height: 14px; width: 14px; border-radius: 50%; display: inline-block; margin-right: 8px; background: #bbb; vertical-align: middle; cursor: pointer; }
+    .online { background: #28a745; box-shadow: 0 0 8px rgba(40,167,69,0.4); }
+    .offline { background: #dc3545; }
+    .nav-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-top: 20px; }
+    .alert-banner { display: none; background: #fee2e2; border: 1px solid #fca5a5; color: #991b1b; padding: 10px; border-radius: 8px; text-align: center; font-weight: bold; margin-bottom: 15px; font-size: 14px; animation: pulse 2s infinite; }
+    @keyframes pulse { 0% { opacity: 1; } 50% { opacity: 0.8; } 100% { opacity: 1; } }
+  
+    /* Карточка температуры */
+    .temp-card-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 5px; }
+    .temp-block { background: #f8fafc; border: 1px solid #eaecf4; border-radius: 8px; padding: 10px; text-align: center; }
+    .temp-block .loc-title { font-size: 14px; color: #64748b; font-weight: 600; margin-bottom: 5px; text-transform: uppercase; }
+    .temp-block .temp-val { font-size: 20px; font-weight: bold; color: #1e293b; }
+    .temp-block .hum-val { font-size: 14px; color: #64748b; margin-top: 2px; }
+    
+    /* Карточка вентиляции */
+    .txt-bold { font-weight: bold; color: #1e293b; }
+    .status-highlight { font-weight: bold; padding: 2px 8px; border-radius: 6px; font-size: 14px; }
+    .feed-missed-alert { display: none; background: #fee2e2; border: 1px solid #fca5a5; color: #991b1b; padding: 6px 12px; border-radius: 6px; font-weight: bold; font-size: 14px; text-align: center; margin-top: 10px; }
+    </style>
+  )rawliteral";
+
+  html += R"sunny(<style>
+/* Широкая центрированная компоновка солнечного шаблона. */
+body{box-sizing:border-box}.sunny-page-heading{box-sizing:border-box;width:100%;max-width:1000px;padding:4px 0 16px;border-bottom:1px solid #eddfcc;margin:0 auto 20px}.sunny-page-heading span{display:block;font-size:11px;letter-spacing:.14em;color:#a66c20;font-weight:750}.sunny-page-heading strong{display:block;color:#70472f;font-size:14px;margin-top:4px}
+.sunny-home .sunny-welcome{max-width:1000px;display:flex;align-items:center;justify-content:space-between;padding:24px 26px;margin:0 auto 18px}.sunny-home .sunny-welcome h1{font-size:clamp(28px,3vw,38px);letter-spacing:-.04em;margin:8px 0}.sunny-eyebrow{font-size:11px;letter-spacing:.12em;font-weight:750;color:#a66c20}.sunny-sun{font-size:45px;color:#e3a12a}.sunny-home .top-bar{max-width:1000px;margin:0 auto 18px}.sunny-home .sunny-layout-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px;max-width:1000px;width:100%;align-items:stretch}.sunny-home .sunny-layout-grid>.card{margin:0;position:relative;min-width:0;padding:20px 22px}.sunny-home .sunny-layout-grid>.alert-banner{grid-column:1 / -1;margin:0;text-align:left;padding:16px 20px;animation:none}.sunny-home .sunny-layout-grid>.card>.sub-title{font-size:16px;letter-spacing:0;text-transform:none;border:0;min-height:34px;padding:0 110px 0 0;margin:0 0 16px;display:flex;align-items:center;flex-wrap:wrap;gap:6px}.sunny-home .sunny-layout-grid>.card>.sunny-detail-link{position:absolute;right:22px;top:26px;margin:0;font-size:13px}.sunny-home .sunny-layout-grid .status-row{padding:11px 0;font-size:14px}.sunny-home .sunny-layout-grid .status-row>span:last-child{text-align:right}.sunny-home .sunny-climate .temp-card-grid{gap:12px}.sunny-home .sunny-climate .temp-block{padding:16px;text-align:left}.sunny-home .sunny-climate .temp-block:first-child{background:#fffaf0;border-color:#efd69f}.sunny-home .sunny-climate .temp-block:last-child{background:#eff9fa;border-color:#bce2e1}.sunny-home .sunny-climate .loc-title{font-size:13px;text-transform:none;font-weight:500;color:#786a5a}.sunny-home .sunny-climate .temp-val{font-size:32px;line-height:1.2;color:#a15a20}.sunny-home .sunny-climate .temp-block:last-child .temp-val{color:#327b83}.sunny-home .sunny-climate .hum-val{font-size:13px;color:#786a5a}.sunny-home .sunny-alert-summary{background:#fff1eb;border-color:#edb7aa;border-top:5px solid #c95d4d}.sunny-alert-summary p{font-size:14px;color:#705a50;line-height:1.5;margin:0}.sunny-home #master-link-status{width:100%;max-width:1000px!important;box-sizing:border-box;text-align:center!important}
+@media(min-width:901px){body.sunny-home{width:min(100%,1320px);max-width:1320px;margin:0 auto!important;padding:26px 36px 60px 286px!important;align-items:stretch}.sunny-home .sunny-navigation{left:max(0px,calc((100vw - 1320px)/2));width:250px;padding:24px 18px}.sunny-home .sunny-layout-grid{margin:0 auto}.sunny-home .sunny-page-heading{width:100%}}
+@media(max-width:900px){.sunny-home .sunny-layout-grid{grid-template-columns:1fr}.sunny-home .sunny-welcome{padding:20px}.sunny-home .sunny-sun{font-size:36px}}
+@media(max-width:420px){.sunny-home .sunny-layout-grid>.card{padding:17px}.sunny-home .sunny-layout-grid>.card>.sunny-detail-link{right:17px;top:23px}.sunny-home .sunny-climate .temp-block{padding:12px}.sunny-home .sunny-climate .temp-val{font-size:26px}.sunny-home .sunny-sun{display:none}}
+</style>)sunny";
+  html += "<div class='container sunny-layout-grid'>";
+  
+  // Блок критических аварий (скрыт по умолчанию, появляется при ошибках)
+  html += "<div id='alert-banner' class='alert-banner' role='alert'><div>⚠️ Обнаружены аварии или ошибки</div><div id='alert-details'></div><a href='/alerts'>Подробнее</a></div>";
+
+  // --- НОВАЯ КАРТОЧКА: ТЕМПЕРАТУРА И ВЛАЖНОСТЬ ---
+  html += "<div class='card sunny-climate'>";
+  html += "  <div class='sub-title'><span class='sunny-card-icon'><svg aria-hidden='true' focusable='false' xmlns='http://www.w3.org/2000/svg' viewBox='0 0 48 48' fill='none' stroke='#69462F' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'><path d='M19 27V12a5 5 0 0 1 10 0v15a9 9 0 1 1-10 0Z' fill='#FFE6A6'/><path d='M24 17v16'/><circle cx='24' cy='35' r='3' fill='#E79538' stroke='none'/><path d='M36 16c0 4-5 7-5 11a5 5 0 1 0 10 0c0-4-5-7-5-11Z' fill='#BFE9E2'/></svg></span>Температура и влажность</div>";
+  html += "  <div class='temp-card-grid'>";
+  html += "    <div class='temp-block'>";
+  html += "      <div class='loc-title'>🏡 В курятнике</div>";
+  html += "      <div class='temp-val' id='main-temp-in'>--°C</div>";
+  html += "      <div class='hum-val'>Влажность: <span id='main-hum-in'>--</span>%</div>";
+  html += "    </div>";
+  html += "    <div class='temp-block'>";
+  html += "      <div class='loc-title'>🌳 На улице</div>";
+  html += "      <div class='temp-val' id='main-temp-out'>--°C</div>";
+  html += "      <div class='hum-val'>Влажность: <span id='main-hum-out'>--</span>%</div>";
+  html += "    </div>";
+  html += "  </div>";
+  html += "  <div class='status-row' style='margin-top: 12px; border-bottom: none; padding-bottom: 0;'>";
+  html += "    <span>Нагреватель:</span>";
+  html += "    <span id='heater-status' class='txt-bold'>--</span>";
+  html += "  </div>";
+  html += "  <div class='status-row' id='row-dehumidifier' style='display: none; border-bottom: none; padding-bottom: 0;'>";
+  html += "    <span>Осушитель:</span>";
+  html += "    <span id='dehumidifier-status' class='txt-bold'>--</span>";
+  html += "  </div>";
+  html += "<a class='sunny-detail-link' href='/climate'>Подробнее →</a>";
+  html += "</div>";
+
+  // --- ВЕНТИЛЯЦИЯ ---
+  html += "<div class='card sunny-ventilation'>";
+  html += "  <div class='sub-title' style='display: flex; justify-content: space-between; align-items: center;'>";
+  html += "    <span><span class='sunny-card-icon'><svg aria-hidden='true' focusable='false' xmlns='http://www.w3.org/2000/svg' viewBox='0 0 48 48' fill='none' stroke='#69462F' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'><circle cx='24' cy='24' r='18' fill='#E2F1DE'/><path d='M24 20c-5-2-6-8-2-10 3-1 6 4 5 9M28 24c4-3 10-1 10 3 0 4-6 4-10 1M22 28c1 5-3 10-7 8-3-2-1-8 3-10' fill='#A8D7C1'/><circle cx='24' cy='24' r='3.5' fill='#F6B737'/></svg></span>Вентиляция</span>";
+  html += "    <span id='vent-disabled-label' style='color: #dc3545; font-weight: bold; font-size: 14px; display: none;'>ОТКЛЮЧЕНО</span>";
+  html += "  </div>";
+  html += "  <div id='vent-card-content'>";
+  html += "    <div class='status-row'><span>Вентиляторы:</span><span id='vent-fans-count' class='txt-bold'>--</span></div>";
+  html += "    <div class='status-row' id='row-vent-in'><span>Приточный вентилятор:</span><span id='vent-in-status' class='txt-bold'>--</span></div>";
+  html += "    <div class='status-row' id='row-vent-out'><span>Вытяжной вентилятор:</span><span id='vent-out-status' class='txt-bold'>--</span></div>";
+  html += "    <div class='status-row'><span>Режим управления:</span><span id='vent-mode-name' class='txt-bold'>--</span></div>";
+  html += "    <div class='status-row'><span>Параметры работы:</span><span id='vent-auto-params' style='color:#555;'>Вкл/час: <b id='vent-r34'>--</b> | Длит: <b id='vent-r35'>--</b> мин</span></div>";
+  html += "    <div class='status-row' style='border-bottom:none; padding-bottom:0;'><span>Состояние системы:</span><span id='vent-priority-status' class='status-highlight'>--</span></div>";
+  html += "  </div>";
+  html += "<a class='sunny-detail-link' href='/ventilation'>Подробнее →</a>";
+  html += "</div>";
+
+  // --- ЛАЗ ---
+  html += "<div class='card sunny-door'>";
+  html += "  <div class='sub-title' style='display: flex; justify-content: space-between; align-items: center;'>";
+  html += "    <span><span class='sunny-card-icon'><svg aria-hidden='true' focusable='false' xmlns='http://www.w3.org/2000/svg' viewBox='0 0 48 48' fill='none' stroke='#69462F' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'><path d='M10 41V11h28v30' fill='#FFE7B6'/><path d='M16 41V17h16v24M7 41h34'/><path d='M20 19v20M28 19v20' stroke='#D2954F'/><circle cx='28' cy='29' r='1.7' fill='#80502F' stroke='none'/></svg></span>Лаз</span>";
+  html += "    <span id='door-disabled-label' style='color: #dc3545; font-weight: bold; font-size: 14px; display: none;'>ОТКЛЮЧЕНО</span>";
+  html += "  </div>";
+  html += "  <div id='door-card-content'>";
+  html += "    <div class='status-row'><span>Режим управления:</span><span id='door-priority-mode' class='txt-bold'>--</span></div>";
+  html += "    <div class='status-row' style='border-bottom:none; padding-bottom:0;'><span>Состояние системы:</span><span id='door-complex-status' style='text-align:right; font-weight:600; max-width:65%; font-size:14px;'>--</span></div>";
+  html += "  </div>";
+  html += "<a class='sunny-detail-link' href='/door'>Подробнее →</a>";
+  html += "</div>";
+
+  // --- КОРМЛЕНИЕ ---
+  html += "<div class='card sunny-feeding'>";
+  html += "  <div class='sub-title' style='display: flex; justify-content: space-between; align-items: center;'>";
+  html += "    <span><span class='sunny-card-icon'><svg aria-hidden='true' focusable='false' xmlns='http://www.w3.org/2000/svg' viewBox='0 0 48 48' fill='none' stroke='#69462F' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'><path d='M7 30h34l-4 10H11Z' fill='#F8C66B'/><path d='M12 30c1-7 6-10 12-10s11 3 12 10' fill='#FFF0CF'/><path d='M18 14c-2-3-1-5 1-7 3 2 4 5 2 7M28 15c0-4 2-6 5-6 1 4-1 6-5 6' fill='#A8D7A2'/><circle cx='24' cy='25' r='1.5' fill='#D89132' stroke='none'/></svg></span>Кормление</span>";
+  html += "    <span id='feed-disabled-label' style='color: #dc3545; font-weight: bold; font-size: 14px; display: none;'>ОТКЛЮЧЕНО</span>";
+  html += "  </div>";
+  html += "  <div id='feed-card-content'>";
+  html += "    <div class='status-row'><span>Режим управления:</span><span id='feed-control-mode' class='txt-bold'>--</span></div>";
+  html += "    <div class='status-row'><span>Функция отработки пропусков кормления:</span><span id='feed-missed-feature' class='txt-bold'>--</span></div>";
+  html += "    <div class='status-row'><span>Режим работы:</span><span id='feed-operation-mode' style='text-align:right; font-weight:500; font-size:14px; max-width:65%;'>--</span></div>";
+  html += "    <div class='status-row' style='border-bottom:none; padding-bottom:0;'><span>Кормление за сутки:</span><span>Выполнено <b id='feed-done-count' class='txt-bold'>--</b> из <b id='feed-plan-count' class='txt-bold'>--</b></span></div>";
+  html += "    <div id='feed-missed-warning' class='feed-missed-alert'>⚠️ Выполняется пропуск кормления!</div>";
+  html += "  </div>";
+  html += "<a class='sunny-detail-link' href='/feeding'>Подробнее →</a>";
+  html += "</div>";
+
+  // --- ОСВЕЩЕНИЕ ---
+  html += "<div class='card sunny-light'>";
+  html += "  <div class='sub-title'><span class='sunny-card-icon'><svg aria-hidden='true' focusable='false' xmlns='http://www.w3.org/2000/svg' viewBox='0 0 48 48' fill='none' stroke='#69462F' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'><path d='M17 31c-1-3-5-5-5-11a12 12 0 0 1 24 0c0 6-4 8-5 11Z' fill='#FFE18A'/><path d='M18 36h12M20 41h8M24 2v3M5 20h3M40 20h3M10 7l2 2M38 7l-2 2'/><path d='M21 29v-7l3 2 3-2v7'/></svg></span>Освещение</div>";
+  html += "  <div class='status-row'><span>Режим управления:</span><span id='light-control-mode' class='txt-bold'>--</span></div>";
+  html += "  <div class='status-row'><span>Основной свет:</span><span id='light-main-status' class='txt-bold'>--</span></div>";
+  html += "  <div class='status-row' style='border-bottom:none; padding-bottom:0;'><span>Дежурный свет:</span><span id='light-aux-status' class='txt-bold'>--</span></div>";
+  html += "<a class='sunny-detail-link' href='/light'>Подробнее →</a>";
+  html += "</div>";
+
+  html += "<div class='card sunny-alert-summary'><div class='sub-title'><span class='sunny-card-icon'>⚠</span>Аварии и ошибки</div><p>Подробное состояние аварий и счётчиков ошибок</p><a class='sunny-detail-link' href='/alerts'>Подробнее →</a></div>";
+
+  // Навигация доступна в общей панели разделов.
+
+  // Скрипт динамического обновления
+  html += R"rawliteral(
+  <script>
+  function activeAlarmDescriptions(data) {
+    const r1 = Number(data[1]) || 0, r3 = Number(data[3]) || 0;
+    const alarms = [];
+    if (r1 & (1 << 9)) alarms.push('Авария батарейки');
+    if (r1 & (1 << 10)) alarms.push('Авария датчика температуры');
+    if (r3 & (1 << 5)) alarms.push('Ошибка расчёта вентиляции');
+    if (r3 & (1 << 9)) alarms.push('Ошибка при кормлении');
+    const labels = ['кормушки К1', 'кормушки К2', 'кормушки К3', 'кормушки К4', 'модуля Wi-Fi'];
+    labels.forEach((label, i) => {
+      const count = Number(data[48 + i]) || 0;
+      if (count > 0) alarms.push('Ошибки ' + label + ': ' + count);
+    });
+    return alarms;
+  }
+  // END activeAlarmDescriptions
+  // Утилита для перевода минут из регистров в ЧЧ:ММ
+  function parseMinutesToTime(totalMinutes) {
+    if (totalMinutes === undefined || totalMinutes === null || isNaN(totalMinutes)) return "--:--";
+    const mins = parseInt(totalMinutes);
+    if (mins === 0) return "--:--";
+    const hours = Math.floor(mins / 60);
+    const minutes = mins % 60;
+    return `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}`;
+  }
+  // Утилита для перевода десятых долей секунды из регистра в формат С.Ц (например, 15 -> 1.5)
+  function parseDeciSeconds(val) {
+    if (val === undefined || val === null || isNaN(val)) return "--";
+    const num = parseInt(val);
+    return (num / 10).toFixed(1);
+  }
+  // BEGIN sunny heater display
+  function heaterStatusHtml(r0, r1) {
+    const on = ((Number(r0) >> 14) & 1) === 1;
+    const doorOpen = ((Number(r1) >> 2) & 1) === 1;
+    const state = on ? "<span style='color:#16a34a;'>Включен 🟢</span>" : "<span style='color:#64748b;'>Выключен ⚪</span>";
+    return state + (doorOpen ? ' (дверь открыта)' : '');
+  }
+  // END sunny heater display
+  // Локальный ход часов допускается только при актуальном статусе и доступном API.
+  let clockBase = null, clockBaseTick = 0, clockLastSample = null;
+  let clockStatusTick = -Infinity, clockDataTick = -Infinity, clockFresh = false;
+  function stopControllerClock() {
+    clockBase = null;
+    clockLastSample = null;
+    document.getElementById('rtc-clock-label').innerText = 'Время контроллера · нет данных';
+  }
+  function renderControllerClock() {
+    const tick = performance.now();
+    if (!clockFresh || tick - clockStatusTick > 3500 || tick - clockDataTick > 3500) {
+      stopControllerClock();
+      return;
+    }
+    if (clockBase === null) return;
+    document.getElementById('rtc-clock-label').innerText = 'Время контроллера';
+    const date = new Date(clockBase + tick - clockBaseTick);
+    const pad = n => String(n).padStart(2, '0');
+    document.getElementById('rtc-current-time').innerText = `🕒${pad(date.getUTCHours())}:${pad(date.getUTCMinutes())}:${pad(date.getUTCSeconds())} ${pad(date.getUTCDate())}.${pad(date.getUTCMonth() + 1)}.${pad(date.getUTCFullYear() % 100)}`;
+  }
+  function syncControllerClock(data) {
+    const tick = performance.now();
+    if (!clockFresh || tick - clockStatusTick > 3500) return;
+    const fields = [17, 18, 19, 20, 21, 22].map(key => data[key]);
+    if (!fields.every(v => Number.isInteger(v))) { stopControllerClock(); return; }
+    const [second, minute, hour, day, month, rawYear] = fields;
+    const year = rawYear < 100 ? 2000 + rawYear : rawYear;
+    if (year < 2000 || year > 9999 || month < 1 || month > 12 || day < 1 || day > 31 || hour > 23 || hour < 0 || minute > 59 || minute < 0 || second > 59 || second < 0) { stopControllerClock(); return; }
+    const sample = Date.UTC(year, month - 1, day, hour, minute, second);
+    const date = new Date(sample);
+    if (date.getUTCFullYear() !== year || date.getUTCMonth() !== month - 1 || date.getUTCDate() !== day) { stopControllerClock(); return; }
+    clockDataTick = tick;
+    if (clockBase === null || (sample !== clockLastSample && Math.abs(sample - (clockBase + tick - clockBaseTick)) >= 2000)) {
+      clockBase = sample;
+      clockBaseTick = tick;
+    }
+    clockLastSample = sample;
+    renderControllerClock();
+  }
+  setInterval(renderControllerClock, 200);
+  function update() {
+    // 1. Запрос системного статуса (WiFi и MQTT)
+    fetch('/api/status', {cache:'no-store'}).then(r => { if (!r.ok) throw Error(); return r.json(); }).then(d => {
+      clockFresh = d.master_status === 'fresh';
+      clockStatusTick = performance.now();
+      if (!clockFresh) stopControllerClock();
+      const bars = document.querySelectorAll('.top-bar .bar');
+      const dot = document.querySelector('.top-bar .dot');
+      
+      if (d.wifi_conn) {
+        let count = 0, colorClass = '';
+        if (d.rssi >= -60) { count = 4; colorClass = 'green'; }
+        else if (d.rssi >= -75) { count = 3; colorClass = 'green'; }
+        else if (d.rssi >= -85) { count = 2; colorClass = 'yellow'; }
+        else { count = 1; colorClass = 'red'; }
+        
+        bars.forEach((b, i) => {
+          b.classList.remove('green', 'yellow', 'red');
+          if (i < count) b.classList.add(colorClass);
+        });
+      } else {
+        bars.forEach(b => b.classList.remove('green', 'yellow', 'red'));
+      }
+
+      if (dot) {
+        dot.className = d.mqtt_conn ? 'dot online' : 'dot offline';
+      }
+    }).catch(err => { clockFresh = false; stopControllerClock(); console.error("Ошибка API статуса:", err); });
+
+    // 2. Запрос Modbus данных для сводной панели
+    fetch('/api/data', {cache:'no-store'}).then(r => { if (!r.ok) throw Error(); return r.json(); }).then(data => {
+
+      syncControllerClock(data);
+
+      // Парсинг битовых регистров масок
+      const r0 = data["0"] || 0;
+      const r1 = data["1"] || 0;
+      const r2 = data["2"] || 0;
+      const r3 = data["3"] || 0;
+      const r4 = data["4"] || 0;
+
+      // -- ЛОГИКА ДЛЯ КАРТОЧКИ ТЕМПЕРАТУРЫ (С учётом знаковых битов) --
+      // Курятник: температура в R5, влажность в R6, знак в R0 бите 4
+      if (data["5"] !== undefined) {
+        let tIn = parseInt(data["5"]);
+        const signIn = (r0 >> 4) & 1; // 4-й бит регистра 0 отвечает за минус в курятнике
+        if (signIn === 1) tIn = tIn * -1;
+        document.getElementById('main-temp-in').innerText = tIn + "°C";
+      }
+      if (data["6"] !== undefined) {
+        document.getElementById('main-hum-in').innerText = data["6"];
+      }
+
+      // Улица: температура в R7, влажность в R8, знак в R0 бите 3
+      if (data["7"] !== undefined) {
+        let tOut = parseInt(data["7"]);
+        const signOut = (r0 >> 3) & 1; // 3-й бит регистра 0 отвечает за минус на улице
+        if (signOut === 1) tOut = tOut * -1;
+        document.getElementById('main-temp-out').innerText = tOut + "°C";
+      }
+      if (data["8"] !== undefined) {
+        document.getElementById('main-hum-out').innerText = data["8"];
+      }
+
+      // ЛОГИКА ДЛЯ НАГРЕВАТЕЛЯ
+      const heaterEl = document.getElementById('heater-status');
+      if (heaterEl) heaterEl.innerHTML = heaterStatusHtml(r0, r1);
+
+      // ЛОГИКА ДЛЯ ОСУШИТЕЛЯ
+      const isDehumidifierUsed = (r4 >> 4) & 1; // Рег 4 Бит 4 (используется осушитель)
+      const isDehumidifierOn = (r0 >> 15) & 1;   // Рег 0 Бит 15 (Включен/Выключен)
+
+      const rowDehumidifier = document.getElementById('row-dehumidifier');
+      const dehumidifierStatusEl = document.getElementById('dehumidifier-status');
+
+      if (isDehumidifierUsed === 1) {
+        // Если осушитель используется, показываем всю строку
+        if (rowDehumidifier) rowDehumidifier.style.display = "flex";
+        
+        // Меняем статус Вкл/Выкл
+        if (dehumidifierStatusEl) {
+          if (isDehumidifierOn === 1) {
+            dehumidifierStatusEl.innerHTML = "<span style='color:#16a34a;'>Включен 🟢</span>";
+          } else {
+            dehumidifierStatusEl.innerHTML = "<span style='color:#64748b;'>Выключен ⚪</span>";
+          }
+        }
+      } else {
+        // Если осушитель не используется в системе, полностью скрываем строку с экрана
+        if (rowDehumidifier) rowDehumidifier.style.display = "none";
+      }
+
+      // -- ЛОГИКА ДЛЯ КАРТОЧКИ ВЕНТИЛЯЦИИ --
+      const fansCount = data["53"] !== undefined ? parseInt(data["53"]) : 0;
+      const ventDisabledLabel = document.getElementById('vent-disabled-label');
+      const ventCardContent = document.getElementById('vent-card-content');
+
+      if (fansCount === 0) {
+        // Если вентиляторов 0, показываем надпись "ОТКЛЮЧЕНО" и скрываем контент карточки
+        if (ventDisabledLabel) ventDisabledLabel.style.display = "inline";
+        if (ventCardContent) ventCardContent.style.display = "none";
+      } else {
+        // Если вентиляторы используются, возвращаем обычный вид
+        if (ventDisabledLabel) ventDisabledLabel.style.display = "none";
+        if (ventCardContent) ventCardContent.style.display = "block";
+
+        const ventFansCountEl = document.getElementById('vent-fans-count');
+        if (ventFansCountEl) ventFansCountEl.innerHTML = `${fansCount} шт.`;
+        
+        // Проверка битов включения (R0:B12 и R0:B13)
+        const isVentInOn = (r0 >> 12) & 1;
+        const isVentOutOn = (r0 >> 13) & 1;
+
+        const ventInStatusEl = document.getElementById('vent-in-status');
+        const ventOutStatusEl = document.getElementById('vent-out-status');
+        if (ventInStatusEl) ventInStatusEl.innerHTML = isVentInOn === 1 ? "<span style='color:#16a34a;'>Включен 🟢</span>" : "<span style='color:#64748b;'>Выключен ⚪</span>";
+        if (ventOutStatusEl) ventOutStatusEl.innerHTML = isVentOutOn === 1 ? "<span style='color:#16a34a;'>Включен 🟢</span>" : "<span style='color:#64748b;'>Выключен ⚪</span>";
+
+        // Режим работы (Регистр 1 Бит 15) и уставки (Регистры 34, 35)
+        const isManualMode = (r1 >> 15) & 1;
+        const ventModeNameEl = document.getElementById('vent-mode-name');
+        const ventR34El = document.getElementById('vent-r34');
+        const ventR35El = document.getElementById('vent-r35');
+
+        if (isManualMode === 1) {
+          if (ventModeNameEl) ventModeNameEl.innerHTML = "<span style='color:#d97706;'>Ручной 🛠️</span>";
+          if (ventR34El) ventR34El.innerText = "--";
+          if (ventR35El) ventR35El.innerText = "--";
+        } else {
+          if (ventModeNameEl) ventModeNameEl.innerHTML = "<span style='color:#2563eb;'>Автоматический 🤖</span>";
+          if (ventR34El) ventR34El.innerText = data["34"] !== undefined ? data["34"] : "--";
+          if (ventR35El) ventR35El.innerText = data["35"] !== undefined ? data["35"] : "--";
+        }
+
+        // Расчет статуса по строгому приоритету
+        const isGasAlarm = (r0 >> 2) & 1;      // Рег 0 Бит 2
+        const isCoolingActive = (r0 >> 0) & 1;  // Рег 0 Бит 0
+        const isAutoVent = (r1 >> 3) & 1;       // Рег 1 Бит 3
+        const isManualVent = (r1 >> 4) & 1;     // Рег 1 Бит 4
+
+        let priorityStatusText = (isVentInOn === 1 || isVentOutOn === 1) ? "Работа" : "Пауза 💤";
+        let statusColor = "#64748b"; 
+        let statusBg = "#f1f5f9";
+
+        if (isGasAlarm === 1) {
+          priorityStatusText = "Загазованно ⚠️";
+          statusColor = "#b91c1c"; 
+          statusBg = "#fee2e2";
+        } else if (isCoolingActive === 1) {
+          priorityStatusText = "Охлаждение ❄️";
+          statusColor = "#1d4ed8"; 
+          statusBg = "#dbeafe";
+        } else if (isManualVent === 1) {
+          priorityStatusText = "Проветривание (Ручное) 💨";
+          statusColor = "#b45309"; 
+          statusBg = "#fef3c7";
+        } else if (isAutoVent === 1) {
+          priorityStatusText = "Проветривание (Авто) 🔄";
+          statusColor = "#047857"; 
+          statusBg = "#d1fae5";
+        }
+
+        const statusEl = document.getElementById('vent-priority-status');
+        if (statusEl) {
+          statusEl.innerText = priorityStatusText;
+          statusEl.style.color = statusColor;
+          statusEl.style.backgroundColor = statusBg;
+        }
+      }
+
+      // --- ЛОГИКА ДЛЯ КАРТОЧКИ ЛАЗА ---
+      const isDoorEnabled = (r2 >> 5) & 1; // Проверка 5-го бита регистра 2
+      
+      const doorDisabledLabel = document.getElementById('door-disabled-label');
+      const doorCardContent = document.getElementById('door-card-content');
+
+      if (isDoorEnabled === 0) {
+        // Если бит равен 0, показываем надпись "ОТКЛЮЧЕНО" и скрываем контент карточки
+        if (doorDisabledLabel) doorDisabledLabel.style.display = "inline";
+        if (doorCardContent) doorCardContent.style.display = "none";
+      } else {
+        // Если бит равен 1, скрываем надпись и показываем карточку как обычно
+        if (doorDisabledLabel) doorDisabledLabel.style.display = "none";
+        if (doorCardContent) doorCardContent.style.display = "block";
+
+        // 1. Вывод режима по старшинству приоритетов
+        let doorModeText = "- 🤖";
+        let doorModeColor = "#2563eb";
+
+        if (((r2 >> 10) & 1) === 1) {
+          doorModeText = "Ручной режим 🛠️";
+          doorModeColor = "#d97706";
+        } else if (((r2 >> 15) & 1) === 1) {
+          doorModeText = "Авто по температуре 🌡️";
+          doorModeColor = "#0284c7";
+        } else if (((r2 >> 1) & 1) === 1) {
+          doorModeText = "Закр. по расп. / Откр. по календ. 📅⏰";
+          doorModeColor = "#7c3aed";
+        } else if (((r2 >> 0) & 1) === 1) {
+          doorModeText = "Авто по календарю 📅";
+          doorModeColor = "#059669";
+        }
+        
+        const dmEl = document.getElementById('door-priority-mode');
+        if (dmEl) {
+          dmEl.innerText = doorModeText;
+          dmEl.style.color = doorModeColor;
+        }
+
+        // 2. Вывод состояния по алгоритму ветвления
+        let doorStateText = "Неизвестно";
+        let doorStateColor = "#475569";
+
+        const isMoving = (r2 >> 11) & 1;
+        const isGoingDown = (r0 >> 8) & 1;
+        const isGoingUp = (r0 >> 9) & 1;
+        const isBlocked = (r2 >> 12) & 1;
+        const isExtremePosition = (r2 >> 9) & 1;
+        const openCloseCheck = (r2 >> 8) & 1;
+        const insideTempLock = (r2 >> 6) & 1;
+        const outsideTempLock = (r2 >> 7) & 1;
+
+        if (isMoving === 1) {
+          if (isGoingDown === 1) {
+            doorStateText = "⏳ Закрывается... ⬇️";
+            doorStateColor = "#ea580c";
+          } else if (isGoingUp === 1) {
+            doorStateText = "⏳ Открывается... ⬆️";
+            doorStateColor = "#059669";
+          } else {
+            doorStateText = "⏳ В движении";
+            doorStateColor = "#d97706";
+          }
+        } else {
+          if (isBlocked === 1) {
+            if (isExtremePosition === 0) {
+              doorStateText = "🛑 ЛАЗ ЗАФИКСИРОВАН В ПРОМЕЖУТОЧНОМ ПОЛОЖЕНИИ!";
+            } else if (openCloseCheck === 1) {
+              doorStateText = "🛑 ЛАЗ ЗАБЛОКИРОВАН ОТКРЫТЫМ!";
+            } else {
+              doorStateText = "🛑 ЛАЗ ЗАБЛОКИРОВАН ЗАКРЫТЫМ!";
+            }
+            doorStateColor = "#dc2626";
+          } else if (isExtremePosition === 0) {
+            doorStateText = "🔄 Промежуточное положение";
+            doorStateColor = "#475569";
+          } else {
+            if (openCloseCheck === 1) {
+              const closeTimeStr = parseMinutesToTime(data["9"]);
+              doorStateText = `🟢 Открыт (Закрытие в ${closeTimeStr})`;
+              doorStateColor = "#16a34a";
+            } else if (openCloseCheck === 0) {
+              if (insideTempLock === 1) {
+                doorStateText = "❄️ Закрыт (Запрет открытия по темп. внутри)";
+                doorStateColor = "#dc2626";
+              } else if (outsideTempLock === 1) {
+                doorStateText = "🥶 Закрыт (Запрет открытия по темп. на улице)";
+                doorStateColor = "#dc2626";
+              } else {
+                const openTimeStr = parseMinutesToTime(data["10"]);
+                doorStateText = `🔒 Закрыт (Открытие в ${openTimeStr})`;
+                doorStateColor = "#2563eb";
+              }
+            }
+          }
+        }
+
+        const dsEl = document.getElementById('door-complex-status');
+        if (dsEl) {
+          dsEl.innerText = doorStateText;
+          dsEl.style.color = doorStateColor;
+        }
+      }
+
+      // --- ЛОГИКА ДЛЯ КАРТОЧКИ КОРМЛЕНИЯ ---
+      const isFeedEnabled = (r0 >> 7) & 1; // Регистр 0 Бит 7
+      const feedDisabledLabel = document.getElementById('feed-disabled-label');
+      const feedCardContent = document.getElementById('feed-card-content');
+
+      if (isFeedEnabled === 0) {
+        // Если кормление выключено (бит равен 0), пишем ОТКЛЮЧЕНО и прячем параметры
+        if (feedDisabledLabel) feedDisabledLabel.style.display = "inline";
+        if (feedCardContent) feedCardContent.style.display = "none";
+      } else {
+        // Если включено, скрываем надпись и обновляем параметры как обычно
+        if (feedDisabledLabel) feedDisabledLabel.style.display = "none";
+        if (feedCardContent) feedCardContent.style.display = "block";
+
+        // Режим управления кормлением (Регистр 3 Бит 14)
+        const isFeedManual = (r3 >> 14) & 1;
+        const feedControlModeEl = document.getElementById('feed-control-mode');
+        if (feedControlModeEl) {
+          feedControlModeEl.innerHTML = isFeedManual === 1 ? "<span style='color:#d97706;'>Ручной 🛠️</span>" : "<span style='color:#2563eb;'>Автоматический 🤖</span>";
+        }
+
+        const isMissedFeatureEnabled = (r3 >> 15) & 1;
+        const feedMissedFeatureEl = document.getElementById('feed-missed-feature');
+        if (feedMissedFeatureEl) {
+          feedMissedFeatureEl.innerHTML = isMissedFeatureEnabled === 1 
+            ? "<span style='color:#16a34a;'>Вкл</span>" 
+            : "<span style='color:#64748b;'>Выкл</span>";
+        }
+
+        const feedOperationModeEl = document.getElementById('feed-operation-mode');
+        if (feedOperationModeEl) {
+          const nextFeederNum = data["12"] !== undefined ? data["12"] : "--";
+          const nextFeedTimeStr = parseMinutesToTime(data["16"]);
+          const nextFeedDuration = parseDeciSeconds(data["13"]);
+          feedOperationModeEl.innerHTML = `Кормушка №<b>${nextFeederNum}</b> в <b>${nextFeedTimeStr}</b><br><span style='color:#64748b; font-size:14px;'>(Длительность: ${nextFeedDuration} сек)</span>`;
+        }
+
+        // Текущее состояние счетчиков за сутки (Регистры 14 и 15)
+        const feedDoneCountEl = document.getElementById('feed-done-count');
+        const feedPlanCountEl = document.getElementById('feed-plan-count');
+        if (feedDoneCountEl) feedDoneCountEl.innerText = data["14"] !== undefined ? data["14"] : "--";
+        if (feedPlanCountEl) feedPlanCountEl.innerText = data["15"] !== undefined ? data["15"] : "--";
+
+        // Проверка наличия пропуска кормления (Регистр 3 Бит 8)
+        const hasFeedMiss = (r3 >> 8) & 1;
+        const feedMissedWarningEl = document.getElementById('feed-missed-warning');
+        
+        if (feedMissedWarningEl) {
+          if (isMissedFeatureEnabled === 1 && hasFeedMiss === 1) {
+            feedMissedWarningEl.style.display = "block";
+          } else {
+            feedMissedWarningEl.style.display = "none";
+          }
+        }
+      }
+
+      // ЛОГИКА КАРТОЧКИ ОСВЕЩЕНИЯ
+      const lightBit0 = (r3 >> 0) & 1; // Рег 3 Бит 0
+      const lightBit1 = ((r3 >> 1) & 1) ^ 1; // R3:B1: 0 — свет включён, 1 — выключен
+      const isMainLightOn = (r0 >> 10) & 1; // Рег 0 Бит 10
+      const isAuxLightOn = (r0 >> 11) & 1;  // Рег 0 Бит 11
+
+      // 1. Определение режима управления освещением
+      const lightModeEl = document.getElementById('light-control-mode');
+      if (lightModeEl) {
+        if (lightBit0 === 1) {
+          lightModeEl.innerHTML = "<span style='color:#059669;'>По календарю 📅</span>";
+        } else if (lightBit0 === 0 && lightBit1 === 1) {
+          lightModeEl.innerHTML = "<span style='color:#2563eb;'>По расписанию (свет включен) ⏰🟢</span>";
+        } else if (lightBit0 === 0 && lightBit1 === 0) {
+          lightModeEl.innerHTML = "<span style='color:#64748b;'>По расписанию (свет отключен) ⏰🛑</span>";
+        } else {
+          lightModeEl.innerText = "--";
+        }
+      }
+
+      // 2. Статус основного света
+      const mainLightEl = document.getElementById('light-main-status');
+      if (mainLightEl) {
+        if (isMainLightOn === 1) {
+          mainLightEl.innerHTML = "<span style='color:#16a34a;'>Включен 💡🟢</span>";
+        } else {
+          mainLightEl.innerHTML = "<span style='color:#64748b;'>Выключен ⚪</span>";
+        }
+      }
+
+      // 3. Статус дежурного (вспомогательного) света
+      const auxLightEl = document.getElementById('light-aux-status');
+      if (auxLightEl) {
+        if (isAuxLightOn === 1) {
+          auxLightEl.innerHTML = "<span style='color:#d97706;'>Включен 🌙🟡</span>";
+        } else {
+          auxLightEl.innerHTML = "<span style='color:#64748b;'>Выключен ⚪</span>";
+        }
+      }
+
+      // АНАЛИЗ АВАРИЙ И ОШИБОК
+      const alarms = activeAlarmDescriptions(data);
+      document.getElementById('alert-details').innerText = alarms.join('; ');
+      document.getElementById('alert-banner').style.display = alarms.length ? "block" : "none";
+
+    }).catch(err => { stopControllerClock(); console.error("Ошибка API данных:", err); });
+  }
+  
+  setInterval(update, 1000);
+  update();
+  </script>
+  )rawliteral";
+
+  html += "</div></body></html>";
+  webServer.send(200, "text/html", html);
+}
+
+// 2. Эндпоинт для отдачи данных в формате JSON
+void handleApiData() {
+  std::map<uint16_t, uint16_t> snapshot;
+  if (!snapshotRegisters(snapshot)) {
+    webServer.send(503, "text/plain", "Modbus Busy");
+    return;
+  }
+  JsonDocument doc;
+  for (const auto& item : snapshot) doc[String(item.first)] = item.second;
+  String json;
+  serializeJson(doc, json);
+  webServer.send(200, "application/json", json);
+}
+
+// 3. Страница с таблицей
+void handleTable() {
+    std::map<uint16_t, uint16_t> snapshot;
+    if (!snapshotRegisters(snapshot)) {
+      webServer.send(503, "text/plain", "Modbus Busy");
+      return;
+    }
+    String html = getHeader("Мониторинг регистров");
+    const String homeLink = "<a href='/' class='btn btn-secondary' style='margin-bottom:20px;'>🏠 Главная</a>";
+    html.replace(homeLink, "");
+    html += "<h2>Данные в реальном времени</h2>";
+    html += "<div class='card register-card'>";
+    html += "<p>Снимок регистров контроллера и панель команд.</p><label class='field-label' for='register-search'>Поиск по адресу или названию</label><input id='register-search' type='search' placeholder='Например, 5 или температура' autocomplete='off'><p id='register-count' role='status'></p><p id='register-error' role='alert'></p>";
+    
+    // 1. Добавляем стили для индикаторов битов
+    html += "<link rel='stylesheet' href='" + tableStyleUrl() + "' onerror=\"showUiUpdateRequired('Не удалось загрузить оформление. Проверьте связь и обновите страницу.')\">";
+
+    html += "<table border='1' cellpadding='8' id='regTable'>";
+    html += "<thead><tr><th>Регистр</th><th>Название</th><th>Значение</th></tr></thead>";
+    html += "<tbody id='tableBody'>";
+    
+    // Первоначальный вывод строк из памяти memo
+    for (const auto& item : snapshot) {
+        html += "<tr id='reg-" + String(item.first) + "'>";
+        html += "<td><b>" + String(item.first) + "</b></td>";
+        html += "<td class='val-cell' colspan='2'>" + String(item.second) + "</td></tr>";
+    }
+    html += "</tbody></table></div>";
+
+    html += "<script src='" + tableScriptUrl() + "' onerror=\"showUiUpdateRequired('Не удалось загрузить таблицу. Проверьте связь и обновите страницу.')\"></script>";
+
+    html += "</body></html>";
+    webServer.send(200, "text/html", html);
+}
+
+// 4. Страница автоматизации курятника
+void handleAutoChickenHous() {
+  // Сохраняем старый адрес для закладок, но отдельное меню больше не требуется.
+  webServer.sendHeader("Location", "/", true);
+  webServer.send(302, "text/plain; charset=utf-8", "Переход на главную страницу");
+}
+
+// 4.1 Освещение и распорядок
+
+void handleLight() {
+  String html = "<!DOCTYPE html><html lang='ru'><head>";
+  html += "<meta charset='UTF-8'>";
+  html += "<meta name='viewport' content='width=device-width, initial-scale=1.0'>";
+  html += "<title>Освещение и распорядок</title>";
+  html += "<style>";
+  html += "body { --content-max:600px; margin: 0; padding: 20px; display: flex; flex-direction: column; align-items: center; }";
+  html += ".container { width: 100%; max-width: 600px; }";
+  html += "table { width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 14px; }";
+  html += "th, td { padding: 8px; border: 1px solid #eaecf4; text-align: center; }";
+  html += "th { background: #f8f9fc; color: #4e73df; font-weight: bold; }";
+  html += ".month-name { text-align: left; font-weight: bold; }";
+  html += "</style>";
+  html += getDesignSystemStyles();
+  html += "</head><body class='page-light'>";
+  html += getPageNavigation();
+
+  html += "<div class='container sunny-detail-grid'>";
+  html += "<h2><span class='sunny-card-icon'><svg aria-hidden='true' focusable='false' xmlns='http://www.w3.org/2000/svg' viewBox='0 0 48 48' fill='none' stroke='#69462F' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'><path d='M17 31c-1-3-5-5-5-11a12 12 0 0 1 24 0c0 6-4 8-5 11Z' fill='#FFE18A'/><path d='M18 36h12M20 41h8M24 2v3M5 20h3M40 20h3M10 7l2 2M38 7l-2 2'/><path d='M21 29v-7l3 2 3-2v7'/></svg></span>Освещение и распорядок</h2>";
+
+  // Блок 1: Текущие статусы (Биты)
+  html += "<div class='card'>";
+  html += "<h3>Текущее состояние</h3>";
+  html += "<div class='status-row'><span>Основное освещение:</span><span id='b_0_10' class='badge bg-neutral'>Выкл</span></div>";
+  html += "<div class='status-row'><span>Дежурное освещение:</span><span id='b_0_11' class='badge bg-neutral'>Выкл</span></div>";
+  html += "<div class='status-row'><span>Сон по расписанию:</span><span id='b_1_0' class='badge bg-neutral'>Выкл</span></div>";
+  html += "<div class='status-row'><span>На улице светло:</span><span id='b_1_1' class='badge bg-neutral'>Нет</span></div>";
+  html += "<div class='status-row'><span>Управление по календарю:</span><span id='b_3_0' class='badge bg-neutral'>Выкл</span></div>";
+  html += "<div class='status-row'><span>Свет горит постоянно при откл. календаре:</span><span id='b_3_1' class='badge bg-neutral'>Нет</span></div>";
+  html += "</div>";
+
+  // Блок 2: Временные уставки (Регистры)
+  html += "<div class='card'>";
+  html += "<h3>Оперативные уставки времени</h3>";
+  html += "<div class='status-row'><span>Время восхода солнца:</span><span id='r_36' class='val-box'>--</span></div>";
+  html += "<div class='status-row'><span>Время заката солнца:</span><span id='r_37' class='val-box'>--</span></div>";
+  html += "<div class='status-row'><span>Записанное время подъема:</span><span id='r_38' class='val-box'>--</span></div>";
+  html += "<div class='status-row'><span>Записанное время отбоя:</span><span id='r_39' class='val-box'>--</span></div>";
+  html += "<div class='status-row'><span>Длительность дежурного освещения, мин:</span><span id='r_45' class='val-box'>--</span></div>";
+  html += "<div class='status-row'><span>Время сумерек:</span><span id='r_46' class='val-box'>--</span></div>";
+  html += "</div>";
+
+  // Блок 3: Календарь восходов и закатов (Таблица)
+  html += "<div class='card sunny-wide'>";
+  html += "<h3>Годовой календарь (Восход / Закат)</h3>";
+  html += "<table>";
+  html += "<thead><tr><th>Месяц</th><th>Восход</th><th>Закат</th></tr></thead>";
+  html += "<tbody>";
+  const char* months[] = {"Январь", "Февраль", "Март", "Апрель", "Май", "Июнь", "Июль", "Август", "Сентябрь", "Октябрь", "Ноябрь", "Декабрь"};
+  for (int i = 0; i < 12; i++) {
+    int r_voshod = 72 + i;
+    int r_zakat = 84 + i;
+    html += "<tr>";
+    html += "<td class='month-name'>" + String(months[i]) + "</td>";
+    html += "<td id='r_" + String(r_voshod) + "'>--</td>";
+    html += "<td id='r_" + String(r_zakat) + "'>--</td>";
+    html += "</tr>";
+  }
+  html += "</tbody></table>";
+  html += "</div>";
+
+  // Кнопка Назад
+  html += "";
+  html += "</div>";
+
+  // JavaScript AJAX скрипт для обновления данных в реальном времени
+  html += R"rawliteral(
+  <script>
+
+  // Функция перевода минут в формат ЧЧ:ММ
+  function minToHm(val) {
+    if (val === undefined || val === null || val === "") return '--';
+    const totalMinutes = parseInt(val);
+    const hours = Math.floor(totalMinutes / 60);
+    const minutes = totalMinutes % 60;
+    return `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}`;
+  }
+
+  function updateLightData() {
+    fetch('/api/data')
+      .then(r => r.json())
+      .then(data => {
+
+        // Обновление битовых флагов (0 регистр)
+        let r0 = data["0"] || 0;
+        updateBitBadge('b_0_10', (r0 >> 10) & 1, "Вкл", "Выкл");
+        updateBitBadge('b_0_11', (r0 >> 11) & 1, "Вкл", "Выкл");
+
+        // Обновление битовых флагов (1 регистр)
+        let r1 = data["1"] || 0;
+        updateBitBadge('b_1_0', (r1 >> 0) & 1, "Вкл", "Выкл");
+        updateBitBadge('b_1_1', (r1 >> 1) & 1, "Да", "Нет");
+
+        // Обновление битовых флагов (3 регистр)
+        let r3 = data["3"] || 0;
+        updateBitBadge('b_3_0', (r3 >> 0) & 1, "Вкл", "Выкл");
+        updateBitBadge('b_3_1', ((r3 >> 1) & 1) ^ 1, "Да", "Нет");
+
+        // Обновление оперативных регистров времени
+        const regList = [36, 37, 38, 39, 46];
+        regList.forEach(reg => {
+          let el = document.getElementById('r_' + reg);
+          if (el && data[reg] !== undefined) el.innerText = minToHm(data[reg]);
+        });
+        if (data[45] !== undefined) document.getElementById('r_45').innerText = data[45] + ' мин';
+
+        // Обновление календаря (регистры 72-83 и 84-95)
+        for (let i = 0; i < 12; i++) {
+          let voshodReg = 72 + i;
+          let zakatReg = 84 + i;
+          
+          let voshodEl = document.getElementById('r_' + voshodReg);
+          if (voshodEl && data[voshodReg] !== undefined) voshodEl.innerText = minToHm(data[voshodReg]);
+          
+          let zakatEl = document.getElementById('r_' + zakatReg);
+          if (zakatEl && data[zakatReg] !== undefined) zakatEl.innerText = minToHm(data[zakatReg]);
+        }
+      })
+      .catch(err => console.error("Ошибка обновления данных:", err));
+  }
+
+  function updateBitBadge(id, state, textOn, textOff) {
+    let el = document.getElementById(id);
+    if (!el) return;
+    if (state === 1) {
+      el.innerText = textOn;
+      el.className = "badge bg-success";
+    } else {
+      el.innerText = textOff;
+      el.className = "badge bg-neutral";
+    }
+  }
+
+  setInterval(updateLightData, 1000);
+  updateLightData();
+  </script>
+  )rawliteral";
+
+  html += "</body></html>";
+  webServer.send(200, "text/html", html);
+}
+
+// 4.2 Аварии и ошибки
+void handleAlerts() {
+  String html = "<!DOCTYPE html><html lang='ru'><head>";
+  html += "<meta charset='UTF-8'>";
+  html += "<meta name='viewport' content='width=device-width, initial-scale=1.0'>";
+  html += "<title>Аварии и ошибки</title>";
+  html += "<style>";
+  html += "body { --content-max:600px; margin: 0; padding: 20px; display: flex; flex-direction: column; align-items: center; }";
+  html += ".container { width: 100%; max-width: 600px; }";
+  html += ".alert-row { display: flex; justify-content: space-between; align-items: center; padding: 12px; border-radius: 8px; margin-bottom: 8px; border: 1px solid #e2e8f0; background: #f8fafc; transition: all 0.3s ease; }";
+  html += ".alert-row.active { background: #fef2f2; border-color: #fca5a5; color: #991b1b; font-weight: 600; }";
+  html += ".bg-alarm { animation: pulse 2s infinite; }";
+  html += ".counter-row { display: flex; justify-content: space-between; align-items: center; padding: 10px 0; border-bottom: 1px solid #f1f5f9; }";
+  html += ".counter-row:last-child { border-bottom: none; }";
+  html += ".val-box.has-errors { background: #fee2e2; color: #b91c1c; border-color: #fca5a5; }";
+  html += "@keyframes pulse { 0% { opacity: 1; } 50% { opacity: 0.6; } 100% { opacity: 1; } }";
+  html += "</style>";
+  html += getDesignSystemStyles();
+  html += "</head><body class='page-alerts'>";
+  html += getPageNavigation();
+
+  html += "<div class='container sunny-detail-grid'>";
+  html += "<h2><span class='sunny-card-icon'><svg aria-hidden='true' focusable='false' xmlns='http://www.w3.org/2000/svg' viewBox='0 0 48 48' fill='none' stroke='#69462F' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'><path d='M20 9a4.6 4.6 0 0 1 8 0l15 26a4 4 0 0 1-3.5 6H8.5A4 4 0 0 1 5 35Z' fill='#FFE5D6' stroke='#A24436'/><path d='M24 19v9' stroke='#A24436'/><circle cx='24' cy='34' r='2' fill='#A24436' stroke='none'/></svg></span>Аварии и ошибки</h2>";
+
+  html += "<div class='card'><h3>Уведомление о влажности</h3><form method='POST' action='/saveAlerts'>";
+  html += "<label><input type='checkbox' name='enabled'" + String(humidityEnabled ? " checked" : "") + "> Уведомлять о высокой влажности</label>";
+  html += "<label for='humidity-limit'>Верхний предел влажности, %</label><input id='humidity-limit' name='limit' type='number' min='0' max='100' value='" + String(humidityLimit) + "' required>";
+  html += "<label><input type='checkbox' name='repeat'" + String(humidityRepeat ? " checked" : "") + "> Повторять, пока влажность превышает предел</label>";
+  html += "<label for='humidity-minutes'>Период повторов, минут</label><input id='humidity-minutes' name='minutes' type='number' min='1' max='10080' value='" + String(humidityRepeatMinutes) + "' required><button class='btn' type='submit'>Сохранить</button></form></div>";
+
+  // Блок 1: Активные аварии (Биты)
+  html += "<div class='card'>";
+  html += "<h3>Критические аварии (Биты)</h3>";
+  
+  html += "<div id='row_b_1_9' class='alert-row'><span>Авария батарейки</span><span id='b_1_9' class='badge bg-normal'>Норма</span></div>";
+  html += "<div id='row_b_1_10' class='alert-row'><span>Авария датчика температуры</span><span id='b_1_10' class='badge bg-normal'>Норма</span></div>";
+  html += "<div id='row_b_3_5' class='alert-row'><span>Ошибка расчета вентиляции</span><span id='b_3_5' class='badge bg-normal'>Норма</span></div>";
+  html += "<div id='row_b_3_9' class='alert-row'><span>Ошибка при кормлении</span><span id='b_3_9' class='badge bg-normal'>Норма</span></div>";
+  
+  html += "</div>";
+
+  html += "<div class='card'><h3>Режимы управления</h3>";
+  html += "<div class='status-row'><span>Аварийный режим нагревателя</span><span id='b_1_5' class='badge bg-normal'>--</span></div></div>";
+
+  // Блок 2: Счетчики ошибок (Регистры)
+  html += "<div class='card'>";
+  html += "<h3>Статистика неисправностей (Регистры)</h3>";
+  
+  html += "<div class='counter-row'><span>Ошибок по кормушке К1:</span><span id='r_48' class='val-box'>0</span></div>";
+  html += "<div class='counter-row'><span>Ошибок по кормушке К2:</span><span id='r_49' class='val-box'>0</span></div>";
+  html += "<div class='counter-row'><span>Ошибок по кормушке К3:</span><span id='r_50' class='val-box'>0</span></div>";
+  html += "<div class='counter-row'><span>Ошибок по кормушке К4:</span><span id='r_51' class='val-box'>0</span></div>";
+  html += "<div class='counter-row'><span>Ошибки от модуля Wi-Fi:</span><span id='r_52' class='val-box'>0</span></div>";
+  
+  html += "</div>";
+
+  // Кнопка Назад
+  html += "";
+  html += "</div>";
+
+  // JavaScript скрипт динамического обновления
+  html += R"rawliteral(
+  <script>
+  function updateAlertsData() {
+    fetch('/api/data')
+      .then(r => r.json())
+      .then(data => {
+        // Чтение регистров для битовых масок
+        let r1 = data["1"] || 0;
+        let r3 = data["3"] || 0;
+
+        const heaterEmergency = document.getElementById('b_1_5');
+        heaterEmergency.innerText = ((r1 >> 5) & 1) ? 'Включён' : 'Выключен';
+        heaterEmergency.className = ((r1 >> 5) & 1) ? 'badge bg-alarm' : 'badge bg-normal';
+
+        // Проверка битов 1 регистра
+        updateAlarmState('b_1_9', 'row_b_1_9', (r1 >> 9) & 1, "АВАРИЯ");
+        updateAlarmState('b_1_10', 'row_b_1_10', (r1 >> 10) & 1, "АВАРИЯ");
+
+        // Проверка битов 3 регистра
+        updateAlarmState('b_3_5', 'row_b_3_5', (r3 >> 5) & 1, "ОШИБКА");
+        updateAlarmState('b_3_9', 'row_b_3_9', (r3 >> 9) & 1, "ОШИБКА");
+
+        // Обновление числовых регистров (48-52)
+        const counterRegs = [48, 49, 50, 51, 52];
+        counterRegs.forEach(reg => {
+          let el = document.getElementById('r_' + reg);
+          if (el && data[reg] !== undefined) {
+            let val = data[reg];
+            el.innerText = val;
+            
+            // Если количество ошибок больше 0, подсвечиваем поле
+            if (val > 0) {
+              el.className = "val-box has-errors";
+            } else {
+              el.className = "val-box";
+            }
+          }
+        });
+      })
+      .catch(err => console.error("Ошибка при получении данных аварий:", err));
+  }
+
+  function updateAlarmState(badgeId, rowId, isActive, alarmText) {
+    let badge = document.getElementById(badgeId);
+    let row = document.getElementById(rowId);
+    if (!badge || !row) return;
+
+    if (isActive === 1) {
+      badge.innerText = alarmText;
+      badge.className = "badge bg-alarm";
+      row.className = "alert-row active";
+    } else {
+      badge.innerText = "Норма";
+      badge.className = "badge bg-success";
+      row.className = "alert-row";
+    }
+  }
+
+  setInterval(updateAlertsData, 1000);
+  updateAlertsData();
+  </script>
+  )rawliteral";
+
+  html += "</body></html>";
+  webServer.send(200, "text/html", html);
+}
+
+// 4.4 Кормление и поголовье
+void handleFeeding() {
+  String html = "<!DOCTYPE html><html lang='ru'><head>";
+  html += "<meta charset='UTF-8'>";
+  html += "<meta name='viewport' content='width=device-width, initial-scale=1.0'>";
+  html += "<title>Кормление и поголовье</title>";
+  html += "<style>";
+  html += "body { --content-max:700px; margin: 0; padding: 20px; display: flex; flex-direction: column; align-items: center; }";
+  html += ".container { width: 100%; max-width: 700px; }";
+  html += ".grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; }";
+  html += "table { width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 14px; }";
+  html += "th, td { padding: 8px; border: 1px solid #eaecf4; text-align: center; }";
+  html += "th { background: #f8f9fc; color: #27ae60; font-weight: bold; }";
+  html += "@media(max-width: 600px) { .grid-2 { grid-template-columns: 1fr; } }";
+  html += "</style>";
+  html += getDesignSystemStyles();
+  html += "</head><body class='page-feeding'>";
+  html += getPageNavigation();
+
+  html += "<div class='container sunny-detail-grid'>";
+  html += "<h2><span class='sunny-card-icon'><svg aria-hidden='true' focusable='false' xmlns='http://www.w3.org/2000/svg' viewBox='0 0 48 48' fill='none' stroke='#69462F' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'><path d='M7 30h34l-4 10H11Z' fill='#F8C66B'/><path d='M12 30c1-7 6-10 12-10s11 3 12 10' fill='#FFF0CF'/><path d='M18 14c-2-3-1-5 1-7 3 2 4 5 2 7M28 15c0-4 2-6 5-6 1 4-1 6-5 6' fill='#A8D7A2'/><circle cx='24' cy='25' r='1.5' fill='#D89132' stroke='none'/></svg></span>Кормление и поголовье птицы</h2>";
+
+  // Блок 1: Поголовье и общая статистика
+  html += "<div class='card'>";
+  html += "<h3>Статистика и поголовье</h3>";
+  html += "<div class='grid-2'>";
+  html += "  <div>";
+  html += "    <div class='status-row'><span>Количество птиц:</span><span id='r_57' class='val-box'>--</span></div>";
+  html += "    <div class='status-row'><span>Масса одной птицы:</span><span id='r_56' class='val-box'>--</span></div>";
+  html += "  </div>";
+  html += "  <div>";
+  html += "    <div class='status-row'><span>Пройдено кормлений:</span><span id='r_14' class='val-box'>--</span></div>";
+  html += "    <div class='status-row'><span>План кормлений:</span><span id='r_15' class='val-box'>--</span></div>";
+  html += "  </div>";
+  html += "</div>";
+  html += "</div>";
+
+  // Блок 2: Состояние процесса кормления (Биты регистра 3)
+  html += "<div class='card'>";
+  html += "<h3>Статус процесса кормления</h3>";
+  html += "<div class='status-row'><span>Пропуски кормления:</span><span id='b_3_8' class='badge bg-neutral'>Есть</span></div>";
+  html += "<div class='status-row'><span>Кормление за сутки закончилось:</span><span id='b_3_11' class='badge bg-neutral'>Нет</span></div>";
+  html += "<div class='status-row'><span>Количество кормлений равно нулю:</span><span id='b_3_12' class='badge bg-neutral'>Да</span></div>";
+  html += "<div class='status-row'><span>Включен режим ручного кормления:</span><span id='b_3_14' class='badge bg-neutral'>Выкл</span></div>";
+  html += "<div class='status-row'><span>Отработка пропусков кормления:</span><span id='b_3_15' class='badge bg-neutral'>Выкл</span></div>";
+  html += "</div>";
+
+  // Блок 3: Следующее кормление
+  html += "<div class='card'>";
+  html += "<h3>Следующее кормление</h3>";
+  html += "<div class='status-row'><span>Номер кормушки:</span><span id='r_12' class='val-box'>--</span></div>";
+  html += "<div class='status-row'><span>Время начала:</span><span id='r_16' class='val-box'>--</span></div>";
+  html += "<div class='status-row'><span>Длительность, сек:</span><span id='r_13' class='val-box'>--</span></div>";
+  html += "</div>";
+
+  // Блок 4: Статус оборудования (Кормушки и модули)
+  html += "<div class='card sunny-wide'>";
+  html += "<h3>Статус оборудования (Кормушки 1-4)</h3>";
+  html += "<table>";
+  html += "<thead><tr><th>Устройство</th><th>Подключение к системе</th><th>Питание / Сеть</th></tr></thead>";
+  html += "<tbody>";
+  for (int i = 1; i <= 4; i++) {
+    html += "<tr>";
+    html += "<td>Кормушка " + String(i) + "</td>";
+    html += "<td><span id='b_4_" + String(i-1) + "' class='badge bg-neutral'>Откл</span></td>";
+    html += "<td><span id='b_4_" + String(8 + (i-1)) + "' class='badge bg-neutral'>Выкл</span></td>";
+    html += "</tr>";
+  }
+  html += "<tr>";
+  html += "<td>Новый модуль</td>";
+  html += "<td colspan='2'><span id='b_4_13' class='badge bg-neutral'>Выкл</span></td>";
+  html += "</tr>";
+  html += "</tbody></table>";
+  html += "</div>";
+
+  // Блок 5: Расписание кормлений (Таблица 1-15)
+  html += "<div class='card sunny-wide'>";
+  html += "<h3>График и длительность кормлений (1-15)</h3>";
+  html += "<table>";
+  html += "<thead><tr><th>№</th><th>Время кормления</th><th>Кормушка и длительность</th></tr></thead>";
+  html += "<tbody>";
+  for (int i = 1; i <= 15; i++) {
+    int r_time = 110 + (i - 1);
+    int r_dur = 125 + (i - 1);
+    html += "<tr>";
+    html += "<td>" + String(i) + "</td>";
+    html += "<td id='r_" + String(r_time) + "'>--</td>";
+    html += "<td id='r_" + String(r_dur) + "'>--</td>";
+    html += "</tr>";
+  }
+  html += "</tbody></table>";
+  html += "</div>";
+
+  // Кнопка Назад
+  html += "";
+  html += "</div>";
+
+  // JavaScript AJAX скрипт динамического обновления
+  html += R"rawliteral(
+  <script>
+  function formatFeedingRegister(value) {
+    return 'Кормушка ' + ((Number(value) >> 13) & 7) + ': ' + ((Number(value) & 0x1fff) / 10).toFixed(1) + ' сек';
+  }
+  function minToHm(val) {
+    if (val === undefined || val === null || val === "") return '--';
+    const totalMinutes = parseInt(val);
+    const hours = Math.floor(totalMinutes / 60);
+    const minutes = totalMinutes % 60;
+    return `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}`;
+  }
+
+  function updateFeedingData() {
+    fetch('/api/data')
+      .then(r => r.json())
+      .then(data => {
+        // Загрузка сырых регистров
+        let r3 = data["3"] || 0;
+        let r4 = data["4"] || 0;
+
+        // Обновление битовых статусов регистра 3
+        updateBadge('b_3_8', (r3 >> 8) & 1, "ПРОПУСК", "Норма", true);
+        updateBadge('b_3_11', (r3 >> 11) & 1, "Да", "Нет", false);
+        updateBadge('b_3_12', (r3 >> 12) & 1, "ДА (0)", "В норме", true);
+        updateBadge('b_3_14', (r3 >> 14) & 1, "РУЧНОЙ", "Авто", false);
+        updateBadge('b_3_15', (r3 >> 15) & 1, "ОТРАБОТКА", "Нет", false);
+
+        // Обновление битовых статусов регистра 4 (Кормушки 1-4)
+        for (let i = 0; i < 4; i++) {
+          updateBadge('b_4_' + i, (r4 >> i) & 1, "Подкл", "Откл", false);
+          updateBadge('b_4_' + (8 + i), (r4 >> (8 + i)) & 1, "В СЕТИ", "ВЫКЛ", false);
+        }
+        updateBadge('b_4_13', (r4 >> 13) & 1, "В СЕТИ", "ВЫКЛ", false);
+
+        // Оперативные регистры общего состояния
+        if (data[12] !== undefined) document.getElementById('r_12').innerText = data[12]; // Номер кормушки
+        if (data[14] !== undefined) document.getElementById('r_14').innerText = data[14]; // Пройдено за сутки
+        if (data[15] !== undefined) document.getElementById('r_15').innerText = data[15]; // План
+        if (data[56] !== undefined) document.getElementById('r_56').innerText = (Number(data[56]) / 10).toFixed(1) + ' кг';
+        if (data[57] !== undefined) document.getElementById('r_57').innerText = data[57]; // Кол-во птиц
+
+        // Форматирование времени для текущих уставок кормления
+        if (data[13] !== undefined) document.getElementById('r_13').innerText = (parseInt(data[13]) / 10).toFixed(1) + " сек"; // Длительность (Рег 13)
+        if (data[16] !== undefined) document.getElementById('r_16').innerText = minToHm(data[16]); // Время следующего (Рег 16)
+
+        // Заполнение таблицы расписания (110-124 и 125-139)
+        for (let i = 0; i < 15; i++) {
+          let tReg = 110 + i;
+          let dReg = 125 + i;
+
+          let tEl = document.getElementById('r_' + tReg);
+          if (tEl && data[tReg] !== undefined) tEl.innerText = minToHm(data[tReg]);
+
+          let dEl = document.getElementById('r_' + dReg);
+          if (dEl && data[dReg] !== undefined) {
+            dEl.innerText = formatFeedingRegister(data[dReg]);
+          }
+        }
+      })
+      .catch(err => console.error("Ошибка обновления данных кормления:", err));
+  }
+
+  function updateBadge(id, state, textOn, textOff, isAlarmType) {
+    let el = document.getElementById(id);
+    if (!el) return;
+    if (state === 1) {
+      el.innerText = textOn;
+      el.className = isAlarmType ? "badge bg-danger" : (id === 'b_3_14' ? "badge bg-info" : "badge bg-success");
+    } else {
+      el.innerText = textOff;
+      el.className = (isAlarmType || id === 'b_3_14') ? "badge bg-success" : "badge bg-neutral";
+    }
+  }
+
+  setInterval(updateFeedingData, 1000);
+  updateFeedingData();
+  </script>
+  )rawliteral";
+
+  html += "</body></html>";
+  webServer.send(200, "text/html", html);
+}
+
+// 4.5 Лаз (дверь)
+void handleDoor() {
+  String html = "<!DOCTYPE html><html lang='ru'><head>";
+  html += "<meta charset='UTF-8'>";
+  html += "<meta name='viewport' content='width=device-width, initial-scale=1.0'>";
+  html += "<title>Управление лазом (дверью)</title>";
+  html += "<style>";
+  html += "body { --content-max:650px; margin: 0; padding: 20px; display: flex; flex-direction: column; align-items: center; }";
+  html += ".container { width: 100%; max-width: 650px; }";
+  html += ".lock-status { display: inline-block; max-width: 65%; white-space: normal; line-height: 1.25; }";
+  html += ".grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; }";
+  html += "@media(max-width: 600px) { .grid-2 { grid-template-columns: 1fr; } }";
+  html += "</style>";
+  html += getDesignSystemStyles();
+  html += "</head><body class='page-door'>";
+  html += getPageNavigation();
+
+  html += "<div class='container sunny-detail-grid'>";
+  html += "<h2><span class='sunny-card-icon'><svg aria-hidden='true' focusable='false' xmlns='http://www.w3.org/2000/svg' viewBox='0 0 48 48' fill='none' stroke='#69462F' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'><path d='M10 41V11h28v30' fill='#FFE7B6'/><path d='M16 41V17h16v24M7 41h34'/><path d='M20 19v20M28 19v20' stroke='#D2954F'/><circle cx='28' cy='29' r='1.7' fill='#80502F' stroke='none'/></svg></span>Автоматика лаза</h2>";
+
+  // Блок 1: Физическое состояние и датчики
+  html += "<div class='card'>";
+  html += "<h3>Текущее состояние и датчики</h3>";
+  html += "<div class='status-row'><span>Положение лаза:</span><div><span id='b_2_8' class='badge bg-neutral'>Открыт</span> <span id='b_2_9' class='badge bg-neutral'>Крайнее</span></div></div>";
+  html += "<div class='status-row'><span>Физический датчик открытой двери:</span><span id='b_1_2' class='badge bg-neutral'>Датчик</span></div>";
+  html += "<div class='status-row'><span>Опрос концевого датчика двери:</span><span id='b_1_12' class='badge bg-neutral'>Нет</span></div>";
+  html += "<div class='status-row'><span>Состояние движения:</span><span id='b_2_11' class='badge bg-neutral'>Стоит</span></div>";
+  html += "<div class='status-row'><span>Направление движения:</span><div><span id='b_0_9' class='badge bg-neutral'>Вверх ⬆️</span> <span id='b_0_8' class='badge bg-neutral'>Вниз ⬇️</span></div></div>";
+  html += "<div class='status-row'><span>Лаз зафиксирован:</span><span id='b_2_12' class='badge bg-neutral lock-status'>Нет</span></div>";
+  html += "</div>";
+
+  // Блок 2: Режимы работы и температурные блокировки
+  html += "<div class='card'>";
+  html += "<h3>Режимы и блокировки управления</h3>";
+  html += "<div class='status-row'><span>Режим управления лазом:</span><span id='b_2_10' class='badge bg-neutral'>--</span></div>";
+  html += "<div class='status-row'><span>Управление лазом по календарю:</span><span id='b_2_0' class='badge bg-neutral'>Выкл</span></div>";
+  html += "<div class='status-row'><span>Управление закрытием по расписанию:</span><span id='b_2_1' class='badge bg-neutral'>Выкл</span></div>";
+  html += "<div class='status-row'><span>Управление лазом по температуре:</span><span id='b_2_15' class='badge bg-neutral'>Выкл</span></div>";
+  html += "<div class='status-row'><span>Запрет открытия по темп. внутри:</span><span id='b_2_6' class='badge bg-neutral'>Нет</span></div>";
+  html += "<div class='status-row'><span>Запрет открытия по темп. на улице:</span><span id='b_2_7' class='badge bg-neutral'>Нет</span></div>";
+  html += "</div>";
+
+  // Блок 3: Конфигурация времени и температур
+  html += "<div class='card'>";
+  html += "<h3>Временные и температурные уставки</h3>";
+  html += "<div class='grid-2'>";
+  html += "  <div>";
+  html += "    <div class='status-row'><span>Расчетное откр.:</span><span id='r_10' class='val-box'>--</span></div>";
+  html += "    <div class='status-row'><span>Расчетное закр.:</span><span id='r_9' class='val-box'>--</span></div>";
+  html += "    <div class='status-row'><span>Записанное откр.:</span><span id='r_40' class='val-box'>--</span></div>";
+  html += "    <div class='status-row'><span>Записанное закр.:</span><span id='r_41' class='val-box'>--</span></div>";
+  html += "  </div>";
+  html += "  <div>";
+  html += "    <div class='status-row'><span>Время отлож. закр.:</span><span id='r_42' class='val-box'>--</span></div>";
+  html += "    <div class='status-row'><span>Время хода привода:</span><span id='r_43' class='val-box'>--</span></div>";
+  html += "    <div class='status-row'><span>Темп. открытия:</span><span id='r_33' class='val-box'>--</span></div>";
+  html += "  </div>";
+  html += "</div>";
+  html += "</div>";
+
+  // Кнопка Назад
+  html += "";
+  html += "</div>";
+
+  // JavaScript AJAX скрипт динамического обновления
+  html += R"rawliteral(
+  <script>
+  function minToHm(val) {
+    if (val === undefined || val === null || val === "") return '--';
+    const totalMinutes = parseInt(val);
+    const hours = Math.floor(totalMinutes / 60);
+    const minutes = totalMinutes % 60;
+    return `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}`;
+  }
+
+  function updateDoorData() {
+    fetch('/api/data')
+      .then(r => r.json())
+      .then(data => {
+        let r0 = data["0"] || 0;
+        let r1 = data["1"] || 0;
+        let r2 = data["2"] || 0;
+
+        // Разбор флагов движения (Регистр 0)
+        updateBadge('b_0_8', (r0 >> 8) & 1, "АКТИВНО", "Выкл", "bg-success", "bg-neutral");
+        updateBadge('b_0_9', (r0 >> 9) & 1, "АКТИВНО", "Выкл", "bg-success", "bg-neutral");
+
+        // Концевик и опрос датчика (Регистр 1)
+        updateBadge('b_1_2', (r1 >> 2) & 1, "ОТКРЫТА", "Закрыта", "bg-success", "bg-neutral");
+        updateBadge('b_1_12', (r1 >> 12) & 1, "ОПРОС", "Нет", "bg-info", "bg-neutral");
+
+        // Статусы и режимы лаза (Регистр 2)
+        updateBadge('b_2_0', (r2 >> 0) & 1, "Вкл", "Выкл", "bg-success", "bg-neutral");
+        updateBadge('b_2_1', (r2 >> 1) & 1, "Вкл", "Выкл", "bg-success", "bg-neutral");
+        updateBadge('b_2_6', (r2 >> 6) & 1, "ЗАПРЕТ", "Нет", "bg-danger", "bg-success");
+        updateBadge('b_2_7', (r2 >> 7) & 1, "ЗАПРЕТ", "Нет", "bg-danger", "bg-success");
+        updateBadge('b_2_8', (r2 >> 8) & 1, "ОТКРЫТ", "ЗАКРЫТ", "bg-success", "bg-neutral");
+        updateBadge('b_2_9', (r2 >> 9) & 1, "КРАЙНЕЕ", "ПРОМЕЖУТОЧНОЕ", "bg-info", "bg-neutral");
+        updateBadge('b_2_10', (r2 >> 10) & 1, "РУЧНОЙ", "Авто", "bg-info", "bg-success");
+        updateBadge('b_2_11', (r2 >> 11) & 1, "ДВИЖЕНИЕ", "Стоит", "bg-success", "bg-neutral");
+        const isHatchLocked = (r2 >> 12) & 1;
+        const isAtExtremePosition = (r2 >> 9) & 1;
+        const isOpen = (r2 >> 8) & 1;
+        const lockStatus = document.getElementById('b_2_12');
+        if (lockStatus) {
+          if (!isHatchLocked) {
+            lockStatus.innerText = "Нет";
+            lockStatus.className = "badge bg-neutral lock-status";
+          } else if (!isAtExtremePosition) {
+            lockStatus.innerText = "ЛАЗ ЗАФИКСИРОВАН В ПРОМЕЖУТОЧНОМ ПОЛОЖЕНИИ!";
+            lockStatus.className = "badge bg-danger lock-status";
+          } else if (isOpen) {
+            lockStatus.innerText = "ЛАЗ ЗАБЛОКИРОВАН ОТКРЫТЫМ!";
+            lockStatus.className = "badge bg-danger lock-status";
+          } else {
+            lockStatus.innerText = "ЛАЗ ЗАБЛОКИРОВАН ЗАКРЫТЫМ!";
+            lockStatus.className = "badge bg-danger lock-status";
+          }
+        }
+        updateBadge('b_2_15', (r2 >> 15) & 1, "Вкл", "Выкл", "bg-success", "bg-neutral");
+
+        const timeRegs = [9, 10, 40, 41, 42]; // Регистры абсолютного времени суток
+        timeRegs.forEach(reg => {
+          let el = document.getElementById('r_' + reg);
+          if (el && data[reg] !== undefined) el.innerText = minToHm(data[reg]);
+        });
+
+        // Регистр 33 — Температура открытия лаза
+        let el33 = document.getElementById('r_33');
+        if (el33 && data[33] !== undefined) el33.innerText = data[33] + "°C";
+
+        // Регистр 43 — Время хода привода в секундах
+        let el43 = document.getElementById('r_43');
+        if (el43 && data[43] !== undefined) el43.innerText = (Number(data[43]) / 10).toFixed(1) + " сек";
+      })
+      .catch(err => console.error("Ошибка обновления данных лаза:", err));
+  }
+
+  function updateBadge(id, state, textOn, textOff, classOn, classOff) {
+    let el = document.getElementById(id);
+    if (!el) return;
+    if (state === 1) {
+      el.innerText = textOn;
+      el.className = "badge " + classOn;
+    } else {
+      el.innerText = textOff;
+      el.className = "badge " + classOff;
+    }
+  }
+
+  setInterval(updateDoorData, 1000);
+  updateDoorData();
+  </script>
+  )rawliteral";
+
+  html += "</body></html>";
+  webServer.send(200, "text/html", html);
+}
+
+// 4.6 Вентиляция
+void handleVentilation() {
+  String html = "<!DOCTYPE html><html lang='ru'><head>";
+  html += "<meta charset='UTF-8'><meta name='viewport' content='width=device-width, initial-scale=1.0'>";
+  html += "<title>Вентиляция</title><style>body { --content-max:700px; margin:0; padding:20px; display:flex; flex-direction:column; align-items:center; } .container { width:100%; max-width:700px; } .grid-2 { display:grid; grid-template-columns:1fr 1fr; gap:12px; } @media(max-width:650px) { .grid-2 { grid-template-columns:1fr; } }</style>";
+  html += getDesignSystemStyles();
+  html += "</head><body class='page-ventilation'>";
+  html += getPageNavigation();
+  html += "<div class='container sunny-detail-grid'><h2><span class='sunny-card-icon'><svg aria-hidden='true' focusable='false' xmlns='http://www.w3.org/2000/svg' viewBox='0 0 48 48' fill='none' stroke='#69462F' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'><circle cx='24' cy='24' r='18' fill='#E2F1DE'/><path d='M24 20c-5-2-6-8-2-10 3-1 6 4 5 9M28 24c4-3 10-1 10 3 0 4-6 4-10 1M22 28c1 5-3 10-7 8-3-2-1-8 3-10' fill='#A8D7C1'/><circle cx='24' cy='24' r='3.5' fill='#F6B737'/></svg></span>Вентиляция</h2>";
+
+  html += "<div class='card'><h3>Текущее состояние</h3><div class='grid-2'><div>";
+  html += "<div class='status-row'><span>Приточный вентилятор</span><span id='b_0_12' class='badge bg-neutral'>Выкл</span></div>";
+  html += "<div class='status-row'><span>Вытяжной вентилятор</span><span id='b_0_13' class='badge bg-neutral'>Выкл</span></div>";
+  html += "<div class='status-row'><span>Количество вентиляторов</span><span id='r_53' class='val-box'>--</span></div>";
+  html += "</div><div>";
+  html += "<div class='status-row'><span>Производительность вентиляторов</span><span id='r_54' class='val-box'>--</span></div>";
+  html += "<div class='status-row'><span>Объем помещения</span><span id='r_55' class='val-box'>--</span></div>";
+  html += "<div class='status-row'><span>Охлаждение</span><span id='b_3_7' class='badge bg-neutral'>Выкл</span></div>";
+  html += "</div></div></div>";
+
+  html += "<div class='card'><h3>Режимы управления</h3>";
+  html += "<div class='status-row'><span>Ручное управление вентиляцией</span><span id='b_1_15' class='badge bg-neutral'>Авто</span></div>";
+  html += "<div class='status-row'><span>Автоматическое проветривание</span><span id='b_1_3' class='badge bg-neutral'>Выкл</span></div>";
+  html += "<div class='status-row'><span>Ручное проветривание</span><span id='b_1_4' class='badge bg-neutral'>Выкл</span></div>";
+  html += "<div class='status-row'><span>Работа вентиляторов днем</span><span id='b_1_13' class='badge bg-neutral'>Выкл</span></div>";
+  html += "<div class='status-row'><span>Работа вентиляторов во время сна</span><span id='b_1_14' class='badge bg-neutral'>Выкл</span></div>";
+  html += "<div class='status-row'><span>Коррекция вентиляторов</span><span id='b_1_6' class='badge bg-neutral'>Выкл</span></div>";
+  html += "<div class='status-row'><span>Управление по ГОСТ</span><span id='b_2_4' class='badge bg-neutral'>Выкл</span></div></div>";
+
+  html += "<div class='card'><h3>Загазованность и параметры проветривания</h3>";
+  html += "<div class='status-row'><span>Датчик загазованности</span><span id='b_0_2' class='badge bg-success'>Норма</span></div>";
+  html += "<div class='status-row'><span>Опрос датчика газа</span><span id='b_1_11' class='badge bg-neutral'>Нет</span></div>";
+  html += "<div class='status-row'><span>Превышение лимита газа в час</span><span id='b_1_8' class='badge bg-success'>Норма</span></div>";
+  html += "<div class='grid-2'><div>";
+  html += "<div class='status-row'><span>Срабатывания газа за час</span><span id='r_31' class='val-box'>--</span></div>";
+  html += "<div class='status-row'><span>Всего срабатываний газа</span><span id='r_32' class='val-box'>--</span></div>";
+  html += "<div class='status-row'><span>Включений вентиляторов при загазованности</span><span id='r_44' class='val-box'>--</span></div>";
+  html += "</div><div>";
+  html += "<div class='status-row'><span>Проветриваний за час</span><span id='r_34' class='val-box'>--</span></div>";
+  html += "<div class='status-row'><span>Допустимо проветриваний в час</span><span id='r_58' class='val-box'>--</span></div>";
+  html += "<div class='status-row'><span>Время смены воздуха</span><span id='r_35' class='val-box'>--</span></div>";
+  html += "</div></div></div>";
+
+  html += "<div class='card sunny-wide'><h3>Расчетный объем свежего воздуха (м³/(ч·кг))</h3><table><thead><tr><th>Режим расчета</th><th>Лето</th><th>Зима</th><th>Осень</th></tr></thead><tbody>";
+  html += "<tr><td><b>По ГОСТ</b></td><td id='r_60'>--</td><td id='r_61'>--</td><td id='r_62'>--</td></tr>";
+  html += "<tr><td><b>Текущий расчет</b></td><td id='r_63'>--</td><td id='r_64'>--</td><td id='r_65'>--</td></tr></tbody></table></div>";
+  html += "</div>";
+
+  html += R"rawliteral(<script>
+    function setBadge(id, active, onText, offText, onClass = 'bg-success', offClass = 'bg-neutral') {
+      const el = document.getElementById(id);
+      if (!el) return;
+      el.textContent = active ? onText : offText;
+      el.className = 'badge ' + (active ? onClass : offClass);
+    }
+    function updateVentilation() {
+      fetch('/api/data').then(response => response.json()).then(data => {
+        const r0 = Number(data['0']) || 0;
+        const r1 = Number(data['1']) || 0;
+        const r2 = Number(data['2']) || 0;
+        const r3 = Number(data['3']) || 0;
+        setBadge('b_0_12', (r0 >> 12) & 1, 'Работает', 'Выкл');
+        setBadge('b_0_13', (r0 >> 13) & 1, 'Работает', 'Выкл');
+        setBadge('b_0_2', (r0 >> 2) & 1, 'Газ обнаружен', 'Норма', 'bg-danger', 'bg-success');
+        setBadge('b_1_11', (r1 >> 11) & 1, 'Опрос', 'Нет', 'bg-info', 'bg-neutral');
+        setBadge('b_1_15', (r1 >> 15) & 1, 'Ручной', 'Авто', 'bg-info', 'bg-success');
+        setBadge('b_1_3', (r1 >> 3) & 1, 'Вкл', 'Выкл');
+        setBadge('b_1_4', (r1 >> 4) & 1, 'Вкл', 'Выкл');
+        setBadge('b_1_6', (r1 >> 6) & 1, 'Активна', 'Выкл', 'bg-info', 'bg-neutral');
+        setBadge('b_1_8', (r1 >> 8) & 1, 'Превышение', 'Норма', 'bg-danger', 'bg-success');
+        setBadge('b_1_13', (r1 >> 13) & 1, 'Вкл', 'Выкл', 'bg-success', 'bg-neutral');
+        setBadge('b_1_14', (r1 >> 14) & 1, 'Вкл', 'Выкл', 'bg-success', 'bg-neutral');
+        setBadge('b_2_4', (r2 >> 4) & 1, 'По ГОСТ', 'Выкл');
+        setBadge('b_3_7', (r3 >> 7) & 1, 'Вкл', 'Выкл');
+        [31,32,34,35,44,53,54,55,58,60,61,62,63,64,65].forEach(reg => {
+          const el = document.getElementById('r_' + reg);
+          if (el && data[reg] !== undefined) {
+            const value = reg >= 60 && reg <= 65 ? (Number(data[reg]) / 10).toFixed(1) : data[reg];
+            const unit = reg === 35 ? ' мин' : (reg === 44 ? ' раз/ч' : (reg === 54 || reg === 55 ? ' м³' : ''));
+            el.textContent = value + unit;
+          }
+        });
+      }).catch(error => console.error('Ошибка обновления вентиляции:', error));
+    }
+    updateVentilation();
+    setInterval(updateVentilation, 1000);
+  </script>)rawliteral";
+
+  html += "</body></html>";
+  webServer.send(200, "text/html; charset=utf-8", html);
+}
+
+// 4.7 Температура и влажность
+void handleClimate() {
+  String html = "<!DOCTYPE html><html lang='ru'><head>";
+  html += "<meta charset='UTF-8'>";
+  html += "<meta name='viewport' content='width=device-width, initial-scale=1.0'>";
+  html += "<title>Температура и влажность</title>";
+  html += "<style>";
+  html += "body { --content-max:800px; margin: 0; padding: 20px; display: flex; flex-direction: column; align-items: center; }";
+  html += ".container { width: 100%; max-width: 800px; }";
+  html += ".grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; }";
+  html += ".grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 15px; }";
+  html += "table { width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 14px; }";
+  html += "th, td { padding: 8px; border: 1px solid #e2e8f0; text-align: center; }";
+  html += "th { background: #f8fafc; color: #0284c7; font-weight: bold; }";
+  html += "@media(max-width: 768px) { .grid-2, .grid-3 { grid-template-columns: 1fr; } }";
+  html += "</style>";
+  html += getDesignSystemStyles();
+  html += "</head><body class='page-climate'>";
+  html += getPageNavigation();
+
+  html += "<div class='container sunny-detail-grid'>";
+  html += "<h2><span class='sunny-card-icon'><svg aria-hidden='true' focusable='false' xmlns='http://www.w3.org/2000/svg' viewBox='0 0 48 48' fill='none' stroke='#69462F' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'><path d='M19 27V12a5 5 0 0 1 10 0v15a9 9 0 1 1-10 0Z' fill='#FFE6A6'/><path d='M24 17v16'/><circle cx='24' cy='35' r='3' fill='#E79538' stroke='none'/><path d='M36 16c0 4-5 7-5 11a5 5 0 1 0 10 0c0-4-5-7-5-11Z' fill='#BFE9E2'/></svg></span>Температура и влажность</h2>";
+
+  // Блок 1: Текущие метеоданные и датчики
+  html += "<div class='card'>";
+  html += "<h3>Текущие измерения и датчики</h3>";
+  html += "<div class='grid-2'>";
+  html += "  <div>";
+  html += "    <div class='status-row'><span>Темп. в курятнике:</span><span id='r_5' class='val-box'>--</span></div>";
+  html += "    <div class='status-row'><span>Влажность в курятнике:</span><span id='r_6' class='val-box'>--</span></div>";
+  html += "    <div class='status-row'><span>Кол-во датчиков темп.:</span><span id='r_28' class='val-box'>--</span></div>";
+  html += "  </div>";
+  html += "  <div>";
+  html += "    <div class='status-row'><span>Темп. на улице:</span><span id='r_7' class='val-box'>--</span></div>";
+  html += "    <div class='status-row'><span>Влажность на улице:</span><span id='r_8' class='val-box'>--</span></div>";
+  html += "    <div class='status-row'><span>Темп. < 0°C на улице:</span><span id='b_0_3' class='badge bg-neutral'>Нет</span></div>";
+  html += "    <div class='status-row'><span>Темп. < 0°C в доме:</span><span id='b_0_4' class='badge bg-neutral'>Нет</span></div>";
+  html += "  </div>";
+  html += "</div>";
+  html += "</div>";
+
+  // Блок 2: Состояние исполнительных устройств
+  html += "<div class='card'>";
+  html += "<h3>Исполнительные устройства</h3>";
+  html += "<div class='grid-2'>";
+  html += "  <div>";
+  html += "    <div class='status-row'><span>Нагрев:</span><span id='b_0_14' class='badge bg-neutral'>Выкл</span></div>";
+  html += "    <div class='status-row'><span>Охлаждение:</span><span id='b_0_0' class='badge bg-neutral'>Выкл</span></div>";
+  html += "    <div class='status-row'><span>Управление охлаждением:</span><span id='b_3_7' class='badge bg-neutral'>Выкл</span></div>";
+  html += "  </div>";
+  html += "  <div>";
+  html += "    <div class='status-row'><span>Управление осушителем:</span><span id='b_1_7' class='badge bg-neutral'>Выкл</span></div>";
+  html += "    <div class='status-row'><span>Используется осушитель:</span><span id='b_4_4' class='badge bg-neutral'>Нет</span></div>";
+  html += "    <div class='status-row'><span>Осушитель в сети:</span><span id='b_4_12' class='badge bg-neutral'>Выкл</span></div>";
+  html += "    <div class='status-row'><span>Раб. нагревателя за час:</span><span id='r_47' class='val-box'>--</span></div>";
+  html += "  </div>";
+  html += "</div>";
+  html += "</div>";
+
+  // Блок 3: Уставки температуры и влажности
+  html += "<div class='card'>";
+  html += "<h3>Временные и целевые уставки</h3>";
+  html += "<div class='grid-2'>";
+  html += "  <div>";
+  html += "    <div class='status-row'><span>Заданная температура:</span><span id='r_24' class='val-box'>--</span></div>";
+  html += "    <div class='status-row'><span>Отклонение темп.:</span><span id='r_25' class='val-box'>--</span></div>";
+  html += "    <div class='status-row'><span>Заданная темп. днем:</span><span id='r_29' class='val-box'>--</span></div>";
+  html += "    <div class='status-row'><span>Температура охлаждения:</span><span id='r_30' class='val-box'>--</span></div>";
+  html += "  </div>";
+  html += "  <div>";
+  html += "    <div class='status-row'><span>Заданная влажность:</span><span id='r_26' class='val-box'>--</span></div>";
+  html += "    <div class='status-row'><span>Отклонение влажности:</span><span id='r_27' class='val-box'>--</span></div>";
+  html += "  </div>";
+  html += "</div>";
+  html += "</div>";
+
+  // Кнопка Назад
+  html += "";
+  html += "</div>";
+
+  // Внедрение JavaScript для автоматического фонового AJAX-опроса по API шлюза
+  html += R"rawliteral(<script>
+    function updateClimateData() {
+        fetch('/api/data')
+        .then(r => r.json())
+        .then(data => {
+            let r0 = data['0'] || 0;
+            let r1 = data['1'] || 0;
+            let r3 = data['3'] || 0;
+            let r4 = data['4'] || 0;
+
+            const signIn = (r0 >> 4) & 1;  // Бит 4 — минус внутри
+            const signOut = (r0 >> 3) & 1; // Бит 3 — минус на улице
+
+            updateBadge('b_0_0', (r0 >> 0) & 1, 'АКТИВНО', 'Выкл', 'bg-success', 'bg-neutral');
+            updateBadge('b_0_3', (r0 >> 3) & 1, '< 0°C', 'Нет', 'bg-info', 'bg-neutral');
+            updateBadge('b_0_4', (r0 >> 4) & 1, '< 0°C', 'Нет', 'bg-info', 'bg-neutral');
+            updateBadge('b_0_14', (r0 >> 14) & 1, 'НАГРЕВ', 'Выкл', 'bg-success', 'bg-neutral');
+            updateBadge('b_1_7', (r1 >> 7) & 1, 'Вкл', 'Выкл', 'bg-success', 'bg-neutral');
+            updateBadge('b_3_7', (r3 >> 7) & 1, 'Вкл', 'Выкл', 'bg-success', 'bg-neutral');
+            updateBadge('b_4_4', (r4 >> 4) & 1, 'Да', 'Нет', 'bg-success', 'bg-neutral');
+            updateBadge('b_4_12', (r4 >> 12) & 1, 'В СЕТИ', 'Выкл', 'bg-success', 'bg-neutral');
+            const climateRegs = [5, 6, 7, 8, 24, 25, 26, 27, 28, 29, 30, 47];
+            climateRegs.forEach(reg => {
+                let el = document.getElementById('r_' + reg);
+                if (el && data[reg] !== undefined) {
+                    let val = data[reg];
+
+                    // Если это датчик курятника (5) или улицы (7) — инвертируем знак при активном бите
+                    if (reg === 5 && signIn === 1) val = -val;
+                    if (reg === 7 && signOut === 1) val = -val;
+
+                    if (reg===5||reg===7||reg===24||reg===25||reg===29||reg===30) { el.innerText = val + ' °C'; }
+                    else if (reg===6||reg===8||reg===26||reg===27) { el.innerText = val + ' %'; }
+                    else { el.innerText = val; }
+                }
+            });
+        })
+        .catch(err => console.error('Ошибка обновления:', err));
+    }
+    function updateBadge(id, state, textOn, textOff, classOn, classOff) {
+        let el = document.getElementById(id);
+        if (!el) return;
+        if (state === 1) { el.innerText = textOn; el.className = 'badge ' + classOn; }
+        else { el.innerText = textOff; el.className = 'badge ' + classOff; }
+    }
+    setInterval(updateClimateData, 1000);
+    updateClimateData();
+    </script>)rawliteral";
+
+  html += "</body></html>";
+  webServer.send(200, "text/html", html);
+}
+
+// 5. Страница настроек
+void handleSettings() {
+  String html = getHeader("Настройки шлюза", false);
+  html += "<p>Версия прошивки: <strong>" + String(FIRMWARE_VERSION) + "</strong></p>";
+  
+  // Дополнительно форсируем ограничение ширины для всех внутренних элементов карточек
+  //html += "<style>.card { max-width: 100%; box-sizing: border-box; }</style>";
+
+  // Стили для карточки связи, индикаторов сигнала и MQTT
+  html += R"rawliteral(
+  <style>
+    .card { max-width: 100%; box-sizing: border-box; }
+    .status-card { margin-bottom: 20px; }
+    .ip-info { font-size: 0.85em; color: #666; margin-top: 5px; line-height: 1.5; text-align: left; }
+    .ip-info b { color: #333; font-family: monospace; }
+    .sig-box { display: flex; align-items: flex-end; height: 17px; gap: 3px; margin-top: 5px; }
+    .bar { width: 4px; background: #e0e0e0; border-radius: 1px; transition: 0.3s; }
+    .b1 { height: 5px; } .b2 { height: 9px; } .b3 { height: 13px; } .b4 { height: 17px; }
+    .green { background: #28a745 !important; }
+    .yellow { background: #ffc107 !important; }
+    .red { background: #dc3545 !important; }
+    .dot { height: 14px; width: 14px; border-radius: 50%; display: inline-block; margin-right: 8px; background: #bbb; vertical-align: middle; }
+    .online { background: #28a745; box-shadow: 0 0 8px rgba(40,167,69,0.4); }
+    .offline { background: #dc3545; }
+  </style>
+  )rawliteral";
+
+  html += "<div class='sunny-settings-grid'>";
+
+  // --- ПЕРЕНЕСЕННАЯ КАРТОЧКА: ПОДРОБНАЯ ИНФОРМАЦИЯ О СВЯЗИ ---
+  html += "<div class='card status-card'>";
+  html += "<h3>📊 Текущий статус связи</h3>";
+
+  // WiFi
+  html += "<div class='status-row'><div><span>Сеть: <b id='ssid-name'>" + (sta_ssid != "" ? escapeHtml(sta_ssid) : "Ожидание...") + "</b></span>";
+  html += "<div class='ip-info'>Локальный IP: <b id='sta-ip'>...</b><br>Точка (AP) IP: <b>" + WiFi.softAPIP().toString() + "</b></div></div>";
+  html += "<div class='sig-box' id='wifi-bars'><div class='bar b1'></div><div class='bar b2'></div><div class='bar b3'></div><div class='bar b4'></div></div></div>";
+  
+  // MQTT
+  html += "<div class='status-row'><span>Статус MQTT:</span><span><span id='mqtt-dot' class='dot'></span><b id='mqtt-stat'>Подключение...</b></span></div>";
+  html += "</div>";
+
+  // Блок Wi-Fi
+  html += "<div class='card'><h3>📶 Сеть Wi-Fi</h3>";
+  html += "<button type='button' onclick='scan(this)' class='btn' style='width:100%'>🔄 Сканировать сети</button>";
+  html += "<label class='field-label' for='netList'>Доступные сети Wi-Fi</label>";
+  html += "<select id='netList' onchange='document.getElementsByName(\"ssid\")[0].value=this.value'><option value=''>Нажмите «Сканировать сети»</option></select>";
+  html += "<form action='/saveWiFi' method='POST'>";
+  html += "<label class='field-label' for='wifi-ssid'>Имя сети (SSID)</label><input id='wifi-ssid' type='text' name='ssid' placeholder='SSID роутера' required>";
+  html += "<label class='field-label' for='wifi-password'>Пароль сети</label><input id='wifi-password' type='password' name='pass' placeholder='Пароль' required>";
+  html += "<input type='submit' value='💾 Сохранить и перезагрузить' class='btn' style='background:#28a745; width:100%'>";
+  html += "</form>";
+  html += "</div>";
+
+  // Блок MQTT
+  html += "<div class='card'><h3>☁️ Параметры MQTT</h3>";
+  html += "<form action='/saveMQTT' method='POST'>";
+  html += "<label class='field-label' for='mqtt-user'>Пользователь MQTT</label><input id='mqtt-user' type='text' name='mq_user' value='" + escapeHtml(mqtt_user) + "' placeholder='Пользователь' autocomplete='username'>";
+  html += "<label class='field-label' for='mqtt-password'>Пароль MQTT</label><p class='field-hint'>" + String(mqtt_pass.length() ? "Пароль сохранён" : "Пароль не задан") + ". Оставьте поле пустым, чтобы не менять его.</p>";
+  html += "<input id='mqtt-password' type='password' name='mq_pass' value='' placeholder='Новый пароль (необязательно)' autocomplete='new-password'>";
+  html += "<label class='field-label' for='mqtt-host'>Адрес брокера MQTT</label><input id='mqtt-host' type='text' name='mq_host' value='" + escapeHtml(mqtt_host) + "' placeholder='Брокер (host)' autocomplete='url'>";
+  html += "<label class='field-label' for='mqtt-port'>Порт MQTT</label><input id='mqtt-port' type='number' name='mq_port' value='" + String(mqtt_port) + "' placeholder='Порт' inputmode='numeric'>";
+  html += "<input type='submit' value='💾 Сохранить и перезагрузить' class='btn' style='background:#28a745; width:100%'>";
+  html += "</form>";
+  html += "</div>";
+
+  // Блок Телеграм
+  html += "<div class='card'><h3>🤖 Оповещения Telegram</h3>";
+  html += "<form action='/saveTG' method='POST'>";
+  html += "<label class='field-label' for='tg-token'>Токен Telegram-бота</label><p class='field-hint' id='tg-token-hint'>Токен " + String(BOT_TOKEN.length() ? "сохранён" : "не задан") + ". Оставьте поле пустым, чтобы не менять его.</p>";
+  html += "<input id='tg-token' type='password' name='tg_token' value='' placeholder='Новый токен (необязательно)' autocomplete='new-password' aria-describedby='tg-token-hint'>";
+  html += "<label class='field-label' for='tg-chat'>ID чата Telegram</label><p class='field-hint' id='tg-chat-hint'>ID " + String(CHAT_ID.length() ? "сохранён" : "не задан") + ". Оставьте поле пустым, чтобы не менять его. Чтобы узнать ID, найдите бота @myidbot или @userinfobot и отправьте /start.</p>";
+  html += "<input id='tg-chat' type='text' name='tg_chat' value='' placeholder='Новый ID чата (необязательно)' autocomplete='off' aria-describedby='tg-chat-hint'>";
+  html += "<input type='submit' value='💾 Сохранить и перезагрузить' class='btn' style='background:#28a745; width:100%'>";
+  html += "</form></div>";
+
+  html += "<div class='card'><h3>Пароль точки доступа</h3><p>После сохранения переподключитесь к ChickenHous с новым паролем.</p>";
+  html += "<form action='/savePasswords' method='POST'><input type='hidden' name='kind' value='ap'><label for='ap-new'>Новый пароль (8–63 печатных ASCII-символа)</label><input id='ap-new' type='password' name='password' minlength='8' maxlength='63' autocomplete='new-password' required><label for='ap-confirm'>Повторите пароль</label><input id='ap-confirm' type='password' name='confirm' minlength='8' maxlength='63' autocomplete='new-password' required><button class='btn' type='submit'>Сменить пароль точки доступа</button></form></div>";
+  html += "</div></body></html>";
+
+  // JavaScript для обработки уровней сигнала
+  html += R"rawliteral(<script>
+
+    function updateStatus() {
+      fetch('/api/status').then(r => r.json()).then(d => {
+        const bars = document.querySelectorAll('.status-card .bar');
+        const ssidEl = document.getElementById('ssid-name');
+        const ipEl = document.getElementById('sta-ip');
+        
+        if (d.wifi_conn) {
+          if (ssidEl) ssidEl.innerText = d.ssid;
+          if (ipEl) ipEl.innerText = d.ip;
+          let count = 0, colorClass = '';
+          if (d.rssi >= -60) { count = 4; colorClass = 'green'; }
+          else if (d.rssi >= -75) { count = 3; colorClass = 'green'; }
+          else if (d.rssi >= -85) { count = 2; colorClass = 'yellow'; }
+          else { count = 1; colorClass = 'red'; }
+          
+          bars.forEach((b, i) => {
+            b.classList.remove('green', 'yellow', 'red');
+            if (i < count) b.classList.add(colorClass);
+          });
+        } else {
+          if (ssidEl) ssidEl.innerHTML = '<span style="color:#dc3545">Отключено</span>';
+          if (ipEl) ipEl.innerText = "не присвоен";
+          bars.forEach(b => b.classList.remove('green', 'yellow', 'red'));
+        }
+
+        const dot = document.getElementById('mqtt-dot');
+        const stat = document.getElementById('mqtt-stat');
+        if (dot && stat) {
+          if (d.mqtt_conn) {
+            dot.className = 'dot online';
+            stat.innerText = 'В сети';
+          } else {
+            dot.className = 'dot offline';
+            stat.innerText = 'Оффлайн';
+          }
+        }
+      }).catch(err => console.error("Ошибка API статуса:", err));
+    }
+
+    function getSignalIcon(dbm) {
+      if (dbm >= -50) return '🟢 (Отличный)';
+      if (dbm >= -70) return '🟡 (Средний)';
+      if (dbm >= -85) return '🟠 (Слабый)';
+      return '🔴 (Очень слабый)';
+    }
+
+    function scan(btn){
+      btn.disabled = true;
+      const sel = document.getElementById('netList');
+      sel.innerHTML = '<option>Ищу сети...</option>';
+      
+      fetch('/api/scan').then(r => r.json()).then(data => {
+        sel.innerHTML = '<option value="">-- Нажмите для выбора --</option>';
+        // Сортировка по уровню сигнала (сначала сильные)
+        data.sort((a, b) => b.rssi - a.rssi);
+        
+        data.forEach(n => {
+          let opt = document.createElement('option');
+          opt.value = n.ssid;
+          opt.text = `${n.ssid} ${getSignalIcon(n.rssi)} [${n.rssi} dBm]`;
+          sel.appendChild(opt);
+        });
+        btn.disabled = false;
+      }).catch(() => {
+        sel.innerHTML = '<option>Ошибка сканирования</option>';
+        btn.disabled = false;
+      });
+    }
+
+    function togglePass() {
+      const p = document.getElementById('passInput');
+      const e = document.getElementById('eyeIcon');
+      if (p.type === 'password') {
+        p.type = 'text';
+        e.innerText = '🔒';
+      } else {
+        p.type = 'password';
+        e.innerText = '👁️';
+      }
+    }
+
+    // Сканирование сетей запускается только кнопкой пользователя.
+    updateStatus();
+    setInterval(updateStatus, 1000);
+  </script>)rawliteral";
+  
+  webServer.send(200, "text/html", html);
+}
+
+// 6. Страница OTA
+void handleOtaPage() {
+  String html = getHeader("OTA Обновление прошивки", false);
+  
+  html += "<div class='card' style='margin-top: 10px;'>";
+  html += "  <h3>🔄 Обновление программного обеспечения</h3>";
+  html += "  <p style='font-size: 14px; color: #555; text-align: center; margin-bottom: 20px;'>";
+  html += "    Выберите скомпилированный файл <b>firmware.bin</b>.";
+  html += "  </p>";
+  html += "  <div style='background:#fff7e6;border:1px solid #f0c36d;color:#713f12;padding:12px 14px;border-radius:10px;margin:0 0 18px;font-size:14px;line-height:1.5;'><b>⚠️ Обновление с телефона:</b> отключите мобильный интернет на время загрузки и оставайтесь подключены к Wi‑Fi курятника. Иначе телефон может переключить передачу на мобильную сеть, и загрузка зависнет.</div>";
+  html += "  <form id='ota-form' method='POST' action='/update_action' enctype='multipart/form-data'>";
+  html += "    <label class='field-label' for='firmware-file'>Файл прошивки (.bin)</label><input id='firmware-file' type='file' name='update' accept='.bin' style='border: 1px dashed #bbb; padding: 15px; background: #fafafa;' required><br><br>";
+  html += "    <input type='submit' class='btn' value='🚀 Начать обновление ПО' style='background: #28a745; width: 100%; margin: 0;'>";
+  html += "    <div id='ota-progress' style='display:none;margin-top:16px;text-align:center'><b id='ota-message'>Подготовка обновления...</b><progress id='ota-bar' value='0' max='100' style='width:100%;margin-top:10px'></progress><div id='ota-percent'>0%</div></div>";
+  html += "  </form>";
+  html += R"rawliteral(<script>
+    const otaForm = document.getElementById('ota-form');
+    otaForm.addEventListener('submit', event => {
+      event.preventDefault();
+      const fileInput = document.getElementById('firmware-file');
+      if (!fileInput.files.length) return;
+      const submitButton = otaForm.querySelector('[type=submit]');
+      const progress = document.getElementById('ota-progress');
+      const bar = document.getElementById('ota-bar');
+      const percent = document.getElementById('ota-percent');
+      const message = document.getElementById('ota-message');
+      const request = new XMLHttpRequest();
+      submitButton.disabled = true;
+      progress.style.display = 'block';
+      message.textContent = 'Передача прошивки... Не закрывайте страницу.';
+      request.upload.addEventListener('progress', event => {
+        if (event.lengthComputable) {
+          const value = Math.round(event.loaded * 100 / event.total);
+          bar.value = value;
+          percent.textContent = value + '%';
+        }
+      });
+      request.onload = () => {
+        if (request.status >= 200 && request.status < 300) {
+          document.open(); document.write(request.responseText); document.close();
+        } else {
+          message.textContent = 'Ошибка обновления: ' + (request.responseText || request.status);
+          submitButton.disabled = false;
+        }
+      };
+      request.onerror = () => {
+        message.textContent = 'Связь прервана. Проверьте состояние устройства перед повторной попыткой.';
+        submitButton.disabled = false;
+      };
+      request.open('POST', otaForm.action);
+      request.send(new FormData(otaForm));
+    });
+  </script>)rawliteral";
+  html += "</div>";
+  html += "</div></body></html>";
+  
+  webServer.send(200, "text/html", html);
+}

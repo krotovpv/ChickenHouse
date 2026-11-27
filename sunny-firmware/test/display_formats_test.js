@@ -1,0 +1,11 @@
+const fs = require('fs');
+const vm = require('vm');
+const assert = require('assert');
+const source = fs.readFileSync('src/web_pages.cpp', 'utf8');
+const match = source.match(/function formatFeedingRegister\(value\)\s*\{[^}]*\}/);
+assert(match, 'Страница кормления должна декодировать регистр');
+const format = vm.runInNewContext('(' + match[0] + ')');
+assert.equal(format(0x407b), 'Кормушка 2: 12.3 сек');
+assert.equal(format(0xe001), 'Кормушка 7: 0.1 сек');
+assert(!source.includes("id='b_2_13'"), 'R2:B13 зарезервирован');
+assert(!source.includes("id='b_2_14'"), 'R2:B14 зарезервирован');
